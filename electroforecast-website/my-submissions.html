@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>My Submissions · ElectroForecast</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
+</head>
+<body>
+<div class="app-shell"><div id="shell-sidebar"></div><div class="main"><div id="shell-topbar"></div><main class="content">
+  <section class="portal-welcome">
+    <div><div class="eyebrow">Your crowdsourcing contributions</div><h2>My Submissions</h2><p>Track appliance ratings you contributed to the platform. These records are separate from your household inventory.</p></div>
+    <button class="btn btn-primary" id="new-submission"><i data-feather="plus"></i> Submit New Appliance</button>
+  </section>
+
+  <section class="portal-kpis grid-4" aria-label="Submission summary">
+    <article class="portal-kpi"><span class="kpi-icon blue"><i data-feather="database"></i></span><div><div class="kpi-label">Total Contributions</div><div class="kpi-value" id="submission-total">0</div></div></article>
+    <article class="portal-kpi"><span class="kpi-icon amber"><i data-feather="clock"></i></span><div><div class="kpi-label">Pending</div><div class="kpi-value" id="submission-pending">0</div></div></article>
+    <article class="portal-kpi"><span class="kpi-icon green"><i data-feather="check-circle"></i></span><div><div class="kpi-label">Approved</div><div class="kpi-value" id="submission-approved">0</div></div></article>
+    <article class="portal-kpi"><span class="kpi-icon purple"><i data-feather="zap"></i></span><div><div class="kpi-label">Added to Inventory</div><div class="kpi-value" id="submission-inventory">0</div></div></article>
+  </section>
+
+  <section class="card portal-table-card">
+    <div class="card-head"><div><h3>Appliance Contributions</h3><div class="card-sub">Deleting a contribution does not remove an appliance already saved in My Appliances.</div></div><a class="btn btn-secondary btn-sm" href="my-appliances.html">Open My Appliances</a></div>
+    <div class="table-wrap portal-table"><table><thead><tr><th>Submission</th><th>Power Rating</th><th>Source</th><th>Status</th><th>Household Inventory</th><th>Actions</th></tr></thead><tbody id="submission-body"><tr><td colspan="6"><div class="table-loading">Loading submissions…</div></td></tr></tbody></table></div>
+  </section>
+</main></div></div>
+
+<div class="record-modal" id="submission-modal" hidden>
+  <button class="modal-scrim" type="button" data-close-submission aria-label="Close submission form"></button>
+  <section class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="submission-modal-title">
+    <header class="modal-header"><div><div class="eyebrow">Crowdsourced appliance rating</div><h3 id="submission-modal-title">Submit New Appliance</h3></div><button class="icon-btn modal-close" type="button" data-close-submission aria-label="Close submission form"><i data-feather="x"></i></button></header>
+    <form id="submission-form" class="record-form">
+      <input type="hidden" id="submission-id">
+      <div class="row-2"><div class="field"><label for="submission-name">Appliance Name *</label><input id="submission-name" name="appliance_name" required maxlength="120"></div><div class="field"><label for="submission-category">Category *</label><select id="submission-category" name="category_id" required></select></div></div>
+      <div class="row-2"><div class="field"><label for="submission-brand">Brand</label><input id="submission-brand" name="brand" maxlength="100"></div><div class="field"><label for="submission-model">Model</label><input id="submission-model" name="model" maxlength="100"></div></div>
+      <div class="row-3"><div class="field"><label for="submission-watts">Power Rating (W) *</label><input type="number" id="submission-watts" name="power_rating_watts" min="1" max="50000" step="0.01" required></div><div class="field"><label for="submission-quantity">Typical Quantity *</label><input type="number" id="submission-quantity" name="quantity" min="1" max="50" value="1" required></div><div class="field"><label for="submission-hours">Typical Hours / Day *</label><input type="number" id="submission-hours" name="avg_daily_usage_hours" min="0" max="24" step="0.1" required></div></div>
+      <div class="field"><label for="submission-source">Source of Information *</label><select id="submission-source" name="source_of_info" required><option value="nameplate_label">Nameplate label</option><option value="user_manual">User manual</option><option value="retailer_specs">Retailer specifications</option><option value="manual_estimate">Manual estimate</option></select></div>
+      <label class="checkbox-row form-confirmation"><input type="checkbox" id="submission-confirm" required> I confirm this appliance rating is accurate.</label>
+      <div class="modal-actions"><button class="btn btn-secondary" type="button" data-close-submission>Cancel</button><button class="btn btn-primary" type="submit" id="save-submission"><i data-feather="send"></i> Submit for Validation</button></div>
+    </form>
+  </section>
+</div>
+<script src="assets/js/api.js"></script><script src="assets/js/shell.js"></script><script src="assets/js/my-submissions.js"></script>
+</body></html>

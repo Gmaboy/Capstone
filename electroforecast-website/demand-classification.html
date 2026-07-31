@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Demand Classification · ElectroForecast</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
+<script src="assets/js/chart-lite.js"></script>
+</head>
+<body>
+<div class="app-shell">
+  <div id="shell-sidebar"></div>
+  <div class="main">
+    <div id="shell-topbar"></div>
+    <div class="content">
+
+      <div class="grid grid-3" style="margin-bottom:18px;">
+        <div class="card kpi-card">
+          <div class="kpi-icon amber"><i data-feather="activity"></i></div>
+          <div>
+            <div class="kpi-label">Current Demand</div>
+            <div class="kpi-value">High</div>
+            <div class="kpi-delta up"><i data-feather="arrow-up"></i> 78% probability</div>
+          </div>
+        </div>
+        <div class="card kpi-card">
+          <div class="kpi-icon blue"><i data-feather="percent"></i></div>
+          <div>
+            <div class="kpi-label">Average Probability</div>
+            <div class="kpi-value">72.4%</div>
+            <div class="text-sm text-muted">This week</div>
+          </div>
+        </div>
+        <div class="card kpi-card">
+          <div class="kpi-icon violet"><i data-feather="sun"></i></div>
+          <div>
+            <div class="kpi-label">High Demand Days</div>
+            <div class="kpi-value">4</div>
+            <div class="text-sm text-muted">This week</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-12" style="margin-bottom:18px;">
+        <div class="card span-8">
+          <div class="card-head">
+            <div><h3>Demand Level Over Time</h3><div class="card-sub">Classified using forecasted consumption thresholds</div></div>
+          </div>
+          <div class="chart-box"><canvas id="chartDemand"></canvas></div>
+          <div class="legend-row">
+            <div class="legend-item"><span class="legend-swatch" style="background:#16A34A;"></span>Low</div>
+            <div class="legend-item"><span class="legend-swatch" style="background:#F59E0B;"></span>Medium</div>
+            <div class="legend-item"><span class="legend-swatch" style="background:#EF4444;"></span>High</div>
+          </div>
+        </div>
+        <div class="card span-4">
+          <div class="card-head"><h3>Demand Level Distribution</h3></div>
+          <div class="chart-box sm donut-wrap">
+            <canvas id="chartDist"></canvas>
+            <div class="donut-center"><div class="val">7</div><div class="lbl">days tracked</div></div>
+          </div>
+          <div class="legend-row" style="flex-direction:column; align-items:stretch; gap:8px; margin-top:14px;">
+            <div class="legend-item" style="justify-content:space-between;"><span><span class="legend-swatch" style="background:#EF4444;"></span>High</span><b>43%</b></div>
+            <div class="legend-item" style="justify-content:space-between;"><span><span class="legend-swatch" style="background:#F59E0B;"></span>Medium</span><b>36%</b></div>
+            <div class="legend-item" style="justify-content:space-between;"><span><span class="legend-swatch" style="background:#16A34A;"></span>Low</span><b>21%</b></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-12">
+        <div class="card span-8">
+          <div class="card-head">
+            <div><h3>Daily Classification</h3><div class="card-sub">Predicted demand level per day, with model probability</div></div>
+            <a href="#" class="link-more">View All <i data-feather="arrow-right"></i></a>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Date</th><th>Demand Level</th><th>Probability (%)</th><th>Description</th><th>Recommendation</th></tr></thead>
+              <tbody>
+                <tr><td>May 27, 2026</td><td><span class="badge high"><span class="badge-dot"></span>High</span></td><td>78%</td><td>High consumption expected</td><td>Optimize usage today</td></tr>
+                <tr><td>May 26, 2026</td><td><span class="badge medium"><span class="badge-dot"></span>Medium</span></td><td>54%</td><td>Moderate consumption</td><td>Monitor peak-hour usage</td></tr>
+                <tr><td>May 25, 2026</td><td><span class="badge medium"><span class="badge-dot"></span>Medium</span></td><td>48%</td><td>Moderate consumption</td><td>No action needed</td></tr>
+                <tr><td>May 24, 2026</td><td><span class="badge low"><span class="badge-dot"></span>Low</span></td><td>32%</td><td>Low consumption</td><td>Good energy-saving day</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card span-4">
+          <div class="card-head"><h3>Classification Guide</h3></div>
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <div style="display:flex; gap:10px; align-items:flex-start;">
+              <span class="badge low" style="flex-shrink:0;"><span class="badge-dot"></span>Low</span>
+              <div class="text-sm text-muted">0 – 60% of estimated household capacity. Consumption is within normal savings range.</div>
+            </div>
+            <div style="display:flex; gap:10px; align-items:flex-start;">
+              <span class="badge medium" style="flex-shrink:0;"><span class="badge-dot"></span>Medium</span>
+              <div class="text-sm text-muted">61 – 80% of capacity. Consumption is moderate; monitor high-load appliances.</div>
+            </div>
+            <div style="display:flex; gap:10px; align-items:flex-start;">
+              <span class="badge high" style="flex-shrink:0;"><span class="badge-dot"></span>High</span>
+              <div class="text-sm text-muted">81 – 100%+ of capacity. Consumption is high; consider load-shifting actions.</div>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div class="text-sm text-muted">Demand levels are generated by the Hybrid BLSTM–SARIMA model output, mapped against household-specific thresholds derived from historical records.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/shell.js"></script>
+<script>
+ElectroShell.mount('demand', 'Demand Classification', { dateRange:false });
+
+const days = ['May 21','May 22','May 23','May 24','May 25','May 26','May 27'];
+const probs = [42,55,38,32,48,54,78];
+new Chart(document.getElementById('chartDemand'), {
+  type:'bar',
+  data:{ labels:days, datasets:[{
+    data:probs,
+    backgroundColor:probs.map(p=> p>=70?'#EF4444': p>=45?'#F59E0B':'#16A34A'),
+    borderRadius:6, maxBarThickness:34
+  }]},
+  options:{ plugins:{ legend:{display:false} }, scales:{ y:{ suggestedMax:100, grid:{ color:'#F1F5F9' } }, x:{ grid:{ display:false } } }, maintainAspectRatio:false }
+});
+
+new Chart(document.getElementById('chartDist'), {
+  type:'doughnut',
+  data:{ labels:['High','Medium','Low'], datasets:[{ data:[43,36,21], backgroundColor:['#EF4444','#F59E0B','#16A34A'], borderWidth:0 }] },
+  options:{ plugins:{ legend:{display:false} }, cutout:'68%', maintainAspectRatio:false }
+});
+</script>
+</body>
+</html>

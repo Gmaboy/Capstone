@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Administration · ElectroForecast</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
+</head>
+<body>
+<div class="app-shell">
+  <div id="shell-sidebar"></div>
+  <div class="main">
+    <div id="shell-topbar"></div>
+    <main class="content">
+      <section class="portal-welcome admin-welcome">
+        <div>
+          <div class="eyebrow">Crowdsourcing administration</div>
+          <h2>Data Validation Dashboard</h2>
+          <p>Review household submissions before they enter preprocessing and forecasting datasets.</p>
+        </div>
+        <div class="admin-live-status"><span></span> Database operational</div>
+      </section>
+
+      <section class="grid grid-4 portal-kpis" aria-label="Administrative summary">
+        <article class="card kpi-card">
+          <div class="kpi-icon amber"><i data-feather="clock"></i></div>
+          <div><div class="kpi-label">Pending Review</div><div class="kpi-value" id="admin-pending">—</div><div class="text-sm text-muted">Requires validation</div></div>
+        </article>
+        <article class="card kpi-card">
+          <div class="kpi-icon green"><i data-feather="check-circle"></i></div>
+          <div><div class="kpi-label">Approved Records</div><div class="kpi-value" id="admin-approved">—</div><div class="text-sm text-muted">Forecast-ready data</div></div>
+        </article>
+        <article class="card kpi-card">
+          <div class="kpi-icon violet"><i data-feather="home"></i></div>
+          <div><div class="kpi-label">Participating Households</div><div class="kpi-value" id="admin-households">—</div><div class="text-sm text-muted">Crowdsourcing contributors</div></div>
+        </article>
+        <article class="card kpi-card">
+          <div class="kpi-icon blue"><i data-feather="database"></i></div>
+          <div><div class="kpi-label">Data Readiness</div><div class="kpi-value" id="admin-readiness">—</div><div class="text-sm text-muted">Approved / total records</div></div>
+        </article>
+      </section>
+
+      <section class="grid grid-12 admin-grid">
+        <article class="card span-8 admin-review-card" id="review">
+          <div class="card-head admin-card-head">
+            <div><h3>Submission Review Queue</h3><div class="card-sub">Validate appliance and monthly electricity consumption records.</div></div>
+            <button class="btn btn-outline btn-sm" id="refresh-admin"><i data-feather="refresh-cw"></i> Refresh</button>
+          </div>
+          <div class="review-filters" role="tablist" aria-label="Submission status">
+            <button class="active" type="button" data-status-filter="pending" role="tab" aria-selected="true">Pending <span id="pending-filter-count">0</span></button>
+            <button type="button" data-status-filter="approved" role="tab" aria-selected="false">Approved</button>
+            <button type="button" data-status-filter="rejected" role="tab" aria-selected="false">Rejected</button>
+            <button type="button" data-status-filter="all" role="tab" aria-selected="false">All</button>
+          </div>
+          <div class="table-wrap portal-table-wrap">
+            <table class="portal-table admin-submission-table">
+              <thead><tr><th>Submission</th><th>Contributor</th><th>Details</th><th>Updated</th><th>Status</th><th aria-label="Actions"></th></tr></thead>
+              <tbody id="admin-submission-body"><tr><td colspan="6"><div class="table-loading">Loading submissions…</div></td></tr></tbody>
+            </table>
+          </div>
+        </article>
+
+        <aside class="span-4 admin-side-stack">
+          <article class="card">
+            <div class="card-head"><div><h3>Recent Audit Activity</h3><div class="card-sub">Persistent database actions</div></div></div>
+            <div class="audit-list" id="audit-list"><div class="table-loading">Loading activity…</div></div>
+          </article>
+        </aside>
+      </section>
+
+      <section class="card portal-section" id="users">
+        <div class="card-head portal-section-head">
+          <div><h3>Users &amp; Household Contributors</h3><div class="card-sub">Role, account status, location, and contribution totals.</div></div>
+        </div>
+        <div class="table-wrap portal-table-wrap">
+          <table class="portal-table">
+            <thead><tr><th>User</th><th>Role</th><th>Location</th><th>Contributions</th><th>Status</th><th aria-label="Actions"></th></tr></thead>
+            <tbody id="admin-user-body"><tr><td colspan="6"><div class="table-loading">Loading users…</div></td></tr></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<div class="record-modal" id="review-modal" hidden>
+  <button class="modal-scrim" type="button" data-close-review aria-label="Close review"></button>
+  <section class="modal-dialog review-dialog" role="dialog" aria-modal="true" aria-labelledby="review-title">
+    <header class="modal-header">
+      <div><div class="eyebrow" id="review-type">Submission review</div><h3 id="review-title">Review Record</h3></div>
+      <button class="icon-btn modal-close" type="button" data-close-review aria-label="Close review"><i data-feather="x"></i></button>
+    </header>
+    <div class="review-summary" id="review-summary"></div>
+    <div class="field"><label for="review-notes">Reviewer Notes</label><textarea id="review-notes" rows="4" placeholder="Required when rejecting; optional when approving."></textarea><div class="hint">Explain corrections clearly so the household can update and resubmit.</div></div>
+    <div class="modal-actions review-actions"><button type="button" class="btn btn-danger-outline" id="reject-submission"><i data-feather="x"></i> Reject</button><button type="button" class="btn btn-success" id="approve-submission"><i data-feather="check"></i> Approve</button></div>
+  </section>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script src="assets/js/shell.js"></script>
+<script src="assets/js/admin-dashboard.js"></script>
+</body>
+</html>

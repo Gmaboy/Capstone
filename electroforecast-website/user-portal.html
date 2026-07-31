@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>My Energy Portal · ElectroForecast</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
+</head>
+<body>
+<div class="app-shell">
+  <div id="shell-sidebar"></div>
+  <div class="main">
+    <div id="shell-topbar"></div>
+    <main class="content">
+      <section class="portal-welcome">
+        <div>
+          <div class="eyebrow">Household crowdsourcing portal</div>
+          <h2 id="welcome-title">Welcome back</h2>
+          <p id="household-meta">Loading your household profile…</p>
+        </div>
+        <button class="btn btn-primary" id="quick-add-appliance"><i data-feather="plus"></i> Add Appliance</button>
+      </section>
+
+      <section class="grid grid-4 portal-kpis" aria-label="Household summary">
+        <article class="card kpi-card">
+          <div class="kpi-icon blue"><i data-feather="zap"></i></div>
+          <div><div class="kpi-label">Registered Appliances</div><div class="kpi-value" id="stat-appliances">—</div><div class="text-sm text-muted">Household inventory</div></div>
+        </article>
+        <article class="card kpi-card">
+          <div class="kpi-icon amber"><i data-feather="activity"></i></div>
+          <div><div class="kpi-label">Estimated Daily Load</div><div class="kpi-value" id="stat-daily">—</div><div class="text-sm text-muted">From appliance usage</div></div>
+        </article>
+        <article class="card kpi-card">
+          <div class="kpi-icon green"><i data-feather="bar-chart-2"></i></div>
+          <div><div class="kpi-label">Latest Monthly Usage</div><div class="kpi-value" id="stat-latest">—</div><div class="text-sm text-muted" id="stat-latest-month">No record yet</div></div>
+        </article>
+        <article class="card kpi-card">
+          <div class="kpi-icon violet"><i data-feather="clock"></i></div>
+          <div><div class="kpi-label">Pending Validation</div><div class="kpi-value" id="stat-pending">—</div><div class="text-sm text-muted">Awaiting administrator review</div></div>
+        </article>
+      </section>
+
+      <section class="card readiness-card" id="submissions">
+        <div class="readiness-copy">
+          <div class="readiness-icon"><i data-feather="database"></i></div>
+          <div>
+            <h3>Forecast Data Readiness</h3>
+            <p>Only administrator-approved appliance and monthly consumption records are prepared for model preprocessing.</p>
+          </div>
+        </div>
+        <div class="readiness-meter">
+          <div class="readiness-number"><span id="readiness-value">0%</span><small id="readiness-detail">0 of 0 records approved</small></div>
+          <div class="bar-track"><div class="bar-fill" id="readiness-bar" style="width:0%"></div></div>
+        </div>
+      </section>
+
+      <section class="card portal-section" id="appliances">
+        <div class="card-head portal-section-head">
+          <div><h3>Household Appliances</h3><div class="card-sub">Names, power ratings, quantities, and average usage patterns required by the study.</div></div>
+          <button class="btn btn-primary btn-sm" id="add-appliance"><i data-feather="plus"></i> Add Appliance</button>
+        </div>
+        <div class="paper-alignment-note"><i data-feather="info"></i><span>New and edited records return to <b>Pending</b> until an administrator validates their accuracy and completeness.</span></div>
+        <div class="table-wrap portal-table-wrap">
+          <table class="portal-table">
+            <thead><tr><th>Appliance</th><th>Power &amp; Usage</th><th>Estimated Load</th><th>Source</th><th>Status</th><th aria-label="Actions"></th></tr></thead>
+            <tbody id="appliance-table-body"><tr><td colspan="6"><div class="table-loading">Loading appliances…</div></td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card portal-section" id="consumption">
+        <div class="card-head portal-section-head">
+          <div><h3>Monthly Electricity Consumption</h3><div class="card-sub">Submit the consumption printed on your monthly electric bill or utility record.</div></div>
+          <button class="btn btn-primary btn-sm" id="add-consumption"><i data-feather="plus"></i> Add Monthly Record</button>
+        </div>
+        <div class="table-wrap portal-table-wrap">
+          <table class="portal-table">
+            <thead><tr><th>Billing Month</th><th>Consumption</th><th>Bill Amount</th><th>Source</th><th>Status</th><th aria-label="Actions"></th></tr></thead>
+            <tbody id="consumption-table-body"><tr><td colspan="6"><div class="table-loading">Loading monthly records…</div></td></tr></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<div class="record-modal" id="record-modal" hidden>
+  <button class="modal-scrim" type="button" data-close-modal aria-label="Close form"></button>
+  <section class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <header class="modal-header">
+      <div><div class="eyebrow" id="modal-eyebrow">Crowdsourced record</div><h3 id="modal-title">Add Appliance</h3></div>
+      <button class="icon-btn modal-close" type="button" data-close-modal aria-label="Close form"><i data-feather="x"></i></button>
+    </header>
+
+    <form id="appliance-form" class="record-form">
+      <input type="hidden" id="appliance-id">
+      <div class="row-2">
+        <div class="field"><label for="appliance-name">Appliance Name *</label><input id="appliance-name" name="appliance_name" required maxlength="120" placeholder="e.g. Air Conditioner (1.5 HP)"></div>
+        <div class="field"><label for="appliance-category">Category *</label><select id="appliance-category" name="category_id" required></select></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label for="appliance-brand">Brand</label><input id="appliance-brand" name="brand" maxlength="100" placeholder="Optional"></div>
+        <div class="field"><label for="appliance-model">Model</label><input id="appliance-model" name="model" maxlength="100" placeholder="Optional"></div>
+      </div>
+      <div class="row-3">
+        <div class="field"><label for="appliance-watts">Power Rating (W) *</label><input type="number" id="appliance-watts" name="power_rating_watts" min="1" max="50000" step="0.01" required></div>
+        <div class="field"><label for="appliance-quantity">Quantity *</label><input type="number" id="appliance-quantity" name="quantity" min="1" max="50" value="1" required></div>
+        <div class="field"><label for="appliance-hours">Average Hours / Day *</label><input type="number" id="appliance-hours" name="avg_daily_usage_hours" min="0" max="24" step="0.1" required></div>
+      </div>
+      <div class="field"><label for="appliance-source">Source of Information *</label><select id="appliance-source" name="source_of_info" required><option value="nameplate_label">Nameplate label</option><option value="user_manual">User manual</option><option value="retailer_specs">Retailer specifications</option><option value="manual_estimate">Manual estimate</option></select><div class="hint">A nameplate label or user manual gives administrators stronger validation evidence.</div></div>
+      <label class="checkbox-row form-confirmation"><input type="checkbox" required> I confirm that this information is accurate to the best of my knowledge.</label>
+      <div class="modal-actions"><button type="button" class="btn btn-secondary" data-close-modal>Cancel</button><button type="submit" class="btn btn-primary" id="save-appliance"><i data-feather="send"></i> Submit for Validation</button></div>
+    </form>
+
+    <form id="consumption-form" class="record-form" hidden>
+      <input type="hidden" id="consumption-id">
+      <div class="row-2">
+        <div class="field"><label for="billing-month">Billing Month *</label><input type="month" id="billing-month" name="billing_month" required></div>
+        <div class="field"><label for="consumption-kwh">Consumption (kWh) *</label><input type="number" id="consumption-kwh" name="consumption_kwh" min="0.01" max="100000" step="0.01" required></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label for="bill-amount">Bill Amount (PHP)</label><input type="number" id="bill-amount" name="bill_amount_php" min="0" step="0.01" placeholder="Optional"></div>
+        <div class="field"><label for="meter-reading">Meter Reading</label><input type="number" id="meter-reading" name="meter_reading" min="0" step="0.01" placeholder="Optional"></div>
+      </div>
+      <div class="field"><label for="consumption-source">Source of Information *</label><select id="consumption-source" name="source_of_info" required><option value="electric_bill">Electric bill</option><option value="meter_reading">Meter reading</option><option value="utility_portal">Utility portal</option><option value="manual_entry">Manual entry</option></select></div>
+      <label class="checkbox-row form-confirmation"><input type="checkbox" required> I confirm that this monthly record matches my household electricity record.</label>
+      <div class="modal-actions"><button type="button" class="btn btn-secondary" data-close-modal>Cancel</button><button type="submit" class="btn btn-primary" id="save-consumption"><i data-feather="send"></i> Submit for Validation</button></div>
+    </form>
+  </section>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script src="assets/js/shell.js"></script>
+<script src="assets/js/user-portal.js"></script>
+</body>
+</html>

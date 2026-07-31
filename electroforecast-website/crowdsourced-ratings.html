@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Crowdsourced Appliance Ratings · ElectroForecast</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
+</head>
+<body>
+<div class="app-shell">
+  <div id="shell-sidebar"></div>
+  <div class="main">
+    <div id="shell-topbar"></div>
+    <main class="content">
+      <section class="portal-welcome catalog-welcome">
+        <div>
+          <div class="eyebrow">Administrator-approved community data</div>
+          <h2>Crowdsourced Appliance Ratings</h2>
+          <p>Find a verified appliance power rating, then reuse it in your household without re-entering its technical details.</p>
+        </div>
+        <a class="btn btn-primary" href="my-appliances.html?add=1"><i data-feather="plus"></i> Add to My Appliances</a>
+      </section>
+
+      <section class="portal-kpis row-3 catalog-kpis" aria-label="Catalog summary">
+        <article class="portal-kpi">
+          <span class="kpi-icon blue"><i data-feather="check-circle"></i></span>
+          <div><div class="kpi-label">Approved Ratings</div><div class="kpi-value" id="catalog-approved">0</div><div class="text-sm text-muted">Ready to reuse</div></div>
+        </article>
+        <article class="portal-kpi">
+          <span class="kpi-icon green"><i data-feather="users"></i></span>
+          <div><div class="kpi-label">Community Matches</div><div class="kpi-value" id="catalog-contributors">0</div><div class="text-sm text-muted">Validated household sources</div></div>
+        </article>
+        <article class="portal-kpi">
+          <span class="kpi-icon amber"><i data-feather="shield"></i></span>
+          <div><div class="kpi-label">Quality Status</div><div class="kpi-value catalog-quality">Admin Verified</div><div class="text-sm text-muted">Approved records only</div></div>
+        </article>
+      </section>
+
+      <section class="card catalog-card">
+        <div class="card-head catalog-head">
+          <div>
+            <h3>Approved Appliance Catalog</h3>
+            <div class="card-sub">Search by appliance name, brand, or model.</div>
+          </div>
+          <div class="catalog-result-count" id="catalog-result-count">Loading…</div>
+        </div>
+        <div class="catalog-toolbar">
+          <label class="catalog-search">
+            <i data-feather="search"></i>
+            <input id="catalog-search" type="search" placeholder="Try “Air Conditioner”" autocomplete="off">
+          </label>
+          <label class="sr-only" for="catalog-category">Filter by category</label>
+          <select id="catalog-category"><option value="">All categories</option></select>
+        </div>
+        <div class="catalog-grid" id="catalog-grid">
+          <div class="table-loading">Loading approved appliance ratings…</div>
+        </div>
+      </section>
+
+      <section class="reuse-guide">
+        <div><span>1</span><b>Search</b><small>Find the same appliance used in your home.</small></div>
+        <i data-feather="arrow-right"></i>
+        <div><span>2</span><b>Select</b><small>Reuse the administrator-approved technical rating.</small></div>
+        <i data-feather="arrow-right"></i>
+        <div><span>3</span><b>Personalize</b><small>Enter quantity and hours/day. It is accepted immediately without another review.</small></div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script src="assets/js/shell.js"></script>
+<script src="assets/js/crowdsourced-ratings.js"></script>
+</body>
+</html>

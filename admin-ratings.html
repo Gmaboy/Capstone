@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Review Ratings · ElectroForecast</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
+</head>
+<body>
+<div class="app-shell">
+  <div id="shell-sidebar"></div>
+  <div class="main">
+    <div id="shell-topbar"></div>
+    <div class="content">
+
+      <div class="card">
+        <div class="card-head">
+          <div><h3>Review Appliance Ratings</h3><div class="card-sub">Verify or reject crowdsourced appliance power ratings</div></div>
+        </div>
+        <div class="tabs">
+          <div class="tab active" id="tab-pending" onclick="showRatingsTab('pending')">Pending (8)</div>
+          <div class="tab" id="tab-verified" onclick="showRatingsTab('verified')">Verified</div>
+          <div class="tab" id="tab-rejected" onclick="showRatingsTab('rejected')">Rejected</div>
+        </div>
+
+        <div id="pane-pending">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Appliance</th><th>Power (W)</th><th>Source</th><th>Submitted By</th><th>Date</th><th>Action</th></tr></thead>
+              <tbody>
+                <tr><td>Induction Cooker</td><td>2000</td><td>Nameplate label</td><td>Ana P.</td><td>May 27, 2026</td><td class="row-actions"><button class="approve" onclick="reviewRow(this,'verified')"><i data-feather="check"></i></button><button class="reject" onclick="reviewRow(this,'rejected')"><i data-feather="x"></i></button></td></tr>
+                <tr><td>Air Purifier</td><td>45</td><td>User manual</td><td>Carlo D.</td><td>May 27, 2026</td><td class="row-actions"><button class="approve" onclick="reviewRow(this,'verified')"><i data-feather="check"></i></button><button class="reject" onclick="reviewRow(this,'rejected')"><i data-feather="x"></i></button></td></tr>
+                <tr><td>Water Dispenser</td><td>90</td><td>Manual estimate</td><td>Carla G.</td><td>May 26, 2026</td><td class="row-actions"><button class="approve" onclick="reviewRow(this,'verified')"><i data-feather="check"></i></button><button class="reject" onclick="reviewRow(this,'rejected')"><i data-feather="x"></i></button></td></tr>
+                <tr><td>Electric Kettle</td><td>1200</td><td>Nameplate label</td><td>Ana P.</td><td>May 25, 2026</td><td class="row-actions"><button class="approve" onclick="reviewRow(this,'verified')"><i data-feather="check"></i></button><button class="reject" onclick="reviewRow(this,'rejected')"><i data-feather="x"></i></button></td></tr>
+                <tr><td>Microwave Oven</td><td>800</td><td>Retailer specs</td><td>John P.</td><td>May 25, 2026</td><td class="row-actions"><button class="approve" onclick="reviewRow(this,'verified')"><i data-feather="check"></i></button><button class="reject" onclick="reviewRow(this,'rejected')"><i data-feather="x"></i></button></td></tr>
+                <tr><td>Rice Cooker</td><td>700</td><td>Nameplate label</td><td>Lisa G.</td><td>May 24, 2026</td><td class="row-actions"><button class="approve" onclick="reviewRow(this,'verified')"><i data-feather="check"></i></button><button class="reject" onclick="reviewRow(this,'rejected')"><i data-feather="x"></i></button></td></tr>
+                <tr><td>Electric Fan (18")</td><td>65</td><td>Manual estimate</td><td>Karen L.</td><td>May 23, 2026</td><td class="row-actions"><button class="approve" onclick="reviewRow(this,'verified')"><i data-feather="check"></i></button><button class="reject" onclick="reviewRow(this,'rejected')"><i data-feather="x"></i></button></td></tr>
+                <tr><td>Electric Iron</td><td>1000</td><td>Nameplate label</td><td>Mark R.</td><td>May 23, 2026</td><td class="row-actions"><button class="approve" onclick="reviewRow(this,'verified')"><i data-feather="check"></i></button><button class="reject" onclick="reviewRow(this,'rejected')"><i data-feather="x"></i></button></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <button><i data-feather="chevron-left"></i></button>
+            <button class="active">1</button><button>2</button>
+            <button><i data-feather="chevron-right"></i></button>
+          </div>
+        </div>
+
+        <div id="pane-verified" style="display:none;">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Appliance</th><th>Power (W)</th><th>Source</th><th>Submitted By</th><th>Verified Date</th><th>Verified By</th><th>Status</th></tr></thead>
+              <tbody id="verified-body">
+                <tr><td>Washing Machine (7kg)</td><td>450</td><td>Nameplate label</td><td>Maria S.</td><td>May 22, 2026</td><td>Greence Mark</td><td><span class="badge low">Verified</span></td></tr>
+                <tr><td>Refrigerator (2 Door)</td><td>150</td><td>User manual</td><td>Juan Dela Cruz</td><td>May 21, 2026</td><td>Greence Mark</td><td><span class="badge low">Verified</span></td></tr>
+                <tr><td>LED Television (43")</td><td>60</td><td>Retailer specs</td><td>Alex Mendoza</td><td>May 20, 2026</td><td>Greence Mark</td><td><span class="badge low">Verified</span></td></tr>
+                <tr><td>Air Conditioner (1.5HP)</td><td>1050</td><td>Nameplate label</td><td>Rogelio T.</td><td>May 19, 2026</td><td>Greence Mark</td><td><span class="badge low">Verified</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <button><i data-feather="chevron-left"></i></button>
+            <button class="active">1</button>
+            <button><i data-feather="chevron-right"></i></button>
+          </div>
+        </div>
+
+        <div id="pane-rejected" style="display:none;">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Appliance</th><th>Power (W)</th><th>Source</th><th>Submitted By</th><th>Rejected Date</th><th>Reason</th></tr></thead>
+              <tbody id="rejected-body">
+                <tr><td>Space Heater</td><td>3500</td><td>Manual estimate</td><td>Karen L.</td><td>May 18, 2026</td><td class="text-muted">Power rating inconsistent with appliance model</td></tr>
+                <tr><td>Gaming Console</td><td>15</td><td>Manual estimate</td><td>John P.</td><td>May 17, 2026</td><td class="text-muted">Value too low for device type</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <button><i data-feather="chevron-left"></i></button>
+            <button class="active">1</button>
+            <button><i data-feather="chevron-right"></i></button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/shell.js"></script>
+<script>
+ElectroShell.mount('admin-ratings', 'Review Ratings', { dateRange:false });
+
+function showRatingsTab(name){
+  document.querySelectorAll('.tabs .tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  document.getElementById('pane-pending').style.display = name==='pending' ? '' : 'none';
+  document.getElementById('pane-verified').style.display = name==='verified' ? '' : 'none';
+  document.getElementById('pane-rejected').style.display = name==='rejected' ? '' : 'none';
+}
+
+function reviewRow(btn, target){
+  const row = btn.closest('tr');
+  const cells = row.querySelectorAll('td');
+  const appliance = cells[0].textContent;
+  const power = cells[1].textContent;
+  const source = cells[2].textContent;
+  const submitter = cells[3].textContent;
+  const today = 'Just now';
+
+  if (target === 'verified') {
+    const body = document.getElementById('verified-body');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${appliance}</td><td>${power}</td><td>${source}</td><td>${submitter}</td><td>${today}</td><td>Greence Mark</td><td><span class="badge low">Verified</span></td>`;
+    body.prepend(tr);
+  } else {
+    const body = document.getElementById('rejected-body');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${appliance}</td><td>${power}</td><td>${source}</td><td>${submitter}</td><td>${today}</td><td class="text-muted">Manually rejected by admin</td>`;
+    body.prepend(tr);
+  }
+
+  row.remove();
+  const remaining = document.querySelectorAll('#pane-pending tbody tr').length;
+  document.getElementById('tab-pending').textContent = 'Pending (' + remaining + ')';
+  if (window.feather) feather.replace({ 'stroke-width': 2 });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>About · ElectroForecast</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
+</head>
+<body>
+<div class="app-shell">
+  <div id="shell-sidebar"></div>
+  <div class="main">
+    <div id="shell-topbar"></div>
+    <div class="content">
+
+      <div class="about-hero" style="margin-bottom:18px;">
+        <div>
+          <div class="version-pill">Version 1.0.0</div>
+          <h2>Hybrid BLSTM–SARIMA Crowdsourcing Platform for Electricity Consumption Forecasting</h2>
+          <p>A web-based platform that collects electricity consumption data through crowdsourcing and applies a hybrid deep-learning and statistical model to forecast demand and classify consumption levels for GUIMELCO, researchers, and consumers.</p>
+        </div>
+      </div>
+
+      <div class="grid grid-12">
+        <div class="card span-7">
+          <div class="card-head"><h3>About the Project</h3></div>
+          <div class="text-sm text-muted" style="line-height:1.7;">
+            The Hybrid BLSTM-SARIMA Crowdsourcing Platform for Electricity Consumption Forecasting and Demand Level Classification is a web-based platform developed to collect electricity consumption data through crowdsourcing and utilize advanced machine learning models for forecasting and demand classification. The system integrates Bidirectional Long Short-Term Memory (BLSTM) and Seasonal AutoRegressive Integrated Moving Average (SARIMA) algorithms to improve the accuracy of electricity consumption predictions.
+            <br><br>
+            The project aims to provide utility companies, researchers, and consumers with a reliable forecasting tool that can analyze historical electricity usage patterns and predict future consumption trends. Through the integration of crowdsourced data, the platform continuously gathers real-time information from users, enhancing the dataset used for forecasting and classification.
+            <br><br>
+            The system also classifies electricity demand into Low, Normal, High, and Peak levels, allowing users and energy providers to better understand consumption behavior, optimize energy distribution, and support informed decision-making.
+          </div>
+          <div class="divider"></div>
+          <div class="card-head" style="margin-bottom:10px;"><h3>Key Definitions</h3></div>
+          <div class="grid grid-2">
+            <div class="text-sm" style="margin-bottom:10px;"><b>BLSTM</b><div class="text-muted">Bidirectional LSTM used to forecast future residential electricity consumption from sequential data.</div></div>
+            <div class="text-sm" style="margin-bottom:10px;"><b>SARIMA</b><div class="text-muted">Seasonal ARIMA model that captures seasonal patterns in historical consumption data.</div></div>
+            <div class="text-sm" style="margin-bottom:10px;"><b>Crowdsourcing Platform</b><div class="text-muted">Enables participating households to voluntarily submit appliance and consumption data.</div></div>
+            <div class="text-sm" style="margin-bottom:10px;"><b>Explainable AI (XAI)</b><div class="text-muted">Explains how and why the model produces its predictions, using SHAP or LIME.</div></div>
+          </div>
+        </div>
+
+        <div class="card span-5">
+          <div class="card-head"><h3>Technologies Used</h3></div>
+          <div class="table-wrap">
+            <table>
+              <tbody>
+                <tr><td style="font-weight:600;">HTML / CSS</td><td class="text-muted">Structure and visual presentation of web pages</td></tr>
+                <tr><td style="font-weight:600;">JavaScript</td><td class="text-muted">Interactivity and real-time UI updates</td></tr>
+                <tr><td style="font-weight:600;">Flask (Python)</td><td class="text-muted">Server-side scripting, routing, and communication between the web app and database</td></tr>
+                <tr><td style="font-weight:600;">Flask-SQLAlchemy</td><td class="text-muted">ORM for database access and queries</td></tr>
+                <tr><td style="font-weight:600;">Flask-Login</td><td class="text-muted">Session and authentication management</td></tr>
+                <tr><td style="font-weight:600;">MySQL / MariaDB</td><td class="text-muted">Storage for users, consumption data, and forecasts</td></tr>
+                <tr><td style="font-weight:600;">Python</td><td class="text-muted">BLSTM / SARIMA model implementation</td></tr>
+                <tr><td style="font-weight:600;">TensorFlow / Keras</td><td class="text-muted">Training the BLSTM model</td></tr>
+                <tr><td style="font-weight:600;">Scikit-learn</td><td class="text-muted">Preprocessing, metrics, and classification</td></tr>
+                <tr><td style="font-weight:600;">Python venv</td><td class="text-muted">Local development environment for the Flask app</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-3" style="margin-top:18px;">
+        <div class="card">
+          <div class="kpi-icon blue" style="margin-bottom:10px;"><i data-feather="users"></i></div>
+          <div style="font-weight:700; font-size:13.5px;">Developed by</div>
+          <div class="text-sm text-muted">BSIT Capstone Team</div>
+        </div>
+        <div class="card">
+          <div class="kpi-icon amber" style="margin-bottom:10px;"><i data-feather="git-branch"></i></div>
+          <div style="font-weight:700; font-size:13.5px;">Version</div>
+          <div class="text-sm text-muted">1.0.0 · May 2026</div>
+        </div>
+        <div class="card">
+          <div class="kpi-icon green" style="margin-bottom:10px;"><i data-feather="mail"></i></div>
+          <div style="font-weight:700; font-size:13.5px;">Contact</div>
+          <div class="text-sm text-muted">gecast.capstone@example.com</div>
+        </div>
+      </div>
+
+      <div class="text-sm text-muted" style="text-align:center; margin-top:22px;">© 2026 ElectroForecast. All rights reserved.</div>
+
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/shell.js"></script>
+<script>ElectroShell.mount('about', 'About', { dateRange:false });</script>
+</body>
+</html>

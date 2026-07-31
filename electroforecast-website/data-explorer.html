@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Data Explorer · ElectroForecast</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
+<script src="assets/js/chart-lite.js"></script>
+</head>
+<body>
+<div class="app-shell">
+  <div id="shell-sidebar"></div>
+  <div class="main">
+    <div id="shell-topbar"></div>
+    <div class="content">
+
+      <div class="card" style="margin-bottom:18px;">
+        <div class="card-head"><div><h3>Data Explorer</h3><div class="card-sub">Explore historical electricity consumption records</div></div></div>
+        <div class="grid grid-4">
+          <div class="field" style="margin-bottom:0;"><label>Date Range</label><input type="text" value="May 1 – May 25, 2026"></div>
+          <div class="field" style="margin-bottom:0;"><label>Granularity</label><select><option>Daily</option><option>Weekly</option><option>Monthly</option></select></div>
+          <div class="field" style="margin-bottom:0;"><label>Data Type</label><select><option>Consumption (kWh)</option><option>Temperature (°C)</option><option>Demand Level</option></select></div>
+          <div class="field" style="margin-bottom:0;">
+            <label>&nbsp;</label>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-primary" style="flex:1;"><i data-feather="filter"></i> Apply Filters</button>
+              <button class="btn btn-outline"><i data-feather="download"></i> Export CSV</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:18px;">
+        <div class="card-head"><h3>Consumption Over Time</h3></div>
+        <div class="chart-box"><canvas id="chartExplorer"></canvas></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Historical Records</h3></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Date</th><th>Consumption (kWh)</th><th>Avg. Temperature (°C)</th><th>Day of Week</th></tr></thead>
+            <tbody>
+              <tr><td>May 25, 2026</td><td>260.1</td><td>32.0</td><td>Monday</td></tr>
+              <tr><td>May 24, 2026</td><td>216.2</td><td>30.2</td><td>Sunday</td></tr>
+              <tr><td>May 23, 2026</td><td>240.5</td><td>31.4</td><td>Saturday</td></tr>
+              <tr><td>May 22, 2026</td><td>198.9</td><td>29.6</td><td>Friday</td></tr>
+              <tr><td>May 21, 2026</td><td>205.4</td><td>29.9</td><td>Thursday</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <button><i data-feather="chevron-left"></i></button>
+          <button class="active">1</button><button>2</button><button>3</button><span class="text-sm text-muted">…</span><button>10</button>
+          <button><i data-feather="chevron-right"></i></button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/shell.js"></script>
+<script>
+ElectroShell.mount('explorer', 'Data Explorer', { dateRange:false });
+const labels = ['May 6','May 11','May 16','May 21','May 25'];
+new Chart(document.getElementById('chartExplorer'), {
+  type:'line',
+  data:{ labels, datasets:[{ label:'Consumption (kWh)', data:[210,238,195,220,260], borderColor:'#2563EB', backgroundColor:'rgba(37,99,235,.08)', fill:true, tension:.35, pointRadius:3 }] },
+  options:{ plugins:{ legend:{display:false} }, scales:{ y:{ grid:{ color:'#F1F5F9' } }, x:{ grid:{ display:false } } }, maintainAspectRatio:false }
+});
+</script>
+</body>
+</html>

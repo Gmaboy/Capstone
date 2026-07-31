@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="refresh" content="0; url=admin-dashboard.html#users">
+<script>location.replace('admin-dashboard.html#users');</script>
+<title>User Management · ElectroForecast</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
+</head>
+<body>
+<div class="app-shell">
+  <div id="shell-sidebar"></div>
+  <div class="main">
+    <div id="shell-topbar"></div>
+    <div class="content">
+
+      <div class="card">
+        <div class="card-head">
+          <div><h3>User Management</h3><div class="card-sub">Manage system users and permissions</div></div>
+          <button class="btn btn-primary btn-sm"><i data-feather="plus"></i> Add User</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              <tr><td class="cell-user"><span class="mini-avatar">GM</span>Greence Mark</td><td>mark.greence@example.com</td><td>Administrator</td><td><span class="badge low">Active</span></td><td class="row-actions"><button><i data-feather="edit-2"></i></button><button><i data-feather="trash-2"></i></button></td></tr>
+              <tr><td class="cell-user"><span class="mini-avatar">JD</span>Juan Dela Cruz</td><td>juan.delacruz@example.com</td><td>Contributor</td><td><span class="badge low">Active</span></td><td class="row-actions"><button><i data-feather="edit-2"></i></button><button><i data-feather="trash-2"></i></button></td></tr>
+              <tr><td class="cell-user"><span class="mini-avatar">MS</span>Maria Santos</td><td>maria.santos@example.com</td><td>Contributor</td><td><span class="badge low">Active</span></td><td class="row-actions"><button><i data-feather="edit-2"></i></button><button><i data-feather="trash-2"></i></button></td></tr>
+              <tr><td class="cell-user"><span class="mini-avatar">AM</span>Alex Mendoza</td><td>alex.mendoza@example.com</td><td>Reviewer</td><td><span class="badge neutral">Inactive</span></td><td class="row-actions"><button><i data-feather="edit-2"></i></button><button><i data-feather="trash-2"></i></button></td></tr>
+              <tr><td class="cell-user"><span class="mini-avatar">RT</span>Rogelio Torres</td><td>rogelio.torres@example.com</td><td>Researcher</td><td><span class="badge low">Active</span></td><td class="row-actions"><button><i data-feather="edit-2"></i></button><button><i data-feather="trash-2"></i></button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <button><i data-feather="chevron-left"></i></button>
+          <button class="active">1</button><button>2</button><button>3</button><span class="text-sm text-muted">…</span><button>10</button>
+          <button><i data-feather="chevron-right"></i></button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/shell.js"></script>
+<script>ElectroShell.mount('admin-users', 'User Management', { dateRange:false });</script>
+</body>
+</html>

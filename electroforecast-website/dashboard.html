@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dashboard · ElectroForecast</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
+<script src="assets/js/chart-lite.js"></script>
+</head>
+<body>
+<div class="app-shell">
+  <div id="shell-sidebar"></div>
+  <div class="main">
+    <div id="shell-topbar"></div>
+    <div class="content">
+
+      <div class="grid grid-4" style="margin-bottom:18px;">
+        <div class="card kpi-card">
+          <div class="kpi-icon blue"><i data-feather="zap"></i></div>
+          <div>
+            <div class="kpi-label">Total Consumption (This Week)</div>
+            <div class="kpi-value">1,243.58 kWh</div>
+            <div class="kpi-delta up"><i data-feather="arrow-up"></i> 6.4% vs last week</div>
+          </div>
+        </div>
+        <div class="card kpi-card">
+          <div class="kpi-icon amber"><i data-feather="trending-up"></i></div>
+          <div>
+            <div class="kpi-label">Forecast (Next 7 Days)</div>
+            <div class="kpi-value">1,356.72 kWh</div>
+            <div class="text-sm text-muted">Predicted</div>
+          </div>
+        </div>
+        <div class="card kpi-card">
+          <div class="kpi-icon amber"><i data-feather="activity"></i></div>
+          <div>
+            <div class="kpi-label">Demand Level</div>
+            <div class="kpi-value">High</div>
+            <div class="kpi-delta up"><i data-feather="arrow-up"></i> 78% probability</div>
+          </div>
+        </div>
+        <div class="card kpi-card">
+          <div class="kpi-icon violet"><i data-feather="users"></i></div>
+          <div>
+            <div class="kpi-label">Active Contributors</div>
+            <div class="kpi-value">152</div>
+            <div class="kpi-delta up"><i data-feather="arrow-up"></i> 12 new this month</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-12" style="margin-bottom:18px;">
+        <div class="card span-8">
+          <div class="card-head">
+            <div>
+              <h3>Consumption vs Forecast</h3>
+              <div class="card-sub">Actual usage compared with the Hybrid BLSTM–SARIMA forecast</div>
+            </div>
+            <div class="tabs" style="border:0;margin:0;">
+              <div class="tab active" style="margin-right:10px;">Daily</div>
+              <div class="tab" style="margin-right:10px;">Weekly</div>
+              <div class="tab">Monthly</div>
+            </div>
+          </div>
+          <div class="chart-box"><canvas id="chartConsumption"></canvas></div>
+          <div class="legend-row">
+            <div class="legend-item"><span class="legend-swatch" style="background:#2563EB;"></span>Actual</div>
+            <div class="legend-item"><span class="legend-swatch" style="background:#16A34A;"></span>Forecast</div>
+            <div class="legend-item"><span class="legend-swatch" style="background:#CBD5E1;"></span>Confidence Interval</div>
+          </div>
+        </div>
+
+        <div class="card span-4">
+          <div class="card-head"><h3>Demand Level Gauge</h3></div>
+          <div class="gauge-wrap">
+            <canvas id="chartGauge" width="220" height="130"></canvas>
+            <div class="gauge-value">High <span style="color:var(--grey-600); font-weight:700; font-size:15px;">(78%)</span></div>
+            <div class="gauge-caption">Forecasted for the week of May 25–31</div>
+            <a href="demand-classification.html" class="link-more" style="margin-top:14px;">View Details <i data-feather="arrow-right"></i></a>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-12">
+        <div class="card span-4">
+          <div class="card-head">
+            <div>
+              <h3>Top Contributing Appliances</h3>
+              <div class="card-sub">This week</div>
+            </div>
+          </div>
+          <div class="chart-box sm donut-wrap">
+            <canvas id="chartAppliances"></canvas>
+            <div class="donut-center"><div class="val">1,243</div><div class="lbl">kWh total</div></div>
+          </div>
+          <div class="legend-row" style="flex-direction:column; align-items:stretch; gap:8px;">
+            <div class="legend-item" style="justify-content:space-between;"><span><span class="legend-swatch" style="background:#2563EB;"></span>Air Conditioner</span><b>28% (348.2 kWh)</b></div>
+            <div class="legend-item" style="justify-content:space-between;"><span><span class="legend-swatch" style="background:#16A34A;"></span>Refrigerator</span><b>22% (273.6 kWh)</b></div>
+            <div class="legend-item" style="justify-content:space-between;"><span><span class="legend-swatch" style="background:#F59E0B;"></span>Washing Machine</span><b>16% (198.9 kWh)</b></div>
+            <div class="legend-item" style="justify-content:space-between;"><span><span class="legend-swatch" style="background:#7C3AED;"></span>Television</span><b>12% (149.2 kWh)</b></div>
+          </div>
+          <a href="my-appliances.html" class="link-more" style="margin-top:12px;">View All <i data-feather="arrow-right"></i></a>
+        </div>
+
+        <div class="card span-4">
+          <div class="card-head"><h3>Explainable AI Insights</h3></div>
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <div style="display:flex; gap:10px;">
+              <div class="kpi-icon blue" style="width:34px;height:34px;border-radius:8px;"><i data-feather="thermometer" style="width:15px;height:15px;"></i></div>
+              <div><div style="font-size:12.5px;font-weight:600;">High appliance usage</div><div class="text-sm text-muted">Air conditioner &amp; refrigerator load is the top driver</div></div>
+            </div>
+            <div style="display:flex; gap:10px;">
+              <div class="kpi-icon amber" style="width:34px;height:34px;border-radius:8px;"><i data-feather="sun" style="width:15px;height:15px;"></i></div>
+              <div><div style="font-size:12.5px;font-weight:600;">Weekend effect</div><div class="text-sm text-muted">Higher consumption observed on weekends</div></div>
+            </div>
+            <div style="display:flex; gap:10px;">
+              <div class="kpi-icon green" style="width:34px;height:34px;border-radius:8px;"><i data-feather="cloud-rain" style="width:15px;height:15px;"></i></div>
+              <div><div style="font-size:12.5px;font-weight:600;">Seasonal trend</div><div class="text-sm text-muted">Rising temperature is increasing cooling appliance use</div></div>
+            </div>
+          </div>
+          <a href="explainable-ai.html" class="link-more" style="margin-top:14px;">View All <i data-feather="arrow-right"></i></a>
+        </div>
+
+        <div class="card span-4">
+          <div class="card-head"><h3>Crowdsourced Ratings</h3></div>
+          <div class="kpi-value" style="font-size:26px;">1,248 <span class="text-sm text-muted" style="font-weight:600;">total ratings</span></div>
+          <div class="kpi-delta up"><i data-feather="arrow-up"></i> 65 new this week</div>
+          <div class="divider"></div>
+          <div class="text-sm text-muted">Help improve forecast accuracy by verifying appliance power ratings submitted by other households.</div>
+          <button class="btn btn-primary btn-block" style="margin-top:14px;" onclick="window.location.href='crowdsourced-ratings.html'">Contribute Now</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/shell.js"></script>
+<script>
+ElectroShell.mount('dashboard', 'Dashboard');
+
+const days = ['May 21','May 22','May 23','May 24','May 25','May 26','May 27'];
+new Chart(document.getElementById('chartConsumption'), {
+  type:'line',
+  data:{ labels:days,
+    datasets:[
+      { label:'Actual', data:[168,182,171,205,240,255,222], borderColor:'#2563EB', backgroundColor:'rgba(37,99,235,.08)', tension:.35, fill:true, pointRadius:3 },
+      { label:'Forecast', data:[172,180,178,210,232,248,235], borderColor:'#16A34A', borderDash:[5,4], tension:.35, pointRadius:0 },
+      { label:'Upper', data:[190,198,196,228,252,268,256], borderColor:'rgba(203,213,225,.7)', pointRadius:0, fill:'+1', backgroundColor:'rgba(203,213,225,.35)' },
+      { label:'Lower', data:[154,162,160,192,212,228,214], borderColor:'rgba(203,213,225,.7)', pointRadius:0 },
+    ]},
+  options:{ plugins:{ legend:{ display:false } }, scales:{ y:{ ticks:{ callback:v=>v }, grid:{ color:'#F1F5F9' } }, x:{ grid:{ display:false } } }, maintainAspectRatio:false }
+});
+
+new Chart(document.getElementById('chartGauge'), {
+  type:'doughnut',
+  data:{ datasets:[{ data:[25,25,25,25,100], backgroundColor:['#16A34A','#F59E0B','#EF4444','#B91C1C','transparent'], borderWidth:0, circumference:180, rotation:270, cutout:'72%' }] },
+  options:{ plugins:{ tooltip:{enabled:false}, legend:{display:false} }, maintainAspectRatio:false }
+});
+
+new Chart(document.getElementById('chartAppliances'), {
+  type:'doughnut',
+  data:{ labels:['Air Conditioner','Refrigerator','Washing Machine','Television'],
+    datasets:[{ data:[28,22,16,12,22], backgroundColor:['#2563EB','#16A34A','#F59E0B','#7C3AED','#E2E8F0'], borderWidth:0 }] },
+  options:{ plugins:{ legend:{display:false} }, cutout:'68%', maintainAspectRatio:false }
+});
+</script>
+</body>
+</html>

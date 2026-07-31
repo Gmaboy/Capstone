@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sign In · ElectroForecast</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" href="assets/images/electroforecast-logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
+</head>
+<body>
+<div class="login-shell">
+  <div class="login-aside">
+    <div class="brand">
+      <div class="logo-mark"><img src="assets/images/electroforecast-logo.png" alt="ElectroForecast logo"></div>
+      <div>
+        <div style="font-weight:800;font-size:15px;">GUIMPOWERCORE</div>
+        <div style="font-size:10.5px;color:#AEC2F5;">Smart Energy Insights</div>
+      </div>
+    </div>
+    <div class="login-hero">
+      <div class="login-hero-copy">
+        <div class="eyebrow">AI-powered energy intelligence</div>
+        <h1>Smarter forecasts.<br>Better energy decisions.</h1>
+        <p>A hybrid BLSTM–SARIMA forecasting platform built with GUIMELCO to predict electricity demand and guide sustainable energy choices across Guimaras.</p>
+      </div>
+      <img class="brand-hero-art" src="assets/images/electroforecast-logo.png" alt="" aria-hidden="true">
+    </div>
+    <div class="login-credit">© 2026 ElectroForecast <span>•</span> GECAST Capstone Platform</div>
+  </div>
+
+  <div class="login-form-side">
+    <div class="login-form-card">
+      <div class="brand-sm">
+        <div class="logo-mark"><img src="assets/images/electroforecast-logo.png" alt="ElectroForecast logo"></div>
+        <div>
+          <div class="brand-name">ElectroForecast</div>
+          <div class="brand-tag">Smart Energy Insights</div>
+        </div>
+      </div>
+
+      <h2>Welcome back!</h2>
+      <div class="sub">Sign in to continue to your account.</div>
+
+      <form id="login-form">
+        <div class="field">
+          <label for="email">Email address</label>
+          <input type="email" id="email" placeholder="Enter your email" autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="input-icon-wrap">
+            <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password" required>
+            <button type="button" class="password-toggle" aria-label="Show password" aria-pressed="false">
+              <i data-feather="eye"></i>
+            </button>
+          </div>
+        </div>
+        <div class="form-foot-row">
+          <label class="checkbox-row"><input type="checkbox" checked> Remember me</label>
+          <a href="#">Forgot password?</a>
+        </div>
+        <div class="alert error" id="login-error" style="display:none;margin-bottom:14px;"><i data-feather="alert-circle"></i><span></span></div>
+        <button type="submit" class="btn btn-primary btn-block" id="login-button">Sign In</button>
+      </form>
+
+      <div class="divider"></div>
+      <div class="demo-login">
+        <div class="text-sm text-muted">Demo accounts</div>
+        <div class="demo-login-actions">
+          <button type="button" class="btn btn-outline btn-sm" data-email="household@electroforecast.local" data-password="Household123!"><i data-feather="home"></i> Household</button>
+          <button type="button" class="btn btn-outline btn-sm" data-email="admin@electroforecast.local" data-password="Admin123!"><i data-feather="shield"></i> Administrator</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="assets/js/api.js"></script>
+<script>
+feather.replace({ 'stroke-width': 2 });
+const passwordInput = document.getElementById('password');
+const passwordToggle = document.querySelector('.password-toggle');
+passwordToggle.addEventListener('click', () => {
+  const showPassword = passwordInput.type === 'password';
+  passwordInput.type = showPassword ? 'text' : 'password';
+  passwordToggle.setAttribute('aria-label', showPassword ? 'Hide password' : 'Show password');
+  passwordToggle.setAttribute('aria-pressed', String(showPassword));
+  passwordToggle.innerHTML = `<i data-feather="${showPassword ? 'eye-off' : 'eye'}"></i>`;
+  feather.replace({ 'stroke-width': 2 });
+});
+
+document.querySelectorAll('[data-email]').forEach(button=>{
+  button.addEventListener('click', ()=>{
+    document.getElementById('email').value = button.dataset.email;
+    document.getElementById('password').value = button.dataset.password;
+    document.getElementById('login-error').style.display = 'none';
+  });
+});
+
+document.getElementById('login-form').addEventListener('submit', async event=>{
+  event.preventDefault();
+  const button = document.getElementById('login-button');
+  const errorBox = document.getElementById('login-error');
+  button.disabled = true;
+  button.textContent = 'Signing in…';
+  errorBox.style.display = 'none';
+  try {
+    const payload = await ElectroAPI.request('/api/auth/login', {
+      method:'POST',
+      body:{
+        email:document.getElementById('email').value,
+        password:document.getElementById('password').value
+      }
+    });
+    sessionStorage.setItem('electro_user', JSON.stringify(payload.user));
+    window.location.href = payload.redirect;
+  } catch (error) {
+    errorBox.querySelector('span').textContent = error.message;
+    errorBox.style.display = 'flex';
+    if (window.feather) feather.replace({ 'stroke-width':2 });
+    button.disabled = false;
+    button.textContent = 'Sign In';
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings · ElectroForecast</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
+<style>
+.settings-nav{display:flex; flex-direction:column; gap:2px;}
+.settings-nav .s-item{padding:9px 12px; border-radius:8px; font-size:13px; font-weight:600; color:var(--grey-600); cursor:pointer; display:flex; align-items:center; gap:9px;}
+.settings-nav .s-item i{width:15px;height:15px;}
+.settings-nav .s-item.active{background:var(--primary-50); color:var(--primary);}
+.settings-nav .s-item:hover:not(.active){background:var(--grey-100);}
+.settings-panel{display:none;}
+.settings-panel.active{display:block;}
+.status-row{display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--grey-100);}
+.status-row:last-child{border-bottom:0;}
+.status-dot{width:8px;height:8px;border-radius:50%; display:inline-block; margin-right:7px;}
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <div id="shell-sidebar"></div>
+  <div class="main">
+    <div id="shell-topbar"></div>
+    <div class="content">
+
+      <div class="grid grid-12">
+        <div class="card span-3">
+          <div class="card-head"><h3>Settings</h3></div>
+          <div class="settings-nav">
+            <div class="s-item active" id="nav-profile" onclick="showSettingsPanel('profile')"><i data-feather="user"></i>Profile</div>
+            <div class="s-item" id="nav-preferences" onclick="showSettingsPanel('preferences')"><i data-feather="sliders"></i>Preferences</div>
+            <div class="s-item" id="nav-datasource" onclick="showSettingsPanel('datasource')"><i data-feather="database"></i>Data Source</div>
+            <div class="s-item" id="nav-security" onclick="showSettingsPanel('security')"><i data-feather="lock"></i>Security</div>
+            <div class="s-item" id="nav-system" onclick="showSettingsPanel('system')"><i data-feather="cpu"></i>System</div>
+          </div>
+        </div>
+
+        <div class="card span-9">
+
+          <!-- PROFILE -->
+          <div class="settings-panel active" id="panel-profile">
+            <div class="card-head"><div><h3>Profile Information</h3><div class="card-sub">Manage your account and preferences</div></div></div>
+            <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px;">
+              <div class="topbar-avatar" style="width:64px;height:64px;font-size:20px;">GM</div>
+              <button class="btn btn-outline btn-sm">Change Photo</button>
+            </div>
+            <div class="row-2">
+              <div class="field"><label>Full Name</label><input type="text" value="Greence Mark"></div>
+              <div class="field"><label>Email</label><input type="email" value="mark.greence@example.com"></div>
+            </div>
+            <div class="row-2">
+              <div class="field"><label>Role</label><select><option>Administrator</option><option>GUIMELCO Staff</option><option>Researcher</option><option>Household</option></select></div>
+              <div class="field"><label>Contact Number</label><input type="text" value="+63 9XX XXX XXXX"></div>
+            </div>
+            <div class="divider"></div>
+            <div class="card-head" style="margin-bottom:10px;"><h3>Notification Preferences</h3></div>
+            <label class="checkbox-row" style="margin-bottom:10px;"><input type="checkbox" checked> Email me about high demand forecasts</label>
+            <label class="checkbox-row" style="margin-bottom:10px;"><input type="checkbox" checked> Notify me when my ratings are reviewed</label>
+            <label class="checkbox-row" style="margin-bottom:18px;"><input type="checkbox"> Send weekly summary reports</label>
+            <button class="btn btn-primary" onclick="saveSettings(this)">Save Changes</button>
+          </div>
+
+          <!-- PREFERENCES -->
+          <div class="settings-panel" id="panel-preferences">
+            <div class="card-head"><div><h3>Preferences</h3><div class="card-sub">Customize how forecasts and dashboards are displayed</div></div></div>
+            <div class="row-2">
+              <div class="field"><label>Default Forecast Horizon</label><select><option>Next 7 Days</option><option>Next 14 Days</option><option>Next 30 Days</option></select></div>
+              <div class="field"><label>Default Granularity</label><select><option>Daily</option><option>Weekly</option><option>Monthly</option></select></div>
+            </div>
+            <div class="row-2">
+              <div class="field"><label>Measurement Unit</label><select><option>kWh</option><option>MWh</option></select></div>
+              <div class="field"><label>Dashboard Landing Page</label><select><option>Dashboard</option><option>Forecasting</option><option>Demand Classification</option></select></div>
+            </div>
+            <div class="divider"></div>
+            <div class="card-head" style="margin-bottom:10px;"><h3>Display</h3></div>
+            <label class="checkbox-row" style="margin-bottom:10px;"><input type="checkbox" checked> Show confidence interval bands on forecast charts</label>
+            <label class="checkbox-row" style="margin-bottom:10px;"><input type="checkbox" checked> Show demand level gauge on dashboard</label>
+            <label class="checkbox-row" style="margin-bottom:18px;"><input type="checkbox"> Enable compact table view</label>
+            <button class="btn btn-primary" onclick="saveSettings(this)">Save Changes</button>
+          </div>
+
+          <!-- DATA SOURCE -->
+          <div class="settings-panel" id="panel-datasource">
+            <div class="card-head"><div><h3>Data Source</h3><div class="card-sub">Manage where historical and crowdsourced data comes from</div></div></div>
+
+            <div class="status-row">
+              <div><b style="font-size:13px;">GUIMELCO Historical Consumption Feed</b><div class="text-sm text-muted">2020–2025 hourly/daily consumption &amp; peak demand records</div></div>
+              <span class="badge low"><span class="badge-dot"></span>Connected</span>
+            </div>
+            <div class="status-row">
+              <div><b style="font-size:13px;">Household Crowdsourcing Platform</b><div class="text-sm text-muted">Appliance information submitted by 152 active contributors</div></div>
+              <span class="badge low"><span class="badge-dot"></span>Active</span>
+            </div>
+            <div class="status-row">
+              <div><b style="font-size:13px;">Weather Data (PAGASA / Public API)</b><div class="text-sm text-muted">Temperature and rainfall features for SARIMA seasonality</div></div>
+              <span class="badge medium"><span class="badge-dot"></span>Pending Setup</span>
+            </div>
+            <div class="status-row">
+              <div><b style="font-size:13px;">Transformer / Feeder Load Data</b><div class="text-sm text-muted">Optional grid-level validation dataset</div></div>
+              <span class="badge neutral"><span class="badge-dot"></span>Not Connected</span>
+            </div>
+
+            <div class="divider"></div>
+            <div class="card-head" style="margin-bottom:10px;"><h3>Import Settings</h3></div>
+            <div class="row-2">
+              <div class="field"><label>Data Refresh Frequency</label><select><option>Daily</option><option>Weekly</option><option>Manual</option></select></div>
+              <div class="field"><label>File Format</label><select><option>CSV</option><option>XLSX</option><option>JSON</option></select></div>
+            </div>
+            <button class="btn btn-outline" style="margin-right:10px;"><i data-feather="upload"></i> Upload Dataset</button>
+            <button class="btn btn-primary" onclick="saveSettings(this)">Save Changes</button>
+          </div>
+
+          <!-- SECURITY -->
+          <div class="settings-panel" id="panel-security">
+            <div class="card-head"><div><h3>Security</h3><div class="card-sub">Manage password and account access</div></div></div>
+            <div class="row-2">
+              <div class="field"><label>Current Password</label><input type="password" placeholder="Enter current password"></div>
+              <div class="field"><label>New Password</label><input type="password" placeholder="Enter new password"></div>
+            </div>
+            <div class="row-2">
+              <div class="field"><label>Confirm New Password</label><input type="password" placeholder="Re-enter new password"></div>
+            </div>
+            <div class="divider"></div>
+            <div class="card-head" style="margin-bottom:10px;"><h3>Two-Factor Authentication</h3></div>
+            <label class="checkbox-row" style="margin-bottom:10px;"><input type="checkbox"> Require a verification code when signing in</label>
+            <div class="divider"></div>
+            <div class="card-head" style="margin-bottom:10px;"><h3>Active Sessions</h3></div>
+            <div class="status-row">
+              <div><b style="font-size:13px;">Windows · Chrome</b><div class="text-sm text-muted">Guimaras, PH · Current session</div></div>
+              <span class="badge low"><span class="badge-dot"></span>This device</span>
+            </div>
+            <div class="status-row">
+              <div><b style="font-size:13px;">Android · Chrome</b><div class="text-sm text-muted">Guimaras, PH · Last active 2 days ago</div></div>
+              <button class="btn btn-outline btn-sm">Log Out</button>
+            </div>
+            <div style="margin-top:16px;">
+              <button class="btn btn-primary" onclick="saveSettings(this)">Update Password</button>
+            </div>
+          </div>
+
+          <!-- SYSTEM -->
+          <div class="settings-panel" id="panel-system">
+            <div class="card-head"><div><h3>System</h3><div class="card-sub">Platform, model, and environment information</div></div></div>
+            <div class="status-row">
+              <div><b style="font-size:13px;">Forecasting Model</b><div class="text-sm text-muted">Hybrid BLSTM–SARIMA v1.0.0</div></div>
+              <span class="badge low"><span class="badge-dot"></span>Active</span>
+            </div>
+            <div class="status-row">
+              <div><b style="font-size:13px;">Last Model Retraining</b><div class="text-sm text-muted">May 20, 2026 · 04:30 AM</div></div>
+            </div>
+            <div class="status-row">
+              <div><b style="font-size:13px;">Database</b><div class="text-sm text-muted">MySQL / MariaDB</div></div>
+              <span class="badge low"><span class="badge-dot"></span>Connected</span>
+            </div>
+            <div class="status-row">
+              <div><b style="font-size:13px;">Application Server</b><div class="text-sm text-muted">Flask (Python) · Development environment</div></div>
+              <span class="badge low"><span class="badge-dot"></span>Running</span>
+            </div>
+            <div class="status-row">
+              <div><b style="font-size:13px;">Explainability Engine</b><div class="text-sm text-muted">SHAP / LIME</div></div>
+              <span class="badge low"><span class="badge-dot"></span>Active</span>
+            </div>
+            <div class="divider"></div>
+            <div class="card-head" style="margin-bottom:10px;"><h3>Maintenance</h3></div>
+            <button class="btn btn-outline" style="margin-right:10px;"><i data-feather="refresh-cw"></i> Retrain Model</button>
+            <button class="btn btn-outline"><i data-feather="download"></i> Export System Logs</button>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/shell.js"></script>
+<script>
+ElectroShell.mount('settings', 'Settings', { dateRange:false });
+
+function showSettingsPanel(name){
+  document.querySelectorAll('.settings-nav .s-item').forEach(i=>i.classList.remove('active'));
+  document.querySelectorAll('.settings-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('nav-'+name).classList.add('active');
+  document.getElementById('panel-'+name).classList.add('active');
+}
+
+function saveSettings(btn){
+  const original = btn.textContent;
+  btn.textContent = 'Saved ✓';
+  btn.disabled = true;
+  setTimeout(()=>{ btn.textContent = original; btn.disabled = false; }, 1400);
+}
+</script>
+</body>
+</html>

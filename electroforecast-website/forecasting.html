@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Forecasting · ElectroForecast</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
+<script src="assets/js/chart-lite.js"></script>
+</head>
+<body>
+<div class="app-shell">
+  <div id="shell-sidebar"></div>
+  <div class="main">
+    <div id="shell-topbar"></div>
+    <div class="content">
+
+      <div class="grid grid-12">
+        <div class="card span-4">
+          <div class="card-head"><h3>Forecast Horizon</h3></div>
+          <div class="field">
+            <label>Granularity</label>
+            <select>
+              <option>Daily</option><option>Weekly</option><option>Monthly</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Horizon</label>
+            <select><option>7 Days</option><option selected>14 Days</option><option>30 Days</option></select>
+          </div>
+          <div class="field">
+            <label>Model</label>
+            <select><option>Hybrid BLSTM–SARIMA</option><option>BLSTM only</option><option>SARIMA only</option></select>
+          </div>
+          <div class="field">
+            <label>Include External Features</label>
+            <label class="checkbox-row" style="margin-bottom:6px;"><input type="checkbox" checked> Temperature (°C)</label>
+            <label class="checkbox-row" style="margin-bottom:6px;"><input type="checkbox" checked> Day of Week</label>
+            <label class="checkbox-row"><input type="checkbox" checked> Holiday Indicator</label>
+          </div>
+          <button class="btn btn-primary btn-block" style="margin-top:6px;">Generate Forecast</button>
+        </div>
+
+        <div class="card span-8">
+          <div class="card-head">
+            <div><h3>Forecast Result</h3><div class="card-sub">May 25 – Jun 20, 2026 · Hybrid BLSTM–SARIMA</div></div>
+            <button class="btn btn-outline btn-sm"><i data-feather="download"></i> Export</button>
+          </div>
+          <div class="chart-box"><canvas id="chartForecast"></canvas></div>
+          <div class="legend-row">
+            <div class="legend-item"><span class="legend-swatch" style="background:#2563EB;"></span>Actual</div>
+            <div class="legend-item"><span class="legend-swatch" style="background:#16A34A;"></span>Forecast</div>
+            <div class="legend-item"><span class="legend-swatch" style="background:#CBD5E1;"></span>Upper / Lower Bound</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-12" style="margin-top:18px;">
+        <div class="card span-6">
+          <div class="card-head"><h3>Forecast Summary</h3></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Date</th><th>Actual (kWh)</th><th>Forecast (kWh)</th><th>Lower</th><th>Upper</th></tr></thead>
+              <tbody>
+                <tr><td>May 26, 2026</td><td>226.4</td><td>230.1</td><td>209.2</td><td>251.0</td></tr>
+                <tr><td>May 27, 2026</td><td>260.1</td><td>259.6</td><td>236.0</td><td>283.2</td></tr>
+                <tr><td>May 28, 2026</td><td>216.2</td><td>218.3</td><td>197.0</td><td>239.6</td></tr>
+                <tr><td>May 29, 2026</td><td>—</td><td>240.2</td><td>216.9</td><td>263.5</td></tr>
+                <tr><td>May 30, 2026</td><td>—</td><td>246.5</td><td>222.4</td><td>270.6</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <a href="#" class="link-more" style="margin-top:12px;">View Full Table <i data-feather="arrow-right"></i></a>
+        </div>
+
+        <div class="card span-6">
+          <div class="card-head"><h3>Forecast Insights</h3></div>
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <div class="alert info"><i data-feather="info"></i>The model predicts an increase in consumption over the coming days.</div>
+            <div class="alert warning"><i data-feather="alert-triangle"></i>High probability of High demand classification on May 27–28 due to elevated temperatures.</div>
+            <div class="alert success"><i data-feather="check-circle"></i>Weekend effect accounted for; forecast confidence remains stable.</div>
+          </div>
+          <div class="divider"></div>
+          <div class="grid grid-3">
+            <div><div class="text-sm text-muted">Model MAPE</div><div class="h3">4.18%</div></div>
+            <div><div class="text-sm text-muted">RMSE</div><div class="h3">10.72 kWh</div></div>
+            <div><div class="text-sm text-muted">MAE</div><div class="h3">8.09 kWh</div></div>
+          </div>
+          <div class="text-sm text-muted" style="margin-top:6px;">Last model update: 3 hours ago</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/shell.js"></script>
+<script>
+ElectroShell.mount('forecasting', 'Forecasting', { dateRange:false });
+
+const labels = ['May 25','May 27','May 29','Jun 1','Jun 4','Jun 8','Jun 12','Jun 16','Jun 20'];
+new Chart(document.getElementById('chartForecast'), {
+  type:'line',
+  data:{ labels,
+    datasets:[
+      { label:'Actual', data:[226,260,216,null,null,null,null,null,null], borderColor:'#2563EB', pointRadius:3, tension:.35 },
+      { label:'Forecast', data:[228,258,219,240,246,252,260,268,275], borderColor:'#16A34A', borderDash:[5,4], pointRadius:0, tension:.35 },
+      { label:'Upper', data:[248,282,240,264,271,279,289,299,308], borderColor:'rgba(203,213,225,.7)', pointRadius:0, fill:'+1', backgroundColor:'rgba(203,213,225,.35)', tension:.35 },
+      { label:'Lower', data:[207,236,198,217,222,228,234,240,247], borderColor:'rgba(203,213,225,.7)', pointRadius:0, tension:.35 },
+    ]},
+  options:{ plugins:{ legend:{ display:false } }, scales:{ y:{ grid:{ color:'#F1F5F9' } }, x:{ grid:{ display:false } } }, maintainAspectRatio:false }
+});
+</script>
+</body>
+</html>

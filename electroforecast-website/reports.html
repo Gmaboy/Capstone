@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Reports · ElectroForecast</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
+</head>
+<body>
+<div class="app-shell">
+  <div id="shell-sidebar"></div>
+  <div class="main">
+    <div id="shell-topbar"></div>
+    <div class="content">
+
+      <div class="grid grid-12">
+        <div class="card span-4">
+          <div class="card-head"><h3>Generate Report</h3></div>
+          <div class="field"><label>Report Type</label><select><option>Consumption Summary</option><option>Forecast Accuracy</option><option>Demand Classification</option><option>Appliance Contribution</option></select></div>
+          <div class="field"><label>Period</label><select><option>Last 7 Days</option><option>Last 30 Days</option><option>Custom Range</option></select></div>
+          <div class="field"><label>Format</label><select><option>PDF</option><option>CSV</option></select></div>
+          <button class="btn btn-primary btn-block"><i data-feather="file-text"></i> Generate Report</button>
+        </div>
+
+        <div class="card span-8">
+          <div class="card-head"><div><h3>Generated Reports</h3><div class="card-sub">Download or review previously generated reports</div></div></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Report</th><th>Type</th><th>Period</th><th>Generated</th><th></th></tr></thead>
+              <tbody>
+                <tr><td>Weekly Consumption Summary</td><td>Consumption Summary</td><td>May 19 – May 25, 2026</td><td>May 25, 2026</td><td class="row-actions"><button><i data-feather="download"></i></button><button><i data-feather="eye"></i></button></td></tr>
+                <tr><td>Forecast Accuracy Report</td><td>Forecast Accuracy</td><td>April 2026</td><td>May 2, 2026</td><td class="row-actions"><button><i data-feather="download"></i></button><button><i data-feather="eye"></i></button></td></tr>
+                <tr><td>Demand Classification Log</td><td>Demand Classification</td><td>April 2026</td><td>May 1, 2026</td><td class="row-actions"><button><i data-feather="download"></i></button><button><i data-feather="eye"></i></button></td></tr>
+                <tr><td>Appliance Contribution Analysis</td><td>Appliance Contribution</td><td>Q1 2026</td><td>Apr 3, 2026</td><td class="row-actions"><button><i data-feather="download"></i></button><button><i data-feather="eye"></i></button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/shell.js"></script>
+<script>ElectroShell.mount('reports', 'Reports', { dateRange:false });</script>
+</body>
+</html>

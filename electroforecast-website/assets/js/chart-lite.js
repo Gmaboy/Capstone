@@ -1,0 +1,268 @@
+/* Lightweight, dependency-free chart renderer for the ElectroForecast prototype. */
+(function () {
+  'use strict';
+
+  const toRadians = degrees => (degrees * Math.PI) / 180;
+  const isTransparent = color => !color || color === 'transparent';
+
+  class ChartLite {
+    constructor(canvas, config) {
+      this.canvas = canvas;
+      this.config = config || {};
+      this.context = canvas.getContext('2d');
+      this.chartBox = canvas.closest('.chart-box');
+      this.displayWidth = Number(canvas.getAttribute('width')) || 300;
+      this.displayHeight = Number(canvas.getAttribute('height')) || 150;
+      if (this.chartBox) {
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+      } else {
+        canvas.style.width = `${this.displayWidth}px`;
+        canvas.style.height = `${this.displayHeight}px`;
+      }
+      this.draw = this.draw.bind(this);
+      this.resizeObserver = window.ResizeObserver
+        ? new ResizeObserver(this.draw)
+        : null;
+      if (this.resizeObserver) this.resizeObserver.observe(canvas.parentElement || canvas);
+      window.addEventListener('resize', this.draw, { passive: true });
+      requestAnimationFrame(this.draw);
+    }
+
+    size() {
+      const rect = this.chartBox?.getBoundingClientRect();
+      const width = this.chartBox
+        ? Math.max(220, Math.round(rect.width || 600))
+        : this.displayWidth;
+      const height = this.chartBox
+        ? Math.max(120, Math.round(rect.height || 260))
+        : this.displayHeight;
+      const ratio = Math.min(window.devicePixelRatio || 1, 2);
+      if (this.canvas.width !== width * ratio || this.canvas.height !== height * ratio) {
+        this.canvas.width = width * ratio;
+        this.canvas.height = height * ratio;
+      }
+      this.context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      return { width, height };
+    }
+
+    draw() {
+      const { width, height } = this.size();
+      this.context.clearRect(0, 0, width, height);
+      if (this.config.type === 'doughnut') this.drawDoughnut(width, height);
+      else if (this.config.type === 'bar') this.drawBar(width, height);
+      else this.drawLine(width, height);
+    }
+
+    font(size = 11, weight = 500) {
+      return `${weight} ${size}px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+    }
+
+    drawAxes(width, height, values, suggestedMax) {
+      const ctx = this.context;
+      const plot = { left: 44, right: width - 14, top: 14, bottom: height - 31 };
+      const cleanValues = values.filter(Number.isFinite);
+      const rawMax = suggestedMax || Math.max(...cleanValues, 1);
+      const rawMin = Math.min(...cleanValues, 0);
+      const span = Math.max(rawMax - rawMin, 1);
+      const step = Math.pow(10, Math.floor(Math.log10(span)));
+      const niceMax = suggestedMax || Math.ceil(rawMax / step) * step;
+      const min = rawMin < 0 ? Math.floor(rawMin / step) * step : 0;
+      const max = Math.max(niceMax, 1);
+
+      ctx.font = this.font(10);
+      ctx.fillStyle = '#718096';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      for (let i = 0; i <= 4; i += 1) {
+        const y = plot.top + ((plot.bottom - plot.top) * i) / 4;
+        const value = Math.round(max - ((max - min) * i) / 4);
+        ctx.beginPath();
+        ctx.strokeStyle = '#EAF0F7';
+        ctx.lineWidth = 1;
+        ctx.moveTo(plot.left, y);
+        ctx.lineTo(plot.right, y);
+        ctx.stroke();
+        ctx.fillText(String(value), plot.left - 9, y);
+      }
+
+      return {
+        ...plot,
+        x: (index, count) => plot.left + ((plot.right - plot.left) * index) / Math.max(count - 1, 1),
+        y: value => plot.bottom - ((value - min) / (max - min)) * (plot.bottom - plot.top)
+      };
+    }
+
+    drawLabels(labels, plot) {
+      const ctx = this.context;
+      ctx.font = this.font(10);
+      ctx.fillStyle = '#718096';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      labels.forEach((label, index) => {
+        if (labels.length > 7 && index % 2 === 1) return;
+        ctx.textAlign = index === 0 ? 'left' : index === labels.length - 1 ? 'right' : 'center';
+        ctx.fillText(label, plot.x(index, labels.length), plot.bottom + 11);
+      });
+    }
+
+    drawLine(width, height) {
+      const ctx = this.context;
+      const labels = this.config.data?.labels || [];
+      const datasets = this.config.data?.datasets || [];
+      const values = datasets.flatMap(dataset => dataset.data || []);
+      const plot = this.drawAxes(width, height, values);
+      this.drawLabels(labels, plot);
+
+      const fillPair = datasets.findIndex(dataset => typeof dataset.fill === 'string');
+      if (fillPair >= 0 && datasets[fillPair + 1]) {
+        const upper = datasets[fillPair];
+        const lower = datasets[fillPair + 1];
+        ctx.beginPath();
+        upper.data.forEach((value, index) => {
+          if (!Number.isFinite(value)) return;
+          const x = plot.x(index, labels.length);
+          const y = plot.y(value);
+          if (index === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        for (let index = lower.data.length - 1; index >= 0; index -= 1) {
+          const value = lower.data[index];
+          if (Number.isFinite(value)) ctx.lineTo(plot.x(index, labels.length), plot.y(value));
+        }
+        ctx.closePath();
+        ctx.fillStyle = upper.backgroundColor || 'rgba(203,213,225,.3)';
+        ctx.fill();
+      }
+
+      datasets.forEach((dataset, datasetIndex) => {
+        if (!dataset.data) return;
+        ctx.beginPath();
+        let drawing = false;
+        dataset.data.forEach((value, index) => {
+          if (!Number.isFinite(value)) {
+            drawing = false;
+            return;
+          }
+          const x = plot.x(index, labels.length);
+          const y = plot.y(value);
+          if (!drawing) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+          drawing = true;
+        });
+
+        if (dataset.fill === true) {
+          const finite = dataset.data.map((value, index) => ({ value, index })).filter(item => Number.isFinite(item.value));
+          if (finite.length) {
+            const last = finite[finite.length - 1];
+            const first = finite[0];
+            ctx.lineTo(plot.x(last.index, labels.length), plot.bottom);
+            ctx.lineTo(plot.x(first.index, labels.length), plot.bottom);
+            ctx.closePath();
+            ctx.fillStyle = dataset.backgroundColor || 'rgba(8,126,255,.08)';
+            ctx.fill();
+            ctx.beginPath();
+            finite.forEach((item, index) => {
+              const x = plot.x(item.index, labels.length);
+              const y = plot.y(item.value);
+              if (index === 0) ctx.moveTo(x, y);
+              else ctx.lineTo(x, y);
+            });
+          }
+        }
+
+        ctx.strokeStyle = dataset.borderColor || ['#087EFF', '#16A34A', '#CBD5E1'][datasetIndex % 3];
+        ctx.lineWidth = datasetIndex < 2 ? 2.25 : 1.25;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        ctx.setLineDash(dataset.borderDash || []);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        if ((dataset.pointRadius || 0) > 0) {
+          dataset.data.forEach((value, index) => {
+            if (!Number.isFinite(value)) return;
+            ctx.beginPath();
+            ctx.arc(plot.x(index, labels.length), plot.y(value), dataset.pointRadius, 0, Math.PI * 2);
+            ctx.fillStyle = dataset.borderColor || '#087EFF';
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          });
+        }
+      });
+    }
+
+    drawBar(width, height) {
+      const labels = this.config.data?.labels || [];
+      const dataset = this.config.data?.datasets?.[0] || { data: [] };
+      const suggestedMax = this.config.options?.scales?.y?.suggestedMax;
+      const plot = this.drawAxes(width, height, dataset.data, suggestedMax);
+      this.drawLabels(labels, plot);
+      const slot = (plot.right - plot.left) / Math.max(labels.length, 1);
+      const barWidth = Math.min(dataset.maxBarThickness || 34, slot * 0.58);
+      const colors = Array.isArray(dataset.backgroundColor)
+        ? dataset.backgroundColor
+        : dataset.data.map(() => dataset.backgroundColor || '#087EFF');
+
+      dataset.data.forEach((value, index) => {
+        const x = plot.left + slot * index + (slot - barWidth) / 2;
+        const y = plot.y(value);
+        const h = plot.bottom - y;
+        const radius = Math.min(dataset.borderRadius || 0, barWidth / 2, h / 2);
+        ctxRoundRect(this.context, x, y, barWidth, h, radius);
+        this.context.fillStyle = colors[index];
+        this.context.fill();
+      });
+    }
+
+    drawDoughnut(width, height) {
+      const dataset = this.config.data?.datasets?.[0] || { data: [] };
+      const values = dataset.data || [];
+      const colors = dataset.backgroundColor || [];
+      const hasTransparentSegment = colors.some(isTransparent);
+      const total = values.reduce((sum, value, index) => {
+        return sum + (hasTransparentSegment && isTransparent(colors[index]) ? 0 : Math.max(value, 0));
+      }, 0) || 1;
+      const circumference = toRadians(dataset.circumference || this.config.options?.circumference || 360);
+      const rotation = hasTransparentSegment && circumference <= Math.PI
+        ? Math.PI
+        : toRadians(dataset.rotation || this.config.options?.rotation || 0);
+      const cutoutText = this.config.options?.cutout || '68%';
+      const cutout = parseFloat(cutoutText) / 100;
+      const radius = Math.min(width, height) * (circumference <= Math.PI ? 0.78 : 0.43);
+      const cx = width / 2;
+      const cy = circumference <= Math.PI ? height * 0.82 : height / 2;
+      let angle = rotation;
+
+      values.forEach((value, index) => {
+        if (hasTransparentSegment && isTransparent(colors[index])) return;
+        const next = angle + (Math.max(value, 0) / total) * circumference;
+        if (!isTransparent(colors[index])) {
+          this.context.beginPath();
+          this.context.arc(cx, cy, radius, angle, next);
+          this.context.arc(cx, cy, radius * cutout, next, angle, true);
+          this.context.closePath();
+          this.context.fillStyle = colors[index] || '#087EFF';
+          this.context.fill();
+        }
+        angle = next;
+      });
+    }
+  }
+
+  function ctxRoundRect(ctx, x, y, width, height, radius) {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height);
+    ctx.lineTo(x, y + height);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+  }
+
+  window.Chart = ChartLite;
+})();

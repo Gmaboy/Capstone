@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>My Appliances · ElectroForecast</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
+</head>
+<body>
+<div class="app-shell">
+  <div id="shell-sidebar"></div>
+  <div class="main">
+    <div id="shell-topbar"></div>
+    <main class="content">
+      <section class="portal-welcome">
+        <div>
+          <div class="eyebrow">Household appliance inventory</div>
+          <h2>My Appliances</h2>
+          <p>Build your household load profile using approved community ratings or submit a new appliance.</p>
+        </div>
+        <div class="page-actions">
+          <a class="btn btn-secondary" href="crowdsourced-ratings.html"><i data-feather="search"></i> Browse Ratings</a>
+          <button class="btn btn-primary" id="open-add-appliance"><i data-feather="plus"></i> Add Appliance</button>
+        </div>
+      </section>
+
+      <section class="portal-kpis row-3" aria-label="Appliance summary">
+        <article class="portal-kpi">
+          <span class="kpi-icon blue"><i data-feather="zap"></i></span>
+          <div><div class="kpi-label">Registered Appliances</div><div class="kpi-value" id="my-count">0</div><div class="text-sm text-muted">Household inventory</div></div>
+        </article>
+        <article class="portal-kpi">
+          <span class="kpi-icon amber"><i data-feather="activity"></i></span>
+          <div><div class="kpi-label">Estimated Daily Load</div><div class="kpi-value" id="my-daily">0 kWh</div><div class="text-sm text-muted">Quantity × hours × wattage</div></div>
+        </article>
+        <article class="portal-kpi">
+          <span class="kpi-icon purple"><i data-feather="clock"></i></span>
+          <div><div class="kpi-label">Pending Validation</div><div class="kpi-value" id="my-pending">0</div><div class="text-sm text-muted">Manually entered appliances only</div></div>
+        </article>
+      </section>
+
+      <section class="card portal-table-card">
+        <div class="card-head">
+          <div><h3>Household Appliance List</h3><div class="card-sub">Only appliances in this list count toward your household load.</div></div>
+          <button class="btn btn-primary btn-sm" id="open-add-appliance-secondary"><i data-feather="plus"></i> Add Appliance</button>
+        </div>
+        <div class="table-note"><i data-feather="info"></i> Removing an appliance here does not delete your original contribution from My Submissions.</div>
+        <div class="table-wrap portal-table">
+          <table>
+            <thead><tr><th>Appliance</th><th>Power & Usage</th><th>Estimated Load</th><th>Origin</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="my-appliance-body"><tr><td colspan="6"><div class="table-loading">Loading appliances…</div></td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card submission-stage-card">
+        <div class="card-head">
+          <div><h3>Submitted Appliances</h3><div class="card-sub">New appliance contributions stay separate until approved and added to your household.</div></div>
+          <a class="btn btn-secondary btn-sm" href="my-submissions.html">View My Submissions <i data-feather="arrow-right"></i></a>
+        </div>
+        <div class="table-note"><i data-feather="clock"></i> Pending submissions do not affect Registered Appliances or Estimated Daily Load. After approval, choose <b>Add to My Appliances</b>.</div>
+        <div class="submission-stage-list" id="submission-stage-list"><div class="table-loading">Loading submitted appliancesâ€¦</div></div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<div class="record-modal appliance-library-modal" id="appliance-library-modal" hidden>
+  <button class="modal-scrim" type="button" data-close-library aria-label="Close appliance form"></button>
+  <section class="modal-dialog modal-dialog-wide" role="dialog" aria-modal="true" aria-labelledby="library-title">
+    <header class="modal-header">
+      <div><div class="eyebrow" id="library-eyebrow">Add to My Appliances</div><h3 id="library-title">Choose how to add an appliance</h3></div>
+      <button class="icon-btn modal-close" type="button" data-close-library aria-label="Close appliance form"><i data-feather="x"></i></button>
+    </header>
+
+    <div class="add-mode-tabs" id="add-mode-tabs" role="tablist" aria-label="Add appliance method">
+      <button class="active" type="button" data-add-mode="catalog" role="tab" aria-selected="true"><i data-feather="database"></i><span><b>Use Approved Rating</b><small>Fastest and recommended</small></span></button>
+      <button type="button" data-add-mode="manual" role="tab" aria-selected="false"><i data-feather="edit-3"></i><span><b>Enter New Appliance</b><small>Submit a new rating</small></span></button>
+    </div>
+
+    <section id="catalog-add-pane">
+      <div id="catalog-picker">
+        <label class="catalog-search modal-catalog-search">
+          <i data-feather="search"></i>
+          <input id="modal-catalog-search" type="search" placeholder="Filter by appliance name, e.g. Air Conditioner" autocomplete="off">
+        </label>
+        <div class="modal-catalog-results" id="modal-catalog-results"></div>
+      </div>
+
+      <form id="catalog-customize-form" class="record-form catalog-customize" hidden>
+        <input type="hidden" id="selected-catalog-id">
+        <button class="back-to-results" id="back-to-catalog" type="button"><i data-feather="arrow-left"></i> Choose a different appliance</button>
+        <div class="selected-appliance-summary" id="selected-appliance-summary"></div>
+        <div class="customize-callout"><i data-feather="sliders"></i><div><b>Personalize it for your household</b><span>The approved technical details stay locked. Quantity and usage hours can be changed without another admin review.</span></div></div>
+        <div class="row-2">
+          <div class="field"><label for="catalog-quantity">Quantity *</label><input type="number" id="catalog-quantity" min="1" max="50" value="1" required></div>
+          <div class="field"><label for="catalog-hours">Average Hours / Day *</label><input type="number" id="catalog-hours" min="0" max="24" step="0.1" required></div>
+        </div>
+        <div class="load-preview"><span>Estimated household load</span><b id="catalog-load-preview">0.00 kWh/day</b></div>
+        <label class="checkbox-row form-confirmation"><input type="checkbox" id="catalog-confirm" required> I confirm that the quantity and usage hours match my household.</label>
+        <div class="modal-actions"><button type="button" class="btn btn-secondary" data-close-library>Cancel</button><button type="submit" class="btn btn-primary" id="save-catalog-appliance"><i data-feather="plus"></i> Add to My Appliances</button></div>
+      </form>
+    </section>
+
+    <form id="manual-appliance-form" class="record-form" hidden>
+      <input type="hidden" id="manual-appliance-id">
+      <div class="customize-callout" id="manual-lock-note" hidden><i data-feather="lock"></i><div><b>Approved technical rating locked</b><span>You can update quantity and average hours per day. The appliance remains approved and does not return to the Review Queue.</span></div></div>
+      <div class="row-2">
+        <div class="field"><label for="manual-name">Appliance Name *</label><input id="manual-name" name="appliance_name" required maxlength="120"></div>
+        <div class="field"><label for="manual-category">Category *</label><select id="manual-category" name="category_id" required></select></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label for="manual-brand">Brand</label><input id="manual-brand" name="brand" maxlength="100"></div>
+        <div class="field"><label for="manual-model">Model</label><input id="manual-model" name="model" maxlength="100"></div>
+      </div>
+      <div class="row-3">
+        <div class="field"><label for="manual-watts">Power Rating (W) *</label><input type="number" id="manual-watts" name="power_rating_watts" min="1" max="50000" step="0.01" required></div>
+        <div class="field"><label for="manual-quantity">Quantity *</label><input type="number" id="manual-quantity" name="quantity" min="1" max="50" value="1" required></div>
+        <div class="field"><label for="manual-hours">Average Hours / Day *</label><input type="number" id="manual-hours" name="avg_daily_usage_hours" min="0" max="24" step="0.1" required></div>
+      </div>
+      <div class="field"><label for="manual-source">Source of Information *</label><select id="manual-source" name="source_of_info" required><option value="nameplate_label">Nameplate label</option><option value="user_manual">User manual</option><option value="retailer_specs">Retailer specifications</option><option value="manual_estimate">Manual estimate</option></select></div>
+      <label class="checkbox-row form-confirmation"><input type="checkbox" id="manual-confirm" required> I confirm that this information is accurate to the best of my knowledge.</label>
+      <div class="modal-actions"><button type="button" class="btn btn-secondary" data-close-library>Cancel</button><button type="submit" class="btn btn-primary" id="save-manual-appliance"><i data-feather="send"></i> Submit for Validation</button></div>
+    </form>
+  </section>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script src="assets/js/shell.js"></script>
+<script src="assets/js/my-appliances.js"></script>
+</body>
+</html>
