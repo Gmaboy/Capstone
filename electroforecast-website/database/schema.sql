@@ -94,6 +94,7 @@ CREATE TABLE household_appliances (
   quantity INT NOT NULL DEFAULT 1,
   avg_daily_usage_hours DECIMAL(5,2) NOT NULL DEFAULT 0,
   source_of_info ENUM('nameplate_label','user_manual','manual_estimate','retailer_specs') NOT NULL,
+  deleted_at DATETIME NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (household_id) REFERENCES households(household_id) ON DELETE CASCADE,
@@ -101,6 +102,9 @@ CREATE TABLE household_appliances (
   FOREIGN KEY (category_id) REFERENCES appliance_categories(category_id),
   UNIQUE KEY uq_household_source_appliance (household_id, source_appliance_id)
 );
+
+CREATE INDEX idx_household_appliances_deleted
+  ON household_appliances(household_id, deleted_at);
 
 -- ---------------------------------------------------------------
 -- Crowdsourced Appliance Ratings (power-rating submissions)

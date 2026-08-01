@@ -64,6 +64,19 @@ def initialize_database() -> None:
             db.execute(
                 "ALTER TABLE appliances ADD COLUMN copied_from_appliance_id INTEGER"
             )
+        household_appliance_columns = {
+            row["name"] for row in db.execute("PRAGMA table_info(household_appliances)")
+        }
+        if "deleted_at" not in household_appliance_columns:
+            db.execute(
+                "ALTER TABLE household_appliances ADD COLUMN deleted_at TEXT"
+            )
+        db.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_household_appliances_deleted
+            ON household_appliances(household_id, deleted_at)
+            """
+        )
         db.execute(
             """
             UPDATE appliances
@@ -497,7 +510,8 @@ def portal_summary():
             """
             SELECT COUNT(*) AS count,
                    COALESCE(SUM(power_rating_watts * quantity * avg_daily_usage_hours / 1000.0), 0) AS daily_kwh
-            FROM household_appliances WHERE household_id = ?
+            FROM household_appliances
+            WHERE household_id = ? AND deleted_at IS NULL
             """,
             (household_id,),
         ).fetchone()
@@ -559,7 +573,14 @@ SELECT a.appliance_id, a.appliance_name, a.brand, a.model,
          SELECT 1 FROM household_appliances ha
          WHERE ha.household_id=a.household_id
            AND ha.source_appliance_id=a.appliance_id
+           AND ha.deleted_at IS NULL
        ) AS in_inventory,
+       EXISTS(
+         SELECT 1 FROM household_appliances ha
+         WHERE ha.household_id=a.household_id
+           AND ha.source_appliance_id=a.appliance_id
+           AND ha.deleted_at IS NOT NULL
+       ) AS recently_deleted,
        ROUND(a.power_rating_watts * a.quantity * a.avg_daily_usage_hours / 1000.0, 3)
          AS estimated_daily_kwh
 FROM appliances a
@@ -583,7 +604,8 @@ HOUSEHOLD_APPLIANCE_SELECT = """
 SELECT ha.inventory_id, ha.source_appliance_id, ha.appliance_name,
        ha.brand, ha.model, ha.power_rating_watts, ha.quantity,
        ha.avg_daily_usage_hours, ha.source_of_info,
-       ha.created_at, ha.updated_at, c.category_id, c.category_name,
+       ha.deleted_at, ha.created_at, ha.updated_at,
+       c.category_id, c.category_name,
        ROUND(ha.power_rating_watts * ha.quantity * ha.avg_daily_usage_hours / 1000.0, 3)
          AS estimated_daily_kwh
 FROM household_appliances ha
@@ -598,7 +620,20 @@ def list_household_appliances():
         household_id = household_id_for(request.current_user["user_id"], db)
         rows = db.execute(
             HOUSEHOLD_APPLIANCE_SELECT
-            + " WHERE ha.household_id=? ORDER BY ha.updated_at DESC",
+            + " WHERE ha.household_id=? AND ha.deleted_at IS NULL ORDER BY ha.updated_at DESC",
+            (household_id,),
+        ).fetchall()
+    return jsonify(appliances=[dict(row) for row in rows])
+
+
+@app.get("/api/my-appliances/recently-deleted")
+@require_auth("household")
+def list_recently_deleted_household_appliances():
+    with get_db() as db:
+        household_id = household_id_for(request.current_user["user_id"], db)
+        rows = db.execute(
+            HOUSEHOLD_APPLIANCE_SELECT
+            + " WHERE ha.household_id=? AND ha.deleted_at IS NOT NULL ORDER BY ha.deleted_at DESC",
             (household_id,),
         ).fetchall()
     return jsonify(appliances=[dict(row) for row in rows])
@@ -683,12 +718,14 @@ def create_household_appliance_from_submission(catalog_id: int):
         household_id = household_id_for(request.current_user["user_id"], db)
         existing = db.execute(
             """
-            SELECT inventory_id FROM household_appliances
+            SELECT inventory_id, deleted_at FROM household_appliances
             WHERE household_id=? AND source_appliance_id=?
             """,
             (household_id, source["appliance_id"]),
         ).fetchone()
         if existing:
+            if existing["deleted_at"]:
+                return jsonify(error="This appliance is in Recently Deleted. Restore it there."), 409
             return jsonify(error="This appliance is already in My Appliances"), 409
         cursor = db.execute(
             """
@@ -749,7 +786,7 @@ def update_household_appliance(inventory_id: int):
         existing = db.execute(
             """
             SELECT appliance_name FROM household_appliances
-            WHERE inventory_id=? AND household_id=?
+            WHERE inventory_id=? AND household_id=? AND deleted_at IS NULL
             """,
             (inventory_id, household_id),
         ).fetchone()
@@ -786,7 +823,7 @@ def delete_household_appliance(inventory_id: int):
         row = db.execute(
             """
             SELECT appliance_name FROM household_appliances
-            WHERE inventory_id=? AND household_id=?
+            WHERE inventory_id=? AND household_id=? AND deleted_at IS NULL
             """,
             (inventory_id, household_id),
         ).fetchone()
@@ -794,20 +831,58 @@ def delete_household_appliance(inventory_id: int):
             return jsonify(error="Household appliance not found"), 404
         db.execute(
             """
-            DELETE FROM household_appliances
-            WHERE inventory_id=? AND household_id=?
+            UPDATE household_appliances
+            SET deleted_at=?, updated_at=?
+            WHERE inventory_id=? AND household_id=? AND deleted_at IS NULL
             """,
-            (inventory_id, household_id),
+            (now(), now(), inventory_id, household_id),
         )
         audit(
             db,
             request.current_user["user_id"],
-            "removed",
+            "moved_to_recently_deleted",
             "household_appliance",
             inventory_id,
             {"appliance_name": row["appliance_name"]},
         )
     return jsonify(ok=True)
+
+
+@app.post("/api/my-appliances/<int:inventory_id>/restore")
+@require_auth("household")
+def restore_household_appliance(inventory_id: int):
+    with get_db() as db:
+        household_id = household_id_for(request.current_user["user_id"], db)
+        row = db.execute(
+            """
+            SELECT appliance_name FROM household_appliances
+            WHERE inventory_id=? AND household_id=? AND deleted_at IS NOT NULL
+            """,
+            (inventory_id, household_id),
+        ).fetchone()
+        if not row:
+            return jsonify(error="Recently deleted appliance not found"), 404
+        db.execute(
+            """
+            UPDATE household_appliances
+            SET deleted_at=NULL, updated_at=?
+            WHERE inventory_id=? AND household_id=?
+            """,
+            (now(), inventory_id, household_id),
+        )
+        audit(
+            db,
+            request.current_user["user_id"],
+            "restored",
+            "household_appliance",
+            inventory_id,
+            {"appliance_name": row["appliance_name"]},
+        )
+        restored = db.execute(
+            HOUSEHOLD_APPLIANCE_SELECT + " WHERE ha.inventory_id=?",
+            (inventory_id,),
+        ).fetchone()
+    return jsonify(appliance=dict(restored))
 
 
 def appliance_fields(data: dict[str, Any]) -> dict[str, Any]:

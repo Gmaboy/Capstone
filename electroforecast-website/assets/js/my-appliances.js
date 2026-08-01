@@ -2,7 +2,7 @@
   'use strict';
 
   const state = {
-    appliances:[], submissions:[], categories:[], catalog:[],
+    appliances:[], deletedAppliances:[], submissions:[], categories:[], catalog:[],
     selectedCatalog:null, editingInventory:null
   };
   const $ = selector => document.querySelector(selector);
@@ -39,7 +39,8 @@
 
   function renderSubmissionStage() {
     const actionable = state.submissions.filter(item =>
-      item.verification_status !== 'approved' || !Number(item.in_inventory)
+      item.verification_status !== 'approved' ||
+      (!Number(item.in_inventory) && !Number(item.recently_deleted))
     );
     $('#submission-stage-list').innerHTML = actionable.length ? actionable.map(item=>{
       const approved = item.verification_status === 'approved';
@@ -56,9 +57,26 @@
     }).join('') : `<div class="empty-stage"><i data-feather="check-circle"></i><span>No pending or ready-to-add appliance submissions.</span></div>`;
   }
 
+  function renderRecentlyDeleted() {
+    $('#recently-deleted-count').textContent = state.deletedAppliances.length;
+    $('#recently-deleted-list').innerHTML = state.deletedAppliances.length
+      ? state.deletedAppliances.map(item=>`
+        <article class="recently-deleted-item">
+          <span class="recently-deleted-icon"><i data-feather="archive"></i></span>
+          <div class="recently-deleted-copy">
+            <b>${ElectroAPI.escapeHTML(item.appliance_name)}</b>
+            <small>${ElectroAPI.escapeHTML([item.brand,item.model,item.category_name].filter(Boolean).join(' · '))}</small>
+            <span>Removed ${ElectroAPI.formatDate(item.deleted_at)}</span>
+          </div>
+          <button class="btn btn-primary btn-sm" type="button" data-restore-inventory="${item.inventory_id}"><i data-feather="rotate-ccw"></i> Restore</button>
+        </article>`).join('')
+      : `<div class="empty-stage"><i data-feather="archive"></i><b>No recently deleted appliances</b><span>Appliances removed from your household list will appear here.</span></div>`;
+  }
+
   function renderAll() {
     renderAppliances();
     renderSubmissionStage();
+    renderRecentlyDeleted();
     renderSummary();
     feather.replace({ 'stroke-width':2 });
   }
@@ -126,6 +144,17 @@
     document.body.classList.remove('modal-open');
   }
 
+  function openRecentlyDeleted() {
+    $('#recently-deleted-modal').hidden = false;
+    document.body.classList.add('modal-open');
+    feather.replace({ 'stroke-width':2 });
+  }
+
+  function closeRecentlyDeleted() {
+    $('#recently-deleted-modal').hidden = true;
+    document.body.classList.remove('modal-open');
+  }
+
   function selectApprovedRecord(item) {
     state.selectedCatalog = item;
     $('#selected-catalog-id').value = item.catalog_id;
@@ -183,12 +212,14 @@
   }
 
   async function loadData() {
-    const [inventoryPayload,submissionPayload,catalogPayload] = await Promise.all([
+    const [inventoryPayload,deletedPayload,submissionPayload,catalogPayload] = await Promise.all([
       ElectroAPI.request('/api/my-appliances'),
+      ElectroAPI.request('/api/my-appliances/recently-deleted'),
       ElectroAPI.request('/api/appliances'),
       ElectroAPI.request('/api/crowdsource/appliances')
     ]);
     state.appliances = inventoryPayload.appliances;
+    state.deletedAppliances = deletedPayload.appliances;
     state.submissions = submissionPayload.appliances;
     state.catalog = catalogPayload.appliances;
     renderAll();
@@ -231,7 +262,18 @@
     try {
       await ElectroAPI.request(`/api/my-appliances/${id}`,{method:'DELETE'});
       await loadData();
-      ElectroAPI.notify('Removed from My Appliances; My Submissions was not changed.');
+      ElectroAPI.notify('Moved to Recently Deleted. It will not return to Submitted Appliances.');
+    } catch (error) { ElectroAPI.notify(error.message,'error'); }
+  }
+
+  async function restoreInventory(id) {
+    const record = state.deletedAppliances.find(item=>String(item.inventory_id)===String(id));
+    if (!record) return;
+    try {
+      await ElectroAPI.request(`/api/my-appliances/${id}/restore`,{method:'POST'});
+      await loadData();
+      if (!state.deletedAppliances.length) closeRecentlyDeleted();
+      ElectroAPI.notify(`${record.appliance_name} restored to your household list.`);
     } catch (error) { ElectroAPI.notify(error.message,'error'); }
   }
 
@@ -239,21 +281,28 @@
     const button = event.target.closest('button');
     if (!button) return;
     if (button.matches('[data-close-library]')) closeLibrary();
+    if (button.matches('[data-close-recently-deleted]')) closeRecentlyDeleted();
     if (button.dataset.addMode) setMode(button.dataset.addMode);
     if (button.dataset.selectCatalog) selectCatalog(button.dataset.selectCatalog);
     if (button.dataset.addApproved) addApprovedSubmission(button.dataset.addApproved);
     if (button.dataset.editInventory) openEditInventory(state.appliances.find(item=>String(item.inventory_id)===button.dataset.editInventory));
     if (button.dataset.deleteInventory) deleteInventory(button.dataset.deleteInventory);
+    if (button.dataset.restoreInventory) restoreInventory(button.dataset.restoreInventory);
   });
   $('#open-add-appliance').addEventListener('click',()=>openLibrary());
   $('#open-add-appliance-secondary').addEventListener('click',()=>openLibrary());
+  $('#open-recently-deleted').addEventListener('click',openRecentlyDeleted);
   $('#modal-catalog-search').addEventListener('input',renderCatalogResults);
   $('#back-to-catalog').addEventListener('click',()=>{ state.selectedCatalog=null; $('#catalog-customize-form').hidden=true; $('#catalog-picker').hidden=false; $('#modal-catalog-search').focus(); });
   $('#catalog-quantity').addEventListener('input',updateLoadPreview);
   $('#catalog-hours').addEventListener('input',updateLoadPreview);
   $('#catalog-customize-form').addEventListener('submit',submitCatalog);
   $('#manual-appliance-form').addEventListener('submit',submitManual);
-  document.addEventListener('keydown',event=>{ if(event.key==='Escape' && !$('#appliance-library-modal').hidden) closeLibrary(); });
+  document.addEventListener('keydown',event=>{
+    if (event.key !== 'Escape') return;
+    if (!$('#appliance-library-modal').hidden) closeLibrary();
+    if (!$('#recently-deleted-modal').hidden) closeRecentlyDeleted();
+  });
 
   (async function init() {
     try {

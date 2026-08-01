@@ -31,16 +31,19 @@ representative capstone data.
 2. **My Appliances** stores only the appliances the household currently wants
    in its load profile. Registered Appliances and Estimated Daily Load are
    calculated from this inventory only.
-3. Selecting an administrator-approved rating reuses its technical details. The
+3. Removing an inventory item moves it to **Recently Deleted**. It is excluded
+   from the household load and does not return to Submitted Appliances. The
+   household can restore it later.
+4. Selecting an administrator-approved rating reuses its technical details. The
    household personalizes only quantity and average hours per day, without
    another administrator review.
-4. Entering a new appliance creates a pending contribution below the Household
+5. Entering a new appliance creates a pending contribution below the Household
    Appliance List. Pending contributions do not count toward inventory or load.
-5. After an administrator approves a new contribution, the household decides
+6. After an administrator approves a new contribution, the household decides
    whether to add it to My Appliances. Approval by itself does not add it.
-6. **Monthly Consumption** has its own page and CRUD workflow, separate from the
+7. **Monthly Consumption** has its own page and CRUD workflow, separate from the
    My Energy Portal summary.
-7. Only approved contributions count toward forecast data readiness. Every
+8. Only approved contributions count toward forecast data readiness. Every
    create, update, delete, approval, rejection, and user-status change is
    written to the audit trail.
 

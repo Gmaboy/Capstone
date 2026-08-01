@@ -27,6 +27,11 @@ model, category, wattage, and evidence source are copied as a snapshot, while
 quantity and average hours per day remain household-specific and can be edited
 without another administrator review.
 
+Inventory removal uses the nullable `deleted_at` field. Active load queries
+include only rows where `deleted_at IS NULL`; removed rows appear in Recently
+Deleted and can be restored without changing or resurfacing their source
+contributions.
+
 Demo accounts:
 
 - Administrator: `admin@electroforecast.local` / `Admin123!`

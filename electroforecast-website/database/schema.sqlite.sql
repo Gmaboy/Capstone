@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS household_appliances (
   quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity BETWEEN 1 AND 50),
   avg_daily_usage_hours REAL NOT NULL DEFAULT 0 CHECK (avg_daily_usage_hours >= 0 AND avg_daily_usage_hours <= 24),
   source_of_info TEXT NOT NULL,
+  deleted_at TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (household_id) REFERENCES households(household_id) ON DELETE CASCADE,

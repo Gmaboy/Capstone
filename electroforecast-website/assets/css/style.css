@@ -714,6 +714,17 @@ tbody tr:hover{background:var(--grey-100);}
 .submission-stage-title b{font-size:12.5px;color:var(--dark);}
 .submission-stage-copy > small{display:block;margin-top:3px;font-size:10px;color:var(--grey-600);}
 .submission-stage-copy p{margin-top:5px;font-size:10.5px;color:var(--grey-700);line-height:1.4;}
+.card-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;}
+.button-count{display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 5px;border-radius:999px;background:#E8EEF5;color:var(--dark);font-size:9px;font-weight:800;}
+.btn-primary .button-count{background:rgba(255,255,255,.2);color:#fff;}
+.modal-description{margin:-4px 0 14px;color:var(--grey-600);font-size:11px;line-height:1.5;}
+.recently-deleted-list{display:flex;flex-direction:column;gap:9px;max-height:430px;overflow:auto;}
+.recently-deleted-item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:11px;padding:12px;border:1px solid #E1E9F2;border-radius:11px;background:#F9FBFD;}
+.recently-deleted-icon{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;background:#E8EEF5;color:#64778D;}
+.recently-deleted-icon svg{width:16px;height:16px;}
+.recently-deleted-copy{display:flex;min-width:0;flex-direction:column;gap:2px;}
+.recently-deleted-copy b{color:var(--dark);font-size:12px;}
+.recently-deleted-copy small,.recently-deleted-copy span{color:var(--grey-600);font-size:9.5px;}
 .empty-stage{display:flex;align-items:center;justify-content:center;gap:8px;padding:24px;border:1px dashed #D9E4EF;border-radius:11px;color:var(--grey-600);font-size:11px;}
 .empty-stage svg{width:18px;height:18px;color:var(--success);}
 
@@ -829,4 +840,8 @@ tbody tr:hover{background:var(--grey-100);}
   .selected-rating{grid-column:2;text-align:left;}
   .submission-stage-item{grid-template-columns:auto minmax(0,1fr);align-items:start;}
   .submission-stage-item > .btn{grid-column:1/-1;width:100%;justify-content:center;}
+  .card-actions{width:100%;justify-content:stretch;}
+  .card-actions .btn{flex:1;justify-content:center;}
+  .recently-deleted-item{grid-template-columns:auto minmax(0,1fr);align-items:start;}
+  .recently-deleted-item > .btn{grid-column:1/-1;width:100%;justify-content:center;}
 }

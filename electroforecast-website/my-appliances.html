@@ -44,7 +44,10 @@
       <section class="card portal-table-card">
         <div class="card-head">
           <div><h3>Household Appliance List</h3><div class="card-sub">Only appliances in this list count toward your household load.</div></div>
-          <button class="btn btn-primary btn-sm" id="open-add-appliance-secondary"><i data-feather="plus"></i> Add Appliance</button>
+          <div class="card-actions">
+            <button class="btn btn-secondary btn-sm" id="open-recently-deleted"><i data-feather="rotate-ccw"></i> Recently Deleted <span class="button-count" id="recently-deleted-count">0</span></button>
+            <button class="btn btn-primary btn-sm" id="open-add-appliance-secondary"><i data-feather="plus"></i> Add Appliance</button>
+          </div>
         </div>
         <div class="table-note"><i data-feather="info"></i> Removing an appliance here does not delete your original contribution from My Submissions.</div>
         <div class="table-wrap portal-table">
@@ -124,6 +127,19 @@
       <label class="checkbox-row form-confirmation"><input type="checkbox" id="manual-confirm" required> I confirm that this information is accurate to the best of my knowledge.</label>
       <div class="modal-actions"><button type="button" class="btn btn-secondary" data-close-library>Cancel</button><button type="submit" class="btn btn-primary" id="save-manual-appliance"><i data-feather="send"></i> Submit for Validation</button></div>
     </form>
+  </section>
+</div>
+
+<div class="record-modal" id="recently-deleted-modal" hidden>
+  <button class="modal-scrim" type="button" data-close-recently-deleted aria-label="Close recently deleted appliances"></button>
+  <section class="modal-dialog modal-dialog-wide" role="dialog" aria-modal="true" aria-labelledby="recently-deleted-title">
+    <header class="modal-header">
+      <div><div class="eyebrow">Household inventory</div><h3 id="recently-deleted-title">Recently Deleted Appliances</h3></div>
+      <button class="icon-btn modal-close" type="button" data-close-recently-deleted aria-label="Close recently deleted appliances"><i data-feather="x"></i></button>
+    </header>
+    <p class="modal-description">Removed appliances stay here and do not return to Submitted Appliances. Restore one to include it in your household load again.</p>
+    <div class="recently-deleted-list" id="recently-deleted-list"></div>
+    <div class="modal-actions"><button type="button" class="btn btn-secondary" data-close-recently-deleted>Close</button></div>
   </section>
 </div>
 
