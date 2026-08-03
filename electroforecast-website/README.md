@@ -23,6 +23,16 @@ representative capstone data.
 - Household: `household@electroforecast.local` / `Household123!`
 - Administrator: `admin@electroforecast.local` / `Admin123!`
 
+New households can create their own account from `signup.html` or the
+**Create a household account** link on the sign-in page. Registration creates
+both the role-restricted user account and its Guimaras household profile, then
+signs the household in automatically.
+
+The registration form loads the five Guimaras municipalities and their 98
+barangays from the built-in PSA PSGC-aligned location registry. Selecting a
+municipality filters the Barangay field to that municipality, and the API
+rejects municipality/barangay combinations that do not match.
+
 ## Implemented workflow
 
 1. **My Submissions** stores a household's appliance-rating contributions. A
@@ -33,7 +43,8 @@ representative capstone data.
    calculated from this inventory only.
 3. Removing an inventory item moves it to **Recently Deleted**. It is excluded
    from the household load and does not return to Submitted Appliances. The
-   household can restore it later.
+   household can restore it later, or select one or multiple deleted items and
+   delete them permanently.
 4. Selecting an administrator-approved rating reuses its technical details. The
    household personalizes only quantity and average hours per day, without
    another administrator review.
@@ -42,8 +53,13 @@ representative capstone data.
 6. After an administrator approves a new contribution, the household decides
    whether to add it to My Appliances. Approval by itself does not add it.
 7. **Monthly Consumption** has its own page and CRUD workflow, separate from the
-   My Energy Portal summary.
-8. Only approved contributions count toward forecast data readiness. Every
+   My Energy Portal summary. Removed records first move to **Recently Deleted**,
+   where one or multiple records can be restored or deleted permanently. New
+   and resubmitted records require a private JPG, PNG, or WebP bill picture.
+8. **Reviewer Notes** appear in My Submissions through a message icon beside
+   the status. New administrator feedback is highlighted until the household
+   opens it, and the read state is stored in the database.
+9. Only approved contributions count toward forecast data readiness. Every
    create, update, delete, approval, rejection, and user-status change is
    written to the audit trail.
 

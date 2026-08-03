@@ -137,7 +137,11 @@
       <div><div class="eyebrow">Household inventory</div><h3 id="recently-deleted-title">Recently Deleted Appliances</h3></div>
       <button class="icon-btn modal-close" type="button" data-close-recently-deleted aria-label="Close recently deleted appliances"><i data-feather="x"></i></button>
     </header>
-    <p class="modal-description">Removed appliances stay here and do not return to Submitted Appliances. Restore one to include it in your household load again.</p>
+    <p class="modal-description">Removed appliances stay here and do not return to Submitted Appliances. Restore one, or select one or more items to delete permanently.</p>
+    <div class="recently-deleted-toolbar">
+      <label class="recently-deleted-select-all"><input type="checkbox" id="select-all-deleted-appliances"> Select all</label>
+      <button type="button" class="btn btn-danger-outline btn-sm" id="delete-selected-appliances" disabled><i data-feather="trash-2"></i> Delete Permanently <span class="button-count" id="selected-appliance-count">0</span></button>
+    </div>
     <div class="recently-deleted-list" id="recently-deleted-list"></div>
     <div class="modal-actions"><button type="button" class="btn btn-secondary" data-close-recently-deleted>Close</button></div>
   </section>

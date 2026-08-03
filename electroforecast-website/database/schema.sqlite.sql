@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS appliances (
   verification_status TEXT NOT NULL DEFAULT 'pending'
     CHECK (verification_status IN ('pending','approved','rejected')),
   reviewer_notes TEXT,
+  reviewer_notes_read_at TEXT,
   reviewed_by INTEGER,
   reviewed_at TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -101,8 +102,14 @@ CREATE TABLE IF NOT EXISTS monthly_consumption (
   verification_status TEXT NOT NULL DEFAULT 'pending'
     CHECK (verification_status IN ('pending','approved','rejected')),
   reviewer_notes TEXT,
+  reviewer_notes_read_at TEXT,
   reviewed_by INTEGER,
   reviewed_at TEXT,
+  deleted_at TEXT,
+  bill_image_filename TEXT,
+  bill_image_original_name TEXT,
+  bill_image_mime TEXT,
+  bill_image_size_bytes INTEGER,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (household_id) REFERENCES households(household_id) ON DELETE CASCADE,

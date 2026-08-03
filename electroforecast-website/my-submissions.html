@@ -43,5 +43,15 @@
     </form>
   </section>
 </div>
+
+<div class="record-modal" id="reviewer-notes-modal" hidden>
+  <button class="modal-scrim" type="button" data-close-reviewer-notes aria-label="Close Reviewer Notes"></button>
+  <section class="modal-dialog reviewer-notes-dialog" role="dialog" aria-modal="true" aria-labelledby="reviewer-notes-title">
+    <header class="modal-header"><div><div class="eyebrow">Administrator feedback</div><h3 id="reviewer-notes-title">Reviewer Notes</h3></div><button class="icon-btn modal-close" type="button" data-close-reviewer-notes aria-label="Close Reviewer Notes"><i data-feather="x"></i></button></header>
+    <div class="reviewer-notes-appliance" id="reviewer-notes-appliance"></div>
+    <div class="reviewer-notes-message" id="reviewer-notes-message"></div>
+    <div class="modal-actions"><button class="btn btn-primary" type="button" data-close-reviewer-notes>Done</button></div>
+  </section>
+</div>
 <script src="assets/js/api.js"></script><script src="assets/js/shell.js"></script><script src="assets/js/my-submissions.js"></script>
 </body></html>

@@ -3,7 +3,8 @@
 
   async function request(path, options) {
     const config = { credentials: 'same-origin', ...options };
-    if (config.body && typeof config.body !== 'string') {
+    const isFormData = typeof FormData !== 'undefined' && config.body instanceof FormData;
+    if (config.body && typeof config.body !== 'string' && !isFormData) {
       config.headers = { 'Content-Type': 'application/json', ...(config.headers || {}) };
       config.body = JSON.stringify(config.body);
     }
@@ -121,4 +122,3 @@
     logout,
   };
 })();
-

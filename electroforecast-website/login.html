@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <title>Sign In · ElectroForecast</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+  if (window.location.protocol === 'file:') {
+    window.location.replace(
+      'http://127.0.0.1:4173/login.html' + window.location.search + window.location.hash
+    );
+  }
+</script>
 <link rel="icon" type="image/png" href="assets/images/electroforecast-logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -65,6 +72,8 @@
         <div class="alert error" id="login-error" style="display:none;margin-bottom:14px;"><i data-feather="alert-circle"></i><span></span></div>
         <button type="submit" class="btn btn-primary btn-block" id="login-button">Sign In</button>
       </form>
+
+      <div class="signup-row">New to ElectroForecast? <a href="signup.html">Create a household account</a></div>
 
       <div class="divider"></div>
       <div class="demo-login">

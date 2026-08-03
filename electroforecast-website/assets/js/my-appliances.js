@@ -3,7 +3,7 @@
 
   const state = {
     appliances:[], deletedAppliances:[], submissions:[], categories:[], catalog:[],
-    selectedCatalog:null, editingInventory:null
+    selectedCatalog:null, editingInventory:null, selectedDeleted:new Set()
   };
   const $ = selector => document.querySelector(selector);
 
@@ -62,6 +62,7 @@
     $('#recently-deleted-list').innerHTML = state.deletedAppliances.length
       ? state.deletedAppliances.map(item=>`
         <article class="recently-deleted-item">
+          <label class="recently-deleted-selection"><input type="checkbox" data-select-deleted-inventory="${item.inventory_id}" aria-label="Select ${ElectroAPI.escapeHTML(item.appliance_name)} for permanent deletion"></label>
           <span class="recently-deleted-icon"><i data-feather="archive"></i></span>
           <div class="recently-deleted-copy">
             <b>${ElectroAPI.escapeHTML(item.appliance_name)}</b>
@@ -71,6 +72,22 @@
           <button class="btn btn-primary btn-sm" type="button" data-restore-inventory="${item.inventory_id}"><i data-feather="rotate-ccw"></i> Restore</button>
         </article>`).join('')
       : `<div class="empty-stage"><i data-feather="archive"></i><b>No recently deleted appliances</b><span>Appliances removed from your household list will appear here.</span></div>`;
+    syncDeletedSelection();
+  }
+
+  function syncDeletedSelection() {
+    const available = new Set(state.deletedAppliances.map(item=>String(item.inventory_id)));
+    state.selectedDeleted = new Set([...state.selectedDeleted].filter(id=>available.has(String(id))));
+    document.querySelectorAll('[data-select-deleted-inventory]').forEach(input=>{
+      input.checked = state.selectedDeleted.has(String(input.dataset.selectDeletedInventory));
+    });
+    const selectedCount = state.selectedDeleted.size;
+    const allCheckbox = $('#select-all-deleted-appliances');
+    allCheckbox.checked = state.deletedAppliances.length > 0 && selectedCount === state.deletedAppliances.length;
+    allCheckbox.indeterminate = selectedCount > 0 && selectedCount < state.deletedAppliances.length;
+    allCheckbox.disabled = state.deletedAppliances.length === 0;
+    $('#selected-appliance-count').textContent = selectedCount;
+    $('#delete-selected-appliances').disabled = selectedCount === 0;
   }
 
   function renderAll() {
@@ -277,6 +294,20 @@
     } catch (error) { ElectroAPI.notify(error.message,'error'); }
   }
 
+  async function permanentlyDeleteSelected() {
+    const inventoryIds = [...state.selectedDeleted].map(Number);
+    if (!inventoryIds.length || !window.confirm(`Permanently delete ${inventoryIds.length} selected appliance${inventoryIds.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
+    const button = $('#delete-selected-appliances');
+    button.disabled = true;
+    try {
+      const payload = await ElectroAPI.request('/api/my-appliances/permanent',{method:'DELETE',body:{inventory_ids:inventoryIds}});
+      state.selectedDeleted.clear();
+      await loadData();
+      ElectroAPI.notify(`${payload.deleted_count} appliance${payload.deleted_count === 1 ? '' : 's'} permanently deleted.`);
+    } catch (error) { ElectroAPI.notify(error.message,'error'); }
+    finally { syncDeletedSelection(); }
+  }
+
   document.addEventListener('click',event=>{
     const button = event.target.closest('button');
     if (!button) return;
@@ -289,9 +320,23 @@
     if (button.dataset.deleteInventory) deleteInventory(button.dataset.deleteInventory);
     if (button.dataset.restoreInventory) restoreInventory(button.dataset.restoreInventory);
   });
+  document.addEventListener('change',event=>{
+    const input = event.target.closest('[data-select-deleted-inventory]');
+    if (!input) return;
+    const id = String(input.dataset.selectDeletedInventory);
+    if (input.checked) state.selectedDeleted.add(id); else state.selectedDeleted.delete(id);
+    syncDeletedSelection();
+  });
   $('#open-add-appliance').addEventListener('click',()=>openLibrary());
   $('#open-add-appliance-secondary').addEventListener('click',()=>openLibrary());
   $('#open-recently-deleted').addEventListener('click',openRecentlyDeleted);
+  $('#select-all-deleted-appliances').addEventListener('change',event=>{
+    state.selectedDeleted = event.currentTarget.checked
+      ? new Set(state.deletedAppliances.map(item=>String(item.inventory_id)))
+      : new Set();
+    syncDeletedSelection();
+  });
+  $('#delete-selected-appliances').addEventListener('click',permanentlyDeleteSelected);
   $('#modal-catalog-search').addEventListener('input',renderCatalogResults);
   $('#back-to-catalog').addEventListener('click',()=>{ state.selectedCatalog=null; $('#catalog-customize-form').hidden=true; $('#catalog-picker').hidden=false; $('#modal-catalog-search').focus(); });
   $('#catalog-quantity').addEventListener('input',updateLoadPreview);

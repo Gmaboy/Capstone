@@ -29,7 +29,7 @@
       <tr>
         <td data-label="Submission"><div class="submission-title"><span class="source-icon ${item.submission_type==='appliance'?'pending':'neutral'}"><i data-feather="${typeIcon(item.submission_type)}"></i></span><span><b>${ElectroAPI.escapeHTML(item.title)}</b><small>${ElectroAPI.titleCase(item.submission_type)} · ${ElectroAPI.escapeHTML(item.category_name)}</small></span></div></td>
         <td data-label="Contributor"><div class="record-title"><b>${ElectroAPI.escapeHTML(item.contributor)}</b><small>${ElectroAPI.escapeHTML([item.barangay,item.municipality].filter(Boolean).join(', '))}</small></div></td>
-        <td data-label="Details"><b>${ElectroAPI.escapeHTML(item.details)}</b><div class="text-sm text-muted">${ElectroAPI.titleCase(item.source_of_info)}</div></td>
+        <td data-label="Details"><b>${ElectroAPI.escapeHTML(item.details)}</b><div class="text-sm text-muted">${ElectroAPI.titleCase(item.source_of_info)}${item.submission_type==='consumption' ? ` · ${item.has_bill_image ? 'Bill picture attached' : 'No bill picture'}` : ''}</div></td>
         <td data-label="Updated">${ElectroAPI.formatDate(item.updated_at)}</td>
         <td data-label="Status">${ElectroAPI.statusBadge(item.verification_status)}</td>
         <td data-label="Actions"><button type="button" class="btn btn-outline btn-sm" data-review="${item.submission_type}:${item.submission_id}">${state.user.role==='admin' ? 'Review' : 'View'}</button></td>
@@ -92,7 +92,8 @@
       <div><small>Category</small><b>${ElectroAPI.escapeHTML(item.category_name)}</b></div>
       <div><small>Submitted Value</small><b>${ElectroAPI.escapeHTML(item.details)}</b></div>
       <div><small>Information Source</small><b>${ElectroAPI.titleCase(item.source_of_info)}</b></div>
-      <div><small>Current Status</small>${ElectroAPI.statusBadge(item.verification_status)}</div>`;
+      <div><small>Current Status</small>${ElectroAPI.statusBadge(item.verification_status)}</div>
+      ${item.submission_type === 'consumption' ? `<div><small>Bill Evidence</small>${item.has_bill_image ? `<a class="btn btn-outline btn-sm" href="/api/consumption/${item.submission_id}/bill-image" target="_blank" rel="noopener"><i data-feather="image"></i> View Bill Picture</a>` : '<b>Not attached</b>'}</div>` : ''}`;
     const canReview = state.user.role === 'admin';
     $('#approve-submission').hidden = !canReview;
     $('#reject-submission').hidden = !canReview;
@@ -180,4 +181,3 @@
     }
   })();
 })();
-

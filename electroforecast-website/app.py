@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import secrets
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
@@ -11,23 +13,58 @@ from typing import Any, Iterator
 
 from flask import Flask, jsonify, redirect, request, send_from_directory, session
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.utils import secure_filename
 
 
 ROOT = Path(__file__).resolve().parent
 DATABASE_PATH = ROOT / "database" / "electroforecast.db"
 SCHEMA_PATH = ROOT / "database" / "schema.sqlite.sql"
+BILL_IMAGE_DIR = ROOT / "database" / "uploads" / "bills"
+BILL_IMAGE_MAX_BYTES = 5 * 1024 * 1024
 
 app = Flask(__name__, static_folder=None)
 app.config.update(
     SECRET_KEY=os.environ.get("ELECTROFORECAST_SECRET", "electroforecast-local-development-key"),
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
-    MAX_CONTENT_LENGTH=2 * 1024 * 1024,
+    MAX_CONTENT_LENGTH=6 * 1024 * 1024,
 )
 
 CATALOG_APPROVAL_NOTE = (
     "Automatically accepted from an administrator-approved appliance rating."
 )
+
+GUIMARAS_BARANGAYS = {
+    "Buenavista": (
+        "Agsanayan", "Avila", "Banban", "Bacjao", "Cansilayan", "Dagsa-an",
+        "Daragan", "East Valencia", "Getulio", "Mabini", "Magsaysay", "Mclain",
+        "Montpiller", "Navalas", "Nazaret", "New Poblacion", "Old Poblacion",
+        "Piña", "Rizal", "Salvacion", "San Fernando", "San Isidro", "San Miguel",
+        "San Nicolas", "San Pedro", "San Roque", "Santo Rosario", "Sawang",
+        "Supang", "Tacay", "Taminla", "Tanag", "Tastasan", "Tinadtaran",
+        "Umilig", "Zaldivar",
+    ),
+    "Jordan": (
+        "Alaguisoc", "Balcon Maravilla", "Balcon Melliza", "Bugnay", "Buluangan",
+        "Espinosa", "Hoskyn", "Lawi", "Morobuan", "Poblacion", "Rizal",
+        "San Miguel", "Sinapsapan", "Santa Teresa",
+    ),
+    "Nueva Valencia": (
+        "Cabalagnan", "Calaya", "Canhawan", "Concordia Sur", "Dolores", "Guiwanon",
+        "Igang", "Igdarapdap", "La Paz", "Lanipe", "Lucmayan", "Magamay",
+        "Napandong", "Oracon Sur", "Pandaraonan", "Panobolon", "Poblacion",
+        "Salvacion", "San Antonio", "San Roque", "Santo Domingo", "Tando",
+    ),
+    "San Lorenzo": (
+        "Aguilar", "Cabano", "Cabungahan", "Constancia", "Gaban", "Igcawayan",
+        "M. Chavez", "San Enrique", "Sapal", "Sebario", "Suclaran", "Tamborong",
+    ),
+    "Sibunag": (
+        "Alegria", "Ayangan", "Bubog", "Concordia Norte", "Dasal", "Inampologan",
+        "Maabay", "Millan", "Oracon Norte", "Ravina", "Sabang", "San Isidro",
+        "Sebaste", "Tanglad",
+    ),
+}
 
 
 @contextmanager
@@ -64,6 +101,10 @@ def initialize_database() -> None:
             db.execute(
                 "ALTER TABLE appliances ADD COLUMN copied_from_appliance_id INTEGER"
             )
+        if "reviewer_notes_read_at" not in appliance_columns:
+            db.execute(
+                "ALTER TABLE appliances ADD COLUMN reviewer_notes_read_at TEXT"
+            )
         household_appliance_columns = {
             row["name"] for row in db.execute("PRAGMA table_info(household_appliances)")
         }
@@ -77,15 +118,38 @@ def initialize_database() -> None:
             ON household_appliances(household_id, deleted_at)
             """
         )
+        consumption_columns = {
+            row["name"] for row in db.execute("PRAGMA table_info(monthly_consumption)")
+        }
+        if "deleted_at" not in consumption_columns:
+            db.execute("ALTER TABLE monthly_consumption ADD COLUMN deleted_at TEXT")
+        for column_name, column_type in (
+            ("reviewer_notes_read_at", "TEXT"),
+            ("bill_image_filename", "TEXT"),
+            ("bill_image_original_name", "TEXT"),
+            ("bill_image_mime", "TEXT"),
+            ("bill_image_size_bytes", "INTEGER"),
+        ):
+            if column_name not in consumption_columns:
+                db.execute(
+                    f"ALTER TABLE monthly_consumption ADD COLUMN {column_name} {column_type}"
+                )
+        db.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_consumption_deleted
+            ON monthly_consumption(household_id, deleted_at)
+            """
+        )
         db.execute(
             """
             UPDATE appliances
             SET verification_status='approved',
                 reviewer_notes=?,
+                reviewer_notes_read_at=COALESCE(reviewer_notes_read_at, ?),
                 reviewed_at=COALESCE(reviewed_at, ?)
             WHERE copied_from_appliance_id IS NOT NULL
             """,
-            (CATALOG_APPROVAL_NOTE, now()),
+            (CATALOG_APPROVAL_NOTE, now(), now()),
         )
 
         roles = {
@@ -386,6 +450,10 @@ def json_body() -> dict[str, Any]:
     return request.get_json(silent=True) or {}
 
 
+def form_or_json_body() -> dict[str, Any]:
+    return request.form.to_dict() if request.form else json_body()
+
+
 def text_value(data: dict[str, Any], key: str, required: bool = False) -> str | None:
     value = str(data.get(key, "")).strip()
     if required and not value:
@@ -413,6 +481,59 @@ def number_value(
             f"{key.replace('_', ' ').title()} must be between {minimum:g} and {maximum:g}"
         )
     return value
+
+
+def id_list(data: dict[str, Any], key: str, maximum: int = 100) -> list[int]:
+    raw_ids = data.get(key)
+    if not isinstance(raw_ids, list) or not raw_ids:
+        raise ValueError("Select at least one item")
+    if len(raw_ids) > maximum:
+        raise ValueError(f"You can permanently delete up to {maximum} items at once")
+    try:
+        values = list(dict.fromkeys(int(value) for value in raw_ids))
+    except (TypeError, ValueError):
+        raise ValueError("Selected items are invalid")
+    if any(value <= 0 for value in values):
+        raise ValueError("Selected items are invalid")
+    return values
+
+
+def bill_image_upload(required: bool = True) -> dict[str, Any] | None:
+    uploaded = request.files.get("bill_image")
+    if not uploaded or not uploaded.filename:
+        if required:
+            raise ValueError("A clear picture of the electricity bill is required")
+        return None
+    contents = uploaded.read(BILL_IMAGE_MAX_BYTES + 1)
+    if len(contents) > BILL_IMAGE_MAX_BYTES:
+        raise ValueError("Bill picture must be 5 MB or smaller")
+    if contents.startswith(b"\xff\xd8\xff"):
+        extension, mime_type = "jpg", "image/jpeg"
+    elif contents.startswith(b"\x89PNG\r\n\x1a\n"):
+        extension, mime_type = "png", "image/png"
+    elif len(contents) >= 12 and contents[:4] == b"RIFF" and contents[8:12] == b"WEBP":
+        extension, mime_type = "webp", "image/webp"
+    else:
+        raise ValueError("Bill picture must be a valid JPG, PNG, or WebP image")
+    original_name = secure_filename(uploaded.filename)[:255] or f"bill.{extension}"
+    return {
+        "filename": f"{secrets.token_hex(20)}.{extension}",
+        "original_name": original_name,
+        "mime_type": mime_type,
+        "size_bytes": len(contents),
+        "contents": contents,
+    }
+
+
+def save_bill_image(image: dict[str, Any]) -> None:
+    BILL_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+    (BILL_IMAGE_DIR / image["filename"]).write_bytes(image["contents"])
+
+
+def delete_bill_image(filename: str | None) -> None:
+    if not filename or Path(filename).name != filename:
+        return
+    (BILL_IMAGE_DIR / filename).unlink(missing_ok=True)
 
 
 def audit(
@@ -448,6 +569,112 @@ def handle_too_large(_error):
 @app.get("/api/health")
 def health():
     return jsonify(status="ok", database=str(DATABASE_PATH.name))
+
+
+@app.get("/api/locations/guimaras")
+def guimaras_locations():
+    return jsonify(
+        province="Guimaras",
+        municipality_count=len(GUIMARAS_BARANGAYS),
+        barangay_count=sum(len(items) for items in GUIMARAS_BARANGAYS.values()),
+        psgc_reference_date="2025-07-31",
+        municipalities=[
+            {"name": municipality, "barangays": list(barangays)}
+            for municipality, barangays in GUIMARAS_BARANGAYS.items()
+        ],
+    )
+
+
+@app.post("/api/auth/register")
+def register():
+    data = json_body()
+    try:
+        full_name = text_value(data, "full_name", True)
+        email = text_value(data, "email", True).lower()
+        barangay = text_value(data, "barangay", True)
+        municipality = text_value(data, "municipality", True)
+        contact_no = text_value(data, "contact_no")
+        password = str(data.get("password", ""))
+        password_confirmation = str(data.get("password_confirmation", ""))
+
+        if not 2 <= len(full_name) <= 100:
+            raise ValueError("Full name must be between 2 and 100 characters")
+        if len(email) > 150 or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
+            raise ValueError("Enter a valid email address")
+        if len(barangay) > 100:
+            raise ValueError("Barangay must be 100 characters or fewer")
+        if municipality not in GUIMARAS_BARANGAYS:
+            raise ValueError("Select a valid Guimaras municipality")
+        if barangay not in GUIMARAS_BARANGAYS[municipality]:
+            raise ValueError(f"Select a valid barangay in {municipality}")
+        if contact_no and len(contact_no) > 30:
+            raise ValueError("Contact number must be 30 characters or fewer")
+        if (
+            len(password) < 8
+            or not re.search(r"[a-z]", password)
+            or not re.search(r"[A-Z]", password)
+            or not re.search(r"\d", password)
+        ):
+            raise ValueError(
+                "Password must be at least 8 characters and include uppercase, lowercase, and a number"
+            )
+        if password != password_confirmation:
+            raise ValueError("Passwords do not match")
+        if data.get("terms_accepted") is not True:
+            raise ValueError("You must confirm the data contribution agreement")
+
+    except (ValueError, TypeError) as error:
+        return jsonify(error=str(error)), 400
+
+    with get_db() as db:
+        if db.execute(
+            "SELECT 1 FROM users WHERE email=? COLLATE NOCASE", (email,)
+        ).fetchone():
+            return jsonify(error="An account with this email already exists"), 409
+        household_role = db.execute(
+            "SELECT role_id FROM roles WHERE role_name='household'"
+        ).fetchone()
+        if not household_role:
+            return jsonify(error="Household registration is temporarily unavailable"), 503
+        cursor = db.execute(
+            """
+            INSERT INTO users
+              (role_id, full_name, email, password_hash, contact_no)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                household_role["role_id"],
+                full_name,
+                email,
+                generate_password_hash(password),
+                contact_no,
+            ),
+        )
+        user_id = int(cursor.lastrowid)
+        household_cursor = db.execute(
+            """
+            INSERT INTO households
+              (user_id, barangay, municipality, province)
+            VALUES (?, ?, ?, 'Guimaras')
+            """,
+            (user_id, barangay, municipality),
+        )
+        audit(
+            db,
+            user_id,
+            "registered",
+            "user",
+            user_id,
+            {
+                "household_id": int(household_cursor.lastrowid),
+                "municipality": municipality,
+                "province": "Guimaras",
+            },
+        )
+
+    session.clear()
+    session["user_id"] = user_id
+    return jsonify(user=user_payload(user_id), redirect="user-portal.html"), 201
 
 
 @app.post("/api/auth/login")
@@ -527,14 +754,14 @@ def portal_summary():
             """
             SELECT COUNT(*) AS count,
                    SUM(CASE WHEN verification_status='pending' THEN 1 ELSE 0 END) AS pending
-            FROM monthly_consumption WHERE household_id = ?
+            FROM monthly_consumption WHERE household_id = ? AND deleted_at IS NULL
             """,
             (household_id,),
         ).fetchone()
         latest = db.execute(
             """
             SELECT billing_month, consumption_kwh, verification_status
-            FROM monthly_consumption WHERE household_id = ?
+            FROM monthly_consumption WHERE household_id = ? AND deleted_at IS NULL
             ORDER BY billing_month DESC LIMIT 1
             """,
             (household_id,),
@@ -543,7 +770,7 @@ def portal_summary():
             """
             SELECT
               (SELECT COUNT(*) FROM appliances WHERE household_id=? AND verification_status='approved') +
-              (SELECT COUNT(*) FROM monthly_consumption WHERE household_id=? AND verification_status='approved')
+              (SELECT COUNT(*) FROM monthly_consumption WHERE household_id=? AND verification_status='approved' AND deleted_at IS NULL)
               AS approved_count
             """,
             (household_id, household_id),
@@ -567,6 +794,12 @@ APPLIANCE_SELECT = """
 SELECT a.appliance_id, a.appliance_name, a.brand, a.model,
        a.power_rating_watts, a.quantity, a.avg_daily_usage_hours,
        a.source_of_info, a.verification_status, a.reviewer_notes,
+       a.reviewer_notes_read_at,
+       CASE
+         WHEN a.reviewer_notes IS NOT NULL
+          AND TRIM(a.reviewer_notes) <> ''
+          AND a.reviewer_notes_read_at IS NULL THEN 1 ELSE 0
+       END AS reviewer_notes_unread,
        a.copied_from_appliance_id, a.created_at, a.updated_at,
        c.category_id, c.category_name,
        EXISTS(
@@ -598,6 +831,40 @@ def list_appliances():
             (household_id,),
         ).fetchall()
     return jsonify(appliances=[dict(row) for row in rows])
+
+
+@app.post("/api/appliances/<int:appliance_id>/reviewer-notes/read")
+@require_auth("household")
+def mark_appliance_reviewer_notes_read(appliance_id: int):
+    with get_db() as db:
+        household_id = household_id_for(request.current_user["user_id"], db)
+        row = db.execute(
+            """
+            SELECT reviewer_notes, reviewer_notes_read_at
+            FROM appliances
+            WHERE appliance_id=? AND household_id=?
+            """,
+            (appliance_id, household_id),
+        ).fetchone()
+        if not row or not row["reviewer_notes"]:
+            return jsonify(error="Reviewer Notes not found"), 404
+        read_at = row["reviewer_notes_read_at"] or now()
+        if not row["reviewer_notes_read_at"]:
+            db.execute(
+                """
+                UPDATE appliances SET reviewer_notes_read_at=?
+                WHERE appliance_id=? AND household_id=?
+                """,
+                (read_at, appliance_id, household_id),
+            )
+            audit(
+                db,
+                request.current_user["user_id"],
+                "reviewer_notes_read",
+                "appliance",
+                appliance_id,
+            )
+    return jsonify(ok=True, reviewer_notes_read_at=read_at)
 
 
 HOUSEHOLD_APPLIANCE_SELECT = """
@@ -885,6 +1152,49 @@ def restore_household_appliance(inventory_id: int):
     return jsonify(appliance=dict(restored))
 
 
+@app.delete("/api/my-appliances/permanent")
+@require_auth("household")
+def permanently_delete_household_appliances():
+    try:
+        inventory_ids = id_list(json_body(), "inventory_ids")
+    except (ValueError, TypeError) as error:
+        return jsonify(error=str(error)), 400
+    placeholders = ",".join("?" for _ in inventory_ids)
+    with get_db() as db:
+        household_id = household_id_for(request.current_user["user_id"], db)
+        rows = db.execute(
+            f"""
+            SELECT inventory_id, appliance_name
+            FROM household_appliances
+            WHERE household_id=? AND deleted_at IS NOT NULL
+              AND inventory_id IN ({placeholders})
+            """,
+            (household_id, *inventory_ids),
+        ).fetchall()
+        if not rows:
+            return jsonify(error="No recently deleted appliances were selected"), 404
+        eligible_ids = [int(row["inventory_id"]) for row in rows]
+        eligible_placeholders = ",".join("?" for _ in eligible_ids)
+        db.execute(
+            f"""
+            DELETE FROM household_appliances
+            WHERE household_id=? AND deleted_at IS NOT NULL
+              AND inventory_id IN ({eligible_placeholders})
+            """,
+            (household_id, *eligible_ids),
+        )
+        for row in rows:
+            audit(
+                db,
+                request.current_user["user_id"],
+                "permanently_deleted",
+                "household_appliance",
+                int(row["inventory_id"]),
+                {"appliance_name": row["appliance_name"]},
+            )
+    return jsonify(ok=True, deleted_count=len(eligible_ids))
+
+
 def appliance_fields(data: dict[str, Any]) -> dict[str, Any]:
     category_id = int(number_value(data, "category_id", minimum=1, maximum=9999))
     source = text_value(data, "source_of_info", True)
@@ -964,6 +1274,7 @@ def update_appliance(appliance_id: int):
                 UPDATE appliances
                 SET quantity=?, avg_daily_usage_hours=?,
                     verification_status='approved', reviewer_notes=?,
+                    reviewer_notes_read_at=?,
                     updated_at=?
                 WHERE appliance_id=? AND household_id=?
                 """,
@@ -971,6 +1282,7 @@ def update_appliance(appliance_id: int):
                     quantity,
                     avg_hours,
                     CATALOG_APPROVAL_NOTE,
+                    now(),
                     now(),
                     appliance_id,
                     household_id,
@@ -1004,7 +1316,8 @@ def update_appliance(appliance_id: int):
             SET appliance_name=?, brand=?, model=?, category_id=?,
                 power_rating_watts=?, quantity=?, avg_daily_usage_hours=?,
                 source_of_info=?, verification_status='pending',
-                reviewer_notes=NULL, reviewed_by=NULL, reviewed_at=NULL, updated_at=?
+                reviewer_notes=NULL, reviewer_notes_read_at=NULL,
+                reviewed_by=NULL, reviewed_at=NULL, updated_at=?
             WHERE appliance_id=? AND household_id=?
             """,
             (*fields.values(), now(), appliance_id, household_id),
@@ -1045,7 +1358,14 @@ def delete_appliance(appliance_id: int):
 CONSUMPTION_SELECT = """
 SELECT consumption_id, billing_month, consumption_kwh, bill_amount_php,
        meter_reading, source_of_info, verification_status, reviewer_notes,
-       created_at, updated_at
+       reviewer_notes_read_at,
+       CASE
+         WHEN reviewer_notes IS NOT NULL
+          AND TRIM(reviewer_notes) <> ''
+          AND reviewer_notes_read_at IS NULL THEN 1 ELSE 0
+       END AS reviewer_notes_unread,
+       deleted_at, created_at, updated_at,
+       CASE WHEN bill_image_filename IS NOT NULL THEN 1 ELSE 0 END AS has_bill_image
 FROM monthly_consumption
 """
 
@@ -1056,10 +1376,89 @@ def list_consumption():
     with get_db() as db:
         household_id = household_id_for(request.current_user["user_id"], db)
         rows = db.execute(
-            CONSUMPTION_SELECT + " WHERE household_id=? ORDER BY billing_month DESC",
+            CONSUMPTION_SELECT
+            + " WHERE household_id=? AND deleted_at IS NULL ORDER BY billing_month DESC",
             (household_id,),
         ).fetchall()
     return jsonify(records=[dict(row) for row in rows])
+
+
+@app.get("/api/consumption/recently-deleted")
+@require_auth("household")
+def list_recently_deleted_consumption():
+    with get_db() as db:
+        household_id = household_id_for(request.current_user["user_id"], db)
+        rows = db.execute(
+            CONSUMPTION_SELECT
+            + " WHERE household_id=? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC",
+            (household_id,),
+        ).fetchall()
+    return jsonify(records=[dict(row) for row in rows])
+
+
+@app.post("/api/consumption/<int:consumption_id>/reviewer-notes/read")
+@require_auth("household")
+def mark_consumption_reviewer_notes_read(consumption_id: int):
+    with get_db() as db:
+        household_id = household_id_for(request.current_user["user_id"], db)
+        row = db.execute(
+            """
+            SELECT reviewer_notes, reviewer_notes_read_at
+            FROM monthly_consumption
+            WHERE consumption_id=? AND household_id=? AND deleted_at IS NULL
+            """,
+            (consumption_id, household_id),
+        ).fetchone()
+        if not row or not row["reviewer_notes"]:
+            return jsonify(error="Reviewer Notes not found"), 404
+        read_at = row["reviewer_notes_read_at"] or now()
+        if not row["reviewer_notes_read_at"]:
+            db.execute(
+                """
+                UPDATE monthly_consumption SET reviewer_notes_read_at=?
+                WHERE consumption_id=? AND household_id=? AND deleted_at IS NULL
+                """,
+                (read_at, consumption_id, household_id),
+            )
+            audit(
+                db,
+                request.current_user["user_id"],
+                "reviewer_notes_read",
+                "monthly_consumption",
+                consumption_id,
+            )
+    return jsonify(ok=True, reviewer_notes_read_at=read_at)
+
+
+@app.get("/api/consumption/<int:consumption_id>/bill-image")
+@require_auth("household", "admin", "guimelco", "researcher")
+def get_consumption_bill_image(consumption_id: int):
+    with get_db() as db:
+        row = db.execute(
+            """
+            SELECT household_id, bill_image_filename, bill_image_original_name,
+                   bill_image_mime
+            FROM monthly_consumption WHERE consumption_id=?
+            """,
+            (consumption_id,),
+        ).fetchone()
+        if not row or not row["bill_image_filename"]:
+            return jsonify(error="Bill picture not found"), 404
+        if request.current_user["role"] == "household":
+            household_id = household_id_for(request.current_user["user_id"], db)
+            if int(row["household_id"]) != household_id:
+                return jsonify(error="Bill picture not found"), 404
+        filename = row["bill_image_filename"]
+        original_name = row["bill_image_original_name"] or filename
+        mime_type = row["bill_image_mime"] or "application/octet-stream"
+    return send_from_directory(
+        BILL_IMAGE_DIR,
+        filename,
+        mimetype=mime_type,
+        as_attachment=False,
+        download_name=original_name,
+        max_age=0,
+    )
 
 
 def consumption_fields(data: dict[str, Any]) -> dict[str, Any]:
@@ -1086,22 +1485,63 @@ def consumption_fields(data: dict[str, Any]) -> dict[str, Any]:
 @require_auth("household")
 def create_consumption():
     try:
-        fields = consumption_fields(json_body())
+        fields = consumption_fields(form_or_json_body())
+        image = bill_image_upload(required=True)
     except (ValueError, TypeError) as error:
         return jsonify(error=str(error)), 400
     with get_db() as db:
         household_id = household_id_for(request.current_user["user_id"], db)
-        cursor = db.execute(
+        deleted = db.execute(
             """
-            INSERT INTO monthly_consumption
-              (household_id, billing_month, consumption_kwh, bill_amount_php,
-               meter_reading, source_of_info)
-            VALUES (?, ?, ?, ?, ?, ?)
+            SELECT 1 FROM monthly_consumption
+            WHERE household_id=? AND billing_month=? AND deleted_at IS NOT NULL
             """,
-            (household_id, *fields.values()),
-        )
+            (household_id, fields["billing_month"]),
+        ).fetchone()
+        if deleted:
+            return jsonify(
+                error="That billing month is in Recently Deleted. Restore it there."
+            ), 409
+        existing = db.execute(
+            """
+            SELECT 1 FROM monthly_consumption
+            WHERE household_id=? AND billing_month=?
+            """,
+            (household_id, fields["billing_month"]),
+        ).fetchone()
+        if existing:
+            return jsonify(error="A consumption record for that billing month already exists"), 409
+        save_bill_image(image)
+        try:
+            cursor = db.execute(
+                """
+                INSERT INTO monthly_consumption
+                  (household_id, billing_month, consumption_kwh, bill_amount_php,
+                   meter_reading, source_of_info, bill_image_filename,
+                   bill_image_original_name, bill_image_mime, bill_image_size_bytes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    household_id,
+                    *fields.values(),
+                    image["filename"],
+                    image["original_name"],
+                    image["mime_type"],
+                    image["size_bytes"],
+                ),
+            )
+        except Exception:
+            delete_bill_image(image["filename"])
+            raise
         consumption_id = int(cursor.lastrowid)
-        audit(db, request.current_user["user_id"], "created", "monthly_consumption", consumption_id, fields)
+        audit(
+            db,
+            request.current_user["user_id"],
+            "created",
+            "monthly_consumption",
+            consumption_id,
+            {**fields, "bill_image_attached": True},
+        )
         row = db.execute(
             CONSUMPTION_SELECT + " WHERE consumption_id=?", (consumption_id,)
         ).fetchone()
@@ -1112,31 +1552,62 @@ def create_consumption():
 @require_auth("household")
 def update_consumption(consumption_id: int):
     try:
-        fields = consumption_fields(json_body())
+        fields = consumption_fields(form_or_json_body())
+        image = bill_image_upload(required=True)
     except (ValueError, TypeError) as error:
         return jsonify(error=str(error)), 400
+    old_filename = None
     with get_db() as db:
         household_id = household_id_for(request.current_user["user_id"], db)
         existing = db.execute(
-            "SELECT 1 FROM monthly_consumption WHERE consumption_id=? AND household_id=?",
+            """
+            SELECT bill_image_filename FROM monthly_consumption
+            WHERE consumption_id=? AND household_id=? AND deleted_at IS NULL
+            """,
             (consumption_id, household_id),
         ).fetchone()
         if not existing:
             return jsonify(error="Consumption record not found"), 404
-        db.execute(
-            """
-            UPDATE monthly_consumption
-            SET billing_month=?, consumption_kwh=?, bill_amount_php=?, meter_reading=?,
-                source_of_info=?, verification_status='pending', reviewer_notes=NULL,
-                reviewed_by=NULL, reviewed_at=NULL, updated_at=?
-            WHERE consumption_id=? AND household_id=?
-            """,
-            (*fields.values(), now(), consumption_id, household_id),
+        old_filename = existing["bill_image_filename"]
+        save_bill_image(image)
+        try:
+            db.execute(
+                """
+                UPDATE monthly_consumption
+                SET billing_month=?, consumption_kwh=?, bill_amount_php=?, meter_reading=?,
+                    source_of_info=?, bill_image_filename=?, bill_image_original_name=?,
+                    bill_image_mime=?, bill_image_size_bytes=?,
+                    verification_status='pending', reviewer_notes=NULL,
+                    reviewer_notes_read_at=NULL,
+                    reviewed_by=NULL, reviewed_at=NULL, updated_at=?
+                WHERE consumption_id=? AND household_id=?
+                """,
+                (
+                    *fields.values(),
+                    image["filename"],
+                    image["original_name"],
+                    image["mime_type"],
+                    image["size_bytes"],
+                    now(),
+                    consumption_id,
+                    household_id,
+                ),
+            )
+        except Exception:
+            delete_bill_image(image["filename"])
+            raise
+        audit(
+            db,
+            request.current_user["user_id"],
+            "updated",
+            "monthly_consumption",
+            consumption_id,
+            {**fields, "bill_image_replaced": True},
         )
-        audit(db, request.current_user["user_id"], "updated", "monthly_consumption", consumption_id, fields)
         row = db.execute(
             CONSUMPTION_SELECT + " WHERE consumption_id=?", (consumption_id,)
         ).fetchone()
+    delete_bill_image(old_filename)
     return jsonify(record=dict(row))
 
 
@@ -1146,24 +1617,110 @@ def delete_consumption(consumption_id: int):
     with get_db() as db:
         household_id = household_id_for(request.current_user["user_id"], db)
         row = db.execute(
-            "SELECT billing_month FROM monthly_consumption WHERE consumption_id=? AND household_id=?",
+            """
+            SELECT billing_month FROM monthly_consumption
+            WHERE consumption_id=? AND household_id=? AND deleted_at IS NULL
+            """,
             (consumption_id, household_id),
         ).fetchone()
         if not row:
             return jsonify(error="Consumption record not found"), 404
         db.execute(
-            "DELETE FROM monthly_consumption WHERE consumption_id=? AND household_id=?",
-            (consumption_id, household_id),
+            """
+            UPDATE monthly_consumption SET deleted_at=?, updated_at=?
+            WHERE consumption_id=? AND household_id=? AND deleted_at IS NULL
+            """,
+            (now(), now(), consumption_id, household_id),
         )
         audit(
             db,
             request.current_user["user_id"],
-            "deleted",
+            "moved_to_recently_deleted",
             "monthly_consumption",
             consumption_id,
             {"billing_month": row["billing_month"]},
         )
     return jsonify(ok=True)
+
+
+@app.post("/api/consumption/<int:consumption_id>/restore")
+@require_auth("household")
+def restore_consumption(consumption_id: int):
+    with get_db() as db:
+        household_id = household_id_for(request.current_user["user_id"], db)
+        row = db.execute(
+            """
+            SELECT billing_month FROM monthly_consumption
+            WHERE consumption_id=? AND household_id=? AND deleted_at IS NOT NULL
+            """,
+            (consumption_id, household_id),
+        ).fetchone()
+        if not row:
+            return jsonify(error="Recently deleted consumption record not found"), 404
+        db.execute(
+            """
+            UPDATE monthly_consumption SET deleted_at=NULL, updated_at=?
+            WHERE consumption_id=? AND household_id=?
+            """,
+            (now(), consumption_id, household_id),
+        )
+        audit(
+            db,
+            request.current_user["user_id"],
+            "restored",
+            "monthly_consumption",
+            consumption_id,
+            {"billing_month": row["billing_month"]},
+        )
+        restored = db.execute(
+            CONSUMPTION_SELECT + " WHERE consumption_id=?", (consumption_id,)
+        ).fetchone()
+    return jsonify(record=dict(restored))
+
+
+@app.delete("/api/consumption/permanent")
+@require_auth("household")
+def permanently_delete_consumption():
+    try:
+        consumption_ids = id_list(json_body(), "consumption_ids")
+    except (ValueError, TypeError) as error:
+        return jsonify(error=str(error)), 400
+    placeholders = ",".join("?" for _ in consumption_ids)
+    with get_db() as db:
+        household_id = household_id_for(request.current_user["user_id"], db)
+        rows = db.execute(
+            f"""
+            SELECT consumption_id, billing_month, bill_image_filename
+            FROM monthly_consumption
+            WHERE household_id=? AND deleted_at IS NOT NULL
+              AND consumption_id IN ({placeholders})
+            """,
+            (household_id, *consumption_ids),
+        ).fetchall()
+        if not rows:
+            return jsonify(error="No recently deleted monthly records were selected"), 404
+        eligible_ids = [int(row["consumption_id"]) for row in rows]
+        eligible_placeholders = ",".join("?" for _ in eligible_ids)
+        db.execute(
+            f"""
+            DELETE FROM monthly_consumption
+            WHERE household_id=? AND deleted_at IS NOT NULL
+              AND consumption_id IN ({eligible_placeholders})
+            """,
+            (household_id, *eligible_ids),
+        )
+        for row in rows:
+            audit(
+                db,
+                request.current_user["user_id"],
+                "permanently_deleted",
+                "monthly_consumption",
+                int(row["consumption_id"]),
+                {"billing_month": row["billing_month"]},
+            )
+    for row in rows:
+        delete_bill_image(row["bill_image_filename"])
+    return jsonify(ok=True, deleted_count=len(eligible_ids))
 
 
 def admin_submissions(db: sqlite3.Connection, status: str | None) -> list[dict[str, Any]]:
@@ -1192,11 +1749,12 @@ def admin_submissions(db: sqlite3.Connection, status: str | None) -> list[dict[s
                printf('%.2f kWh · ₱%.2f', m.consumption_kwh, COALESCE(m.bill_amount_php,0)) AS details,
                m.source_of_info, m.verification_status, m.reviewer_notes,
                m.created_at, m.updated_at, u.full_name AS contributor,
-               h.barangay, h.municipality, 'Monthly Consumption' AS category_name
+               h.barangay, h.municipality, 'Monthly Consumption' AS category_name,
+               CASE WHEN m.bill_image_filename IS NOT NULL THEN 1 ELSE 0 END AS has_bill_image
         FROM monthly_consumption m
         JOIN households h ON h.household_id=m.household_id
         JOIN users u ON u.user_id=h.user_id
-        WHERE 1=1 {status_clause.format(alias='m')}
+        WHERE m.deleted_at IS NULL {status_clause.format(alias='m')}
         """,
         params,
     ).fetchall()
@@ -1212,8 +1770,9 @@ def admin_stats():
         role = request.current_user["role"]
         counts = {"pending": 0, "approved": 0, "rejected": 0}
         for table in ("appliances", "monthly_consumption"):
+            active_clause = " WHERE deleted_at IS NULL" if table == "monthly_consumption" else ""
             for row in db.execute(
-                f"SELECT verification_status, COUNT(*) AS count FROM {table} GROUP BY verification_status"
+                f"SELECT verification_status, COUNT(*) AS count FROM {table}{active_clause} GROUP BY verification_status"
             ):
                 counts[row["verification_status"]] += int(row["count"])
         households = db.execute("SELECT COUNT(*) AS count FROM households").fetchone()["count"]
@@ -1268,22 +1827,31 @@ def review_submission(submission_type: str, submission_id: int):
     if submission_type not in mapping:
         return jsonify(error="Invalid submission type"), 400
     table, id_column, household_column = mapping[submission_type]
+    active_clause = " AND s.deleted_at IS NULL" if submission_type == "consumption" else ""
+    evidence_column = ", s.bill_image_filename" if submission_type == "consumption" else ""
+    notes_read_reset = ", reviewer_notes_read_at=NULL"
     with get_db() as db:
         row = db.execute(
             f"""
-            SELECT h.user_id
+            SELECT h.user_id{evidence_column}
             FROM {table} s JOIN households h ON h.household_id=s.{household_column}
-            WHERE s.{id_column}=?
+            WHERE s.{id_column}=?{active_clause}
             """,
             (submission_id,),
         ).fetchone()
         if not row:
             return jsonify(error="Submission not found"), 404
+        if (
+            submission_type == "consumption"
+            and status == "approved"
+            and not row["bill_image_filename"]
+        ):
+            return jsonify(error="A bill picture is required before approval"), 400
         db.execute(
             f"""
             UPDATE {table}
-            SET verification_status=?, reviewer_notes=?, reviewed_by=?, reviewed_at=?, updated_at=?
-            WHERE {id_column}=?
+            SET verification_status=?, reviewer_notes=?, reviewed_by=?, reviewed_at=?, updated_at=?{notes_read_reset}
+            WHERE {id_column}=?{active_clause.replace('s.', '')}
             """,
             (
                 status,
@@ -1330,7 +1898,7 @@ def list_users():
             JOIN roles r ON r.role_id=u.role_id
             LEFT JOIN households h ON h.user_id=u.user_id
             LEFT JOIN appliances a ON a.household_id=h.household_id
-            LEFT JOIN monthly_consumption m ON m.household_id=h.household_id
+            LEFT JOIN monthly_consumption m ON m.household_id=h.household_id AND m.deleted_at IS NULL
             GROUP BY u.user_id
             ORDER BY u.created_at DESC
             """
