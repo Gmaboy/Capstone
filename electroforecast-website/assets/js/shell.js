@@ -1,4 +1,4 @@
-/* ElectroForecast — shared app shell (sidebar + topbar) */
+/* GUIMPOWERCORE — shared app shell (sidebar + topbar) */
 (function(){
   const NAV = [
     { group:"Overview", items:[
@@ -33,7 +33,7 @@
     ]},
   ];
 
-  const BRAND_LOGO = `<img src="assets/images/electroforecast-logo.png" alt="ElectroForecast logo">`;
+  const BRAND_LOGO = `<img src="assets/images/electroforecast-logo-transparent.png" alt="GUIMPOWERCORE logo">`;
 
   function initials(name){
     return String(name || "User").split(/\s+/).slice(0,2).map(part=>part[0]).join("").toUpperCase();
@@ -64,10 +64,10 @@
 
     return `
     <aside class="sidebar" id="sidebar">
-      <a class="sidebar-brand" href="${home}" aria-label="ElectroForecast home">
+      <a class="sidebar-brand" href="${home}" aria-label="GUIMPOWERCORE home">
         <div class="logo-mark">${BRAND_LOGO}</div>
         <div>
-          <div class="brand-name">ElectroForecast</div>
+          <div class="brand-name">GUIMPOWERCORE</div>
           <div class="brand-tag">Smart Energy Insights</div>
         </div>
       </a>
@@ -107,7 +107,7 @@
         const favicon = document.createElement('link');
         favicon.rel = 'icon';
         favicon.type = 'image/png';
-        favicon.href = 'assets/images/electroforecast-logo.png';
+        favicon.href = 'assets/images/electroforecast-logo-transparent.png';
         document.head.appendChild(favicon);
       }
       const user = defaultUser();

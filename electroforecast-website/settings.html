@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Settings · ElectroForecast</title>
+<title>Settings · GUIMPOWERCORE</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
@@ -21,7 +21,7 @@
           <h2>Settings</h2>
           <p>Manage your profile, forecasting preferences, data connections, and platform security.</p>
         </div>
-        <span class="settings-admin-badge"><i data-feather="shield"></i> Administrator</span>
+        <span class="settings-admin-badge" id="settings-role-badge"><i data-feather="shield"></i> Loading accountâ€¦</span>
       </div>
 
       <div class="settings-layout">
@@ -48,25 +48,25 @@
               <div><h3>Profile Information</h3><div class="card-sub">Manage your personal details and account preferences</div></div>
             </div>
             <div class="profile-photo-row">
-              <div class="settings-avatar">GM</div>
-              <div><button class="btn btn-outline btn-sm">Change Photo</button><div class="text-sm text-muted photo-hint">JPG or PNG, up to 2 MB</div></div>
+              <div class="settings-avatar" id="settings-avatar">â€”</div>
+              <div><button class="btn btn-outline btn-sm" type="button" disabled title="Profile photo upload is not available yet">Change Photo</button><div class="text-sm text-muted photo-hint">Account initials are generated from your name</div></div>
             </div>
             <div class="row-2">
-              <div class="field"><label for="profile-name">Full Name</label><input type="text" id="profile-name" value="Greence Mark"></div>
-              <div class="field"><label for="profile-email">Email Address</label><input type="email" id="profile-email" value="mark.greence@example.com"></div>
+              <div class="field"><label for="profile-name">Full Name</label><input type="text" id="profile-name" autocomplete="name" maxlength="100"></div>
+              <div class="field"><label for="profile-email">Email Address</label><input type="email" id="profile-email" autocomplete="email" maxlength="150"></div>
             </div>
             <div class="row-2">
-              <div class="field"><label for="profile-role">Role</label><select id="profile-role"><option>Administrator</option><option>GUIMELCO Staff</option><option>Researcher</option><option>Household</option></select></div>
-              <div class="field"><label for="profile-contact">Contact Number</label><input type="text" id="profile-contact" value="+63 9XX XXX XXXX"></div>
+              <div class="field"><label for="profile-role">Role</label><select id="profile-role" disabled><option value="admin">Administrator</option><option value="guimelco">GUIMELCO Staff</option><option value="researcher">Researcher</option><option value="household">Household</option></select><div class="hint">Account roles are managed by an administrator.</div></div>
+              <div class="field"><label for="profile-contact">Contact Number</label><input type="tel" id="profile-contact" autocomplete="tel" maxlength="30"></div>
             </div>
             <div class="divider"></div>
             <div class="settings-subhead"><h3>Notification Preferences</h3><span>Choose what reaches your inbox</span></div>
             <div class="settings-choices">
-              <label class="setting-choice"><span><b>High demand forecasts</b><small>Email me when a high-demand period is predicted</small></span><input type="checkbox" checked></label>
-              <label class="setting-choice"><span><b>Rating review updates</b><small>Notify me when my submitted ratings are reviewed</small></span><input type="checkbox" checked></label>
-              <label class="setting-choice"><span><b>Weekly summary reports</b><small>Receive a weekly energy and forecast performance summary</small></span><input type="checkbox"></label>
+              <label class="setting-choice"><span><b>High demand forecasts</b><small>Email me when a high-demand period is predicted</small></span><input type="checkbox" id="notify-high-demand"></label>
+              <label class="setting-choice"><span><b>Rating review updates</b><small>Notify me when my submitted ratings are reviewed</small></span><input type="checkbox" id="notify-rating-updates"></label>
+              <label class="setting-choice"><span><b>Weekly summary reports</b><small>Receive a weekly energy and forecast performance summary</small></span><input type="checkbox" id="notify-weekly-summary"></label>
             </div>
-            <div class="settings-actions"><button class="btn btn-primary" onclick="saveSettings(this)"><i data-feather="save"></i> Save Changes</button></div>
+            <div class="settings-actions"><button class="btn btn-primary" type="button" onclick="saveSettings(this, 'profile')"><i data-feather="save"></i> Save Changes</button></div>
           </div>
 
           <!-- PREFERENCES -->
@@ -76,21 +76,21 @@
               <div><h3>Forecast Preferences</h3><div class="card-sub">Customize how forecasts and dashboards are displayed</div></div>
             </div>
             <div class="row-2">
-              <div class="field"><label for="forecast-horizon">Default Forecast Horizon</label><select id="forecast-horizon"><option>Next 7 Days</option><option>Next 14 Days</option><option>Next 30 Days</option></select></div>
-              <div class="field"><label for="forecast-granularity">Default Granularity</label><select id="forecast-granularity"><option>Daily</option><option>Weekly</option><option>Monthly</option></select></div>
+              <div class="field"><label for="forecast-horizon">Default Forecast Horizon</label><select id="forecast-horizon"><option value="7_days">Next 7 Days</option><option value="14_days">Next 14 Days</option><option value="30_days">Next 30 Days</option></select></div>
+              <div class="field"><label for="forecast-granularity">Default Granularity</label><select id="forecast-granularity"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
             </div>
             <div class="row-2">
-              <div class="field"><label for="measurement-unit">Measurement Unit</label><select id="measurement-unit"><option>kWh</option><option>MWh</option></select></div>
-              <div class="field"><label for="landing-page">Dashboard Landing Page</label><select id="landing-page"><option>Dashboard</option><option>Forecasting</option><option>Demand Classification</option></select></div>
+              <div class="field"><label for="measurement-unit">Measurement Unit</label><select id="measurement-unit"><option value="kwh">kWh</option><option value="mwh">MWh</option></select></div>
+              <div class="field"><label for="landing-page">Dashboard Landing Page</label><select id="landing-page"><option value="role_default">My Role Dashboard</option><option value="forecasting">Forecasting</option><option value="demand_classification">Demand Classification</option></select></div>
             </div>
             <div class="divider"></div>
             <div class="settings-subhead"><h3>Display Options</h3><span>Control what appears across the workspace</span></div>
             <div class="settings-choices">
-              <label class="setting-choice"><span><b>Confidence interval bands</b><small>Show forecast uncertainty ranges on supported charts</small></span><input type="checkbox" checked></label>
-              <label class="setting-choice"><span><b>Demand level gauge</b><small>Display the weekly demand indicator on the dashboard</small></span><input type="checkbox" checked></label>
-              <label class="setting-choice"><span><b>Compact table view</b><small>Fit more rows on data-heavy pages</small></span><input type="checkbox"></label>
+              <label class="setting-choice"><span><b>Confidence interval bands</b><small>Show forecast uncertainty ranges on supported charts</small></span><input type="checkbox" id="show-confidence-intervals"></label>
+              <label class="setting-choice"><span><b>Demand level gauge</b><small>Display the weekly demand indicator on the dashboard</small></span><input type="checkbox" id="show-demand-gauge"></label>
+              <label class="setting-choice"><span><b>Compact table view</b><small>Fit more rows on data-heavy pages</small></span><input type="checkbox" id="compact-table-view"></label>
             </div>
-            <div class="settings-actions"><button class="btn btn-primary" onclick="saveSettings(this)"><i data-feather="save"></i> Save Preferences</button></div>
+            <div class="settings-actions"><button class="btn btn-primary" type="button" onclick="saveSettings(this, 'preferences')"><i data-feather="save"></i> Save Preferences</button></div>
           </div>
 
           <!-- DATA SOURCE -->
@@ -122,11 +122,11 @@
             <div class="divider"></div>
             <div class="settings-subhead"><h3>Import Settings</h3><span>Configure scheduled and manual dataset imports</span></div>
             <div class="row-2">
-              <div class="field"><label for="refresh-frequency">Data Refresh Frequency</label><select id="refresh-frequency"><option>Daily</option><option>Weekly</option><option>Manual</option></select></div>
-              <div class="field"><label for="file-format">Default File Format</label><select id="file-format"><option>CSV</option><option>XLSX</option><option>JSON</option></select></div>
+              <div class="field"><label for="refresh-frequency">Data Refresh Frequency</label><select id="refresh-frequency"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="manual">Manual</option></select></div>
+              <div class="field"><label for="file-format">Default File Format</label><select id="file-format"><option value="csv">CSV</option><option value="xlsx">XLSX</option><option value="json">JSON</option></select></div>
             </div>
             <input type="file" id="dataset-upload" accept=".csv,.xlsx,.json" hidden>
-            <div class="settings-actions split"><button class="btn btn-outline" onclick="document.getElementById('dataset-upload').click()"><i data-feather="upload"></i> Upload Dataset</button><button class="btn btn-primary" onclick="saveSettings(this)"><i data-feather="save"></i> Save Data Settings</button></div>
+            <div class="settings-actions split"><button class="btn btn-outline" type="button" onclick="document.getElementById('dataset-upload').click()"><i data-feather="upload"></i> Upload Dataset</button><button class="btn btn-primary" type="button" onclick="saveSettings(this, 'data_source')"><i data-feather="save"></i> Save Data Settings</button></div>
           </div>
 
           <!-- SECURITY -->
@@ -145,7 +145,7 @@
             <div class="divider"></div>
             <div class="settings-subhead"><h3>Two-Factor Authentication</h3><span>Add an extra verification step when signing in</span></div>
             <div class="settings-choices">
-              <label class="setting-choice"><span><b>Require verification code</b><small>Recommended for administrator accounts</small></span><input type="checkbox"></label>
+              <label class="setting-choice"><span><b>Require verification code</b><small>Two-factor authentication is not available in this local prototype.</small></span><input type="checkbox" disabled></label>
             </div>
             <div class="divider"></div>
             <div class="settings-subhead"><h3>Active Sessions</h3><span>Devices currently signed in to your account</span></div>
@@ -189,80 +189,8 @@
   </div>
 </div>
 
+<script src="assets/js/api.js"></script>
 <script src="assets/js/shell.js"></script>
-<script>
-ElectroShell.mount('settings', 'Settings', { dateRange:false });
-
-function showSettingsPanel(name){
-  const targetNav = document.getElementById('nav-'+name);
-  const targetPanel = document.getElementById('panel-'+name);
-  if (!targetNav || !targetPanel) return;
-
-  document.querySelectorAll('.settings-nav .s-item').forEach(item => {
-    const active = item === targetNav;
-    item.classList.toggle('active', active);
-    item.setAttribute('aria-selected', String(active));
-  });
-  document.querySelectorAll('.settings-panel').forEach(panel => {
-    const active = panel === targetPanel;
-    panel.classList.toggle('active', active);
-    panel.hidden = !active;
-  });
-  history.replaceState(null, '', '#'+name);
-}
-
-function saveSettings(btn){
-  const original = btn.innerHTML;
-  btn.innerHTML = '<i data-feather="check"></i> Saved';
-  btn.disabled = true;
-  feather.replace({ 'stroke-width':2, width:15, height:15 });
-  showSettingsToast('Settings saved successfully.');
-  setTimeout(()=>{
-    btn.innerHTML = original;
-    btn.disabled = false;
-    feather.replace({ 'stroke-width':2, width:15, height:15 });
-  }, 1400);
-}
-
-function showSettingsToast(message, isError){
-  const toast = document.getElementById('settings-toast');
-  toast.classList.toggle('error', Boolean(isError));
-  toast.querySelector('span').textContent = message;
-  toast.classList.add('show');
-  clearTimeout(window.settingsToastTimer);
-  window.settingsToastTimer = setTimeout(()=>toast.classList.remove('show'), 2400);
-}
-
-function updatePassword(btn){
-  const current = document.getElementById('current-password');
-  const password = document.getElementById('new-password');
-  const confirm = document.getElementById('confirm-password');
-
-  [current,password,confirm].forEach(input=>input.classList.remove('input-error'));
-  if (!current.value || password.value.length < 8 || password.value !== confirm.value){
-    if (!current.value) current.classList.add('input-error');
-    if (password.value.length < 8) password.classList.add('input-error');
-    if (!confirm.value || password.value !== confirm.value) confirm.classList.add('input-error');
-    showSettingsToast('Check the highlighted password fields.', true);
-    return;
-  }
-  saveSettings(btn);
-  [current,password,confirm].forEach(input=>input.value='');
-}
-
-document.querySelectorAll('.settings-nav .s-item').forEach((item,index,items)=>{
-  item.addEventListener('keydown', event=>{
-    if (!['ArrowDown','ArrowUp','ArrowRight','ArrowLeft'].includes(event.key)) return;
-    event.preventDefault();
-    const direction = ['ArrowDown','ArrowRight'].includes(event.key) ? 1 : -1;
-    items[(index + direction + items.length) % items.length].focus();
-  });
-});
-
-const initialPanel = location.hash.slice(1);
-if (['profile','preferences','datasource','security','system'].includes(initialPanel)){
-  showSettingsPanel(initialPanel);
-}
-</script>
+<script src="assets/js/settings.js"></script>
 </body>
 </html>

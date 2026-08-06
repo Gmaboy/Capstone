@@ -2,28 +2,29 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>My Submissions · ElectroForecast</title>
+<title>My Submissions · GUIMPOWERCORE</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
 </head>
-<body>
+<body class="submissions-page">
 <div class="app-shell"><div id="shell-sidebar"></div><div class="main"><div id="shell-topbar"></div><main class="content">
-  <section class="portal-welcome">
-    <div><div class="eyebrow">Your crowdsourcing contributions</div><h2>My Submissions</h2><p>Track appliance ratings you contributed to the platform. These records are separate from your household inventory.</p></div>
+  <section class="card portal-welcome submission-hero">
+    <div class="submission-hero-copy"><span class="submission-hero-icon"><i data-feather="clipboard"></i></span><div><div class="eyebrow">Your crowdsourcing contributions</div><h2>My Submissions</h2><p>Track appliance ratings you contributed to the platform. These records remain separate from your household inventory.</p></div></div>
     <button class="btn btn-primary" id="new-submission"><i data-feather="plus"></i> Submit New Appliance</button>
   </section>
 
-  <section class="portal-kpis grid-4" aria-label="Submission summary">
-    <article class="portal-kpi"><span class="kpi-icon blue"><i data-feather="database"></i></span><div><div class="kpi-label">Total Contributions</div><div class="kpi-value" id="submission-total">0</div></div></article>
-    <article class="portal-kpi"><span class="kpi-icon amber"><i data-feather="clock"></i></span><div><div class="kpi-label">Pending</div><div class="kpi-value" id="submission-pending">0</div></div></article>
-    <article class="portal-kpi"><span class="kpi-icon green"><i data-feather="check-circle"></i></span><div><div class="kpi-label">Approved</div><div class="kpi-value" id="submission-approved">0</div></div></article>
-    <article class="portal-kpi"><span class="kpi-icon purple"><i data-feather="zap"></i></span><div><div class="kpi-label">Added to Inventory</div><div class="kpi-value" id="submission-inventory">0</div></div></article>
+  <section class="grid grid-4 portal-kpis submission-kpis" aria-label="Submission summary">
+    <article class="card kpi-card submission-kpi"><span class="kpi-icon blue"><i data-feather="database"></i></span><div><div class="kpi-label">Total Contributions</div><div class="kpi-value" id="submission-total">0</div><div class="text-sm text-muted">All submitted ratings</div></div></article>
+    <article class="card kpi-card submission-kpi"><span class="kpi-icon amber"><i data-feather="clock"></i></span><div><div class="kpi-label">Pending Review</div><div class="kpi-value" id="submission-pending">0</div><div class="text-sm text-muted">Awaiting validation</div></div></article>
+    <article class="card kpi-card submission-kpi"><span class="kpi-icon green"><i data-feather="check-circle"></i></span><div><div class="kpi-label">Approved</div><div class="kpi-value" id="submission-approved">0</div><div class="text-sm text-muted">Validated contributions</div></div></article>
+    <article class="card kpi-card submission-kpi"><span class="kpi-icon violet"><i data-feather="zap"></i></span><div><div class="kpi-label">Added to Inventory</div><div class="kpi-value" id="submission-inventory">0</div><div class="text-sm text-muted">Currently in My Appliances</div></div></article>
   </section>
 
   <section class="card portal-table-card">
-    <div class="card-head"><div><h3>Appliance Contributions</h3><div class="card-sub">Deleting a contribution does not remove an appliance already saved in My Appliances.</div></div><a class="btn btn-secondary btn-sm" href="my-appliances.html">Open My Appliances</a></div>
+    <div class="card-head submission-card-head"><div class="submission-card-title"><span><i data-feather="list"></i></span><div><h3>Appliance Contributions</h3><div class="card-sub">Review contribution status, administrator feedback, and household inventory availability.</div></div></div><a class="btn btn-secondary btn-sm" href="my-appliances.html"><i data-feather="zap"></i> Open My Appliances</a></div>
+    <div class="submission-separation-note"><i data-feather="info"></i><span>Deleting a contribution here does not remove an appliance already saved in My Appliances.</span></div>
     <div class="table-wrap portal-table"><table><thead><tr><th>Submission</th><th>Power Rating</th><th>Source</th><th>Status</th><th>Household Inventory</th><th>Actions</th></tr></thead><tbody id="submission-body"><tr><td colspan="6"><div class="table-loading">Loading submissions…</div></td></tr></tbody></table></div>
   </section>
 </main></div></div>

@@ -35,6 +35,24 @@ CREATE TABLE users (
   FOREIGN KEY (role_id) REFERENCES roles(role_id)
 );
 
+CREATE TABLE user_settings (
+  user_id INT PRIMARY KEY,
+  notify_high_demand TINYINT(1) NOT NULL DEFAULT 1,
+  notify_rating_updates TINYINT(1) NOT NULL DEFAULT 1,
+  notify_weekly_summary TINYINT(1) NOT NULL DEFAULT 0,
+  forecast_horizon ENUM('7_days','14_days','30_days') NOT NULL DEFAULT '7_days',
+  forecast_granularity ENUM('daily','weekly','monthly') NOT NULL DEFAULT 'daily',
+  measurement_unit ENUM('kwh','mwh') NOT NULL DEFAULT 'kwh',
+  landing_page ENUM('role_default','forecasting','demand_classification') NOT NULL DEFAULT 'role_default',
+  show_confidence_intervals TINYINT(1) NOT NULL DEFAULT 1,
+  show_demand_gauge TINYINT(1) NOT NULL DEFAULT 1,
+  compact_table_view TINYINT(1) NOT NULL DEFAULT 0,
+  data_refresh_frequency ENUM('daily','weekly','manual') NOT NULL DEFAULT 'daily',
+  default_file_format ENUM('csv','xlsx','json') NOT NULL DEFAULT 'csv',
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
 -- ---------------------------------------------------------------
 -- Households (Crowdsourcing Platform participants)
 -- ---------------------------------------------------------------

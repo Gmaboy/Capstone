@@ -461,6 +461,43 @@ def text_value(data: dict[str, Any], key: str, required: bool = False) -> str | 
     return value or None
 
 
+def boolean_value(data: dict[str, Any], key: str) -> bool:
+    value = data.get(key)
+    if not isinstance(value, bool):
+        raise ValueError(f"{key.replace('_', ' ').title()} must be true or false")
+    return value
+
+
+def load_user_settings(db: sqlite3.Connection, user_id: int) -> dict[str, Any]:
+    db.execute("INSERT OR IGNORE INTO user_settings(user_id) VALUES (?)", (user_id,))
+    row = db.execute("SELECT * FROM user_settings WHERE user_id = ?", (user_id,)).fetchone()
+    settings = dict(row)
+    for key in (
+        "notify_high_demand",
+        "notify_rating_updates",
+        "notify_weekly_summary",
+        "show_confidence_intervals",
+        "show_demand_gauge",
+        "compact_table_view",
+    ):
+        settings[key] = bool(settings[key])
+    return settings
+
+
+def login_destination(user_id: int, role: str) -> str:
+    default_page = (
+        "admin-dashboard.html"
+        if role in ("admin", "guimelco", "researcher")
+        else "user-portal.html"
+    )
+    with get_db() as db:
+        landing_page = load_user_settings(db, user_id)["landing_page"]
+    return {
+        "forecasting": "forecasting.html",
+        "demand_classification": "demand-classification.html",
+    }.get(landing_page, default_page)
+
+
 def number_value(
     data: dict[str, Any],
     key: str,
@@ -697,11 +734,7 @@ def login():
     session.clear()
     session["user_id"] = int(user["user_id"])
     payload = user_payload(int(user["user_id"]))
-    destination = (
-        "admin-dashboard.html"
-        if payload["role"] in ("admin", "guimelco", "researcher")
-        else "user-portal.html"
-    )
+    destination = login_destination(int(user["user_id"]), payload["role"])
     return jsonify(user=payload, redirect=destination)
 
 
@@ -715,6 +748,205 @@ def logout():
 @require_auth()
 def me():
     return jsonify(user=request.current_user)
+
+
+@app.get("/api/settings")
+@require_auth()
+def get_settings():
+    user = request.current_user
+    with get_db() as db:
+        stored = load_user_settings(db, user["user_id"])
+    return jsonify(
+        profile={
+            "full_name": user["full_name"],
+            "email": user["email"],
+            "contact_no": user["contact_no"] or "",
+            "role": user["role"],
+        },
+        preferences={
+            key: stored[key]
+            for key in (
+                "notify_high_demand",
+                "notify_rating_updates",
+                "notify_weekly_summary",
+                "forecast_horizon",
+                "forecast_granularity",
+                "measurement_unit",
+                "landing_page",
+                "show_confidence_intervals",
+                "show_demand_gauge",
+                "compact_table_view",
+            )
+        },
+        data_source={
+            "data_refresh_frequency": stored["data_refresh_frequency"],
+            "default_file_format": stored["default_file_format"],
+        },
+    )
+
+
+@app.patch("/api/settings")
+@require_auth()
+def update_settings():
+    data = json_body()
+    section = text_value(data, "section", True)
+    user_id = request.current_user["user_id"]
+
+    try:
+        if section == "profile":
+            full_name = text_value(data, "full_name", True)
+            email = text_value(data, "email", True).lower()
+            contact_no = text_value(data, "contact_no")
+            if not 2 <= len(full_name) <= 100:
+                raise ValueError("Full name must be between 2 and 100 characters")
+            if len(email) > 150 or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
+                raise ValueError("Enter a valid email address")
+            if contact_no and len(contact_no) > 30:
+                raise ValueError("Contact number must be 30 characters or fewer")
+            with get_db() as db:
+                duplicate = db.execute(
+                    "SELECT 1 FROM users WHERE email=? COLLATE NOCASE AND user_id<>?",
+                    (email, user_id),
+                ).fetchone()
+                if duplicate:
+                    return jsonify(error="An account with this email already exists"), 409
+                db.execute(
+                    """
+                    UPDATE users
+                    SET full_name=?, email=?, contact_no=?, updated_at=?
+                    WHERE user_id=?
+                    """,
+                    (full_name, email, contact_no, now(), user_id),
+                )
+                audit(
+                    db,
+                    user_id,
+                    "updated",
+                    "user_profile",
+                    user_id,
+                    {"full_name": full_name, "email": email, "contact_no": contact_no},
+                )
+            return jsonify(ok=True, user=user_payload(user_id))
+
+        if section == "preferences":
+            values = {
+                "notify_high_demand": boolean_value(data, "notify_high_demand"),
+                "notify_rating_updates": boolean_value(data, "notify_rating_updates"),
+                "notify_weekly_summary": boolean_value(data, "notify_weekly_summary"),
+                "forecast_horizon": text_value(data, "forecast_horizon", True),
+                "forecast_granularity": text_value(data, "forecast_granularity", True),
+                "measurement_unit": text_value(data, "measurement_unit", True),
+                "landing_page": text_value(data, "landing_page", True),
+                "show_confidence_intervals": boolean_value(data, "show_confidence_intervals"),
+                "show_demand_gauge": boolean_value(data, "show_demand_gauge"),
+                "compact_table_view": boolean_value(data, "compact_table_view"),
+            }
+            allowed = {
+                "forecast_horizon": {"7_days", "14_days", "30_days"},
+                "forecast_granularity": {"daily", "weekly", "monthly"},
+                "measurement_unit": {"kwh", "mwh"},
+                "landing_page": {"role_default", "forecasting", "demand_classification"},
+            }
+            for key, choices in allowed.items():
+                if values[key] not in choices:
+                    raise ValueError(f"Select a valid {key.replace('_', ' ')}")
+            with get_db() as db:
+                load_user_settings(db, user_id)
+                db.execute(
+                    """
+                    UPDATE user_settings SET
+                      notify_high_demand=?, notify_rating_updates=?, notify_weekly_summary=?,
+                      forecast_horizon=?, forecast_granularity=?, measurement_unit=?, landing_page=?,
+                      show_confidence_intervals=?, show_demand_gauge=?, compact_table_view=?, updated_at=?
+                    WHERE user_id=?
+                    """,
+                    (
+                        int(values["notify_high_demand"]),
+                        int(values["notify_rating_updates"]),
+                        int(values["notify_weekly_summary"]),
+                        values["forecast_horizon"],
+                        values["forecast_granularity"],
+                        values["measurement_unit"],
+                        values["landing_page"],
+                        int(values["show_confidence_intervals"]),
+                        int(values["show_demand_gauge"]),
+                        int(values["compact_table_view"]),
+                        now(),
+                        user_id,
+                    ),
+                )
+                audit(db, user_id, "updated", "user_settings", user_id, values)
+            return jsonify(ok=True)
+
+        if section == "data_source":
+            refresh = text_value(data, "data_refresh_frequency", True)
+            file_format = text_value(data, "default_file_format", True)
+            if refresh not in {"daily", "weekly", "manual"}:
+                raise ValueError("Select a valid data refresh frequency")
+            if file_format not in {"csv", "xlsx", "json"}:
+                raise ValueError("Select a valid default file format")
+            with get_db() as db:
+                load_user_settings(db, user_id)
+                db.execute(
+                    """
+                    UPDATE user_settings
+                    SET data_refresh_frequency=?, default_file_format=?, updated_at=?
+                    WHERE user_id=?
+                    """,
+                    (refresh, file_format, now(), user_id),
+                )
+                audit(
+                    db,
+                    user_id,
+                    "updated",
+                    "user_settings",
+                    user_id,
+                    {"data_refresh_frequency": refresh, "default_file_format": file_format},
+                )
+            return jsonify(ok=True)
+
+        raise ValueError("Select a valid settings section")
+    except (ValueError, TypeError) as error:
+        return jsonify(error=str(error)), 400
+
+
+@app.patch("/api/settings/password")
+@require_auth()
+def update_settings_password():
+    data = json_body()
+    current_password = str(data.get("current_password", ""))
+    new_password = str(data.get("new_password", ""))
+    confirmation = str(data.get("password_confirmation", ""))
+    try:
+        if not current_password:
+            raise ValueError("Current password is required")
+        if (
+            len(new_password) < 8
+            or not re.search(r"[a-z]", new_password)
+            or not re.search(r"[A-Z]", new_password)
+            or not re.search(r"\d", new_password)
+        ):
+            raise ValueError(
+                "New password must be at least 8 characters and include uppercase, lowercase, and a number"
+            )
+        if new_password != confirmation:
+            raise ValueError("Passwords do not match")
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+
+    user_id = request.current_user["user_id"]
+    with get_db() as db:
+        account = db.execute(
+            "SELECT password_hash FROM users WHERE user_id=?", (user_id,)
+        ).fetchone()
+        if not account or not check_password_hash(account["password_hash"], current_password):
+            return jsonify(error="Current password is incorrect"), 400
+        db.execute(
+            "UPDATE users SET password_hash=?, updated_at=? WHERE user_id=?",
+            (generate_password_hash(new_password), now(), user_id),
+        )
+        audit(db, user_id, "changed_password", "user", user_id)
+    return jsonify(ok=True)
 
 
 @app.get("/api/categories")
@@ -1335,11 +1567,19 @@ def delete_appliance(appliance_id: int):
     with get_db() as db:
         household_id = household_id_for(request.current_user["user_id"], db)
         row = db.execute(
-            "SELECT appliance_name FROM appliances WHERE appliance_id=? AND household_id=?",
+            """
+            SELECT appliance_name, verification_status
+            FROM appliances
+            WHERE appliance_id=? AND household_id=?
+            """,
             (appliance_id, household_id),
         ).fetchone()
         if not row:
             return jsonify(error="Appliance not found"), 404
+        if row["verification_status"] == "approved":
+            return jsonify(
+                error="Approved appliance submissions cannot be deleted"
+            ), 409
         db.execute(
             "DELETE FROM appliances WHERE appliance_id=? AND household_id=?",
             (appliance_id, household_id),
@@ -1350,7 +1590,10 @@ def delete_appliance(appliance_id: int):
             "deleted",
             "appliance",
             appliance_id,
-            {"appliance_name": row["appliance_name"]},
+            {
+                "appliance_name": row["appliance_name"],
+                "verification_status": row["verification_status"],
+            },
         )
     return jsonify(ok=True)
 
@@ -1957,5 +2200,5 @@ def static_files(asset_path: str):
 initialize_database()
 
 if __name__ == "__main__":
-    print("ElectroForecast running at http://127.0.0.1:4173")
+    print("GUIMPOWERCORE running at http://127.0.0.1:4173")
     app.run(host="127.0.0.1", port=4173, debug=False)

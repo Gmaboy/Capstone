@@ -1,4 +1,4 @@
-# ElectroForecast crowdsourcing platform
+# GUIMPOWERCORE crowdsourcing platform
 
 This project now runs as a Flask application with a persistent SQLite database,
 role-based access, a household crowdsourcing portal, and an administrator

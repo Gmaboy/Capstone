@@ -1,4 +1,4 @@
-# ElectroForecast database
+# GUIMPOWERCORE database
 
 The working local application uses `electroforecast.db`, created automatically
 from `schema.sqlite.sql` when `app.py` starts. SQLite keeps the capstone demo

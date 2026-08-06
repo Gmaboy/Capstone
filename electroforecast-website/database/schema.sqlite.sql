@@ -19,6 +19,24 @@ CREATE TABLE IF NOT EXISTS users (
   FOREIGN KEY (role_id) REFERENCES roles(role_id)
 );
 
+CREATE TABLE IF NOT EXISTS user_settings (
+  user_id INTEGER PRIMARY KEY,
+  notify_high_demand INTEGER NOT NULL DEFAULT 1 CHECK (notify_high_demand IN (0, 1)),
+  notify_rating_updates INTEGER NOT NULL DEFAULT 1 CHECK (notify_rating_updates IN (0, 1)),
+  notify_weekly_summary INTEGER NOT NULL DEFAULT 0 CHECK (notify_weekly_summary IN (0, 1)),
+  forecast_horizon TEXT NOT NULL DEFAULT '7_days' CHECK (forecast_horizon IN ('7_days', '14_days', '30_days')),
+  forecast_granularity TEXT NOT NULL DEFAULT 'daily' CHECK (forecast_granularity IN ('daily', 'weekly', 'monthly')),
+  measurement_unit TEXT NOT NULL DEFAULT 'kwh' CHECK (measurement_unit IN ('kwh', 'mwh')),
+  landing_page TEXT NOT NULL DEFAULT 'role_default' CHECK (landing_page IN ('role_default', 'forecasting', 'demand_classification')),
+  show_confidence_intervals INTEGER NOT NULL DEFAULT 1 CHECK (show_confidence_intervals IN (0, 1)),
+  show_demand_gauge INTEGER NOT NULL DEFAULT 1 CHECK (show_demand_gauge IN (0, 1)),
+  compact_table_view INTEGER NOT NULL DEFAULT 0 CHECK (compact_table_view IN (0, 1)),
+  data_refresh_frequency TEXT NOT NULL DEFAULT 'daily' CHECK (data_refresh_frequency IN ('daily', 'weekly', 'manual')),
+  default_file_format TEXT NOT NULL DEFAULT 'csv' CHECK (default_file_format IN ('csv', 'xlsx', 'json')),
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS households (
   household_id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL UNIQUE,

@@ -1,4 +1,4 @@
-/* Lightweight, dependency-free chart renderer for the ElectroForecast prototype. */
+/* Lightweight, dependency-free chart renderer for the GUIMPOWERCORE prototype. */
 (function () {
   'use strict';
 
