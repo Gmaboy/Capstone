@@ -182,7 +182,11 @@
   function selectApprovedRecord(item) {
     state.selectedCatalog = item;
     $('#selected-catalog-id').value = item.catalog_id;
-    $('#selected-appliance-summary').innerHTML = `<span class="catalog-icon"><i data-feather="zap"></i></span><div><small>Approved appliance selected</small><h4>${ElectroAPI.escapeHTML(item.appliance_name)}</h4><p>${ElectroAPI.escapeHTML([item.brand,item.model,item.category_name].filter(Boolean).join(' · '))}</p></div><div class="selected-rating"><b>${Number(item.power_rating_watts).toLocaleString()} W</b><span>${ElectroAPI.escapeHTML(sourceLabel(item.strongest_source || item.source_of_info))}</span></div>`;
+    // Same read-only summary as the edit dialog.
+    $('#catalog-summary-name').innerHTML = `${ElectroAPI.escapeHTML(item.appliance_name)}${VERIFIED_ICON}`;
+    $('#catalog-summary-meta').textContent = [item.brand,item.model,item.category_name].filter(Boolean).join(' · ');
+    $('#catalog-summary-watts').textContent = `${Number(item.power_rating_watts).toLocaleString()} W`;
+    $('#catalog-summary-source').textContent = sourceLabel(item.strongest_source || item.source_of_info);
     $('#catalog-quantity').value = Math.max(1,Math.round(Number(item.community_avg_quantity || item.quantity) || 1));
     $('#catalog-hours').value = Number(item.community_avg_hours ?? item.avg_daily_usage_hours) || '';
     $('#catalog-confirm').checked = false;

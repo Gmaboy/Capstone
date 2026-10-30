@@ -96,8 +96,14 @@
       <form id="catalog-customize-form" class="record-form catalog-customize" hidden>
         <input type="hidden" id="selected-catalog-id">
         <button class="back-to-results" id="back-to-catalog" type="button"><i data-feather="arrow-left"></i> Choose a different appliance</button>
-        <div class="selected-appliance-summary" id="selected-appliance-summary"></div>
-        <div class="customize-callout"><i data-feather="sliders"></i><div><b>Personalize it for your household</b><span>The approved technical details stay locked. Quantity and usage hours can be changed without another admin review.</span></div></div>
+        <div class="customize-callout"><i data-feather="lock"></i><div><b>Approved technical rating locked</b><span>Only household quantity and average hours per day can be set. The approved rating is not modified and needs no new admin review.</span></div></div>
+        <div class="edit-summary">
+          <div class="edit-summary-head"><b class="name-verified" id="catalog-summary-name"></b><small id="catalog-summary-meta"></small></div>
+          <dl class="edit-summary-facts">
+            <div><dt>Power rating</dt><dd id="catalog-summary-watts"></dd></div>
+            <div><dt>Source</dt><dd id="catalog-summary-source"></dd></div>
+          </dl>
+        </div>
         <div class="row-2">
           <div class="field"><label for="catalog-quantity">Quantity *</label><input type="number" id="catalog-quantity" min="1" max="50" value="1" required></div>
           <div class="field"><label for="catalog-hours">Average Hours / Day *</label><input type="number" id="catalog-hours" min="0" max="24" step="0.1" required></div>

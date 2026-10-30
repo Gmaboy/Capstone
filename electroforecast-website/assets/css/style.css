@@ -1458,7 +1458,7 @@ body.landing{background:var(--surface); font-size:15px;}
 /* Edit-usage mode of the appliance form: summary + quantity/hours only. */
 .edit-summary, .edit-only{display:none;}
 .record-form.editing .technical-field{display:none;}
-.record-form.editing .edit-summary{display:block; margin-bottom:16px; padding:14px 16px; border:1px solid var(--grey-100); border-radius:12px; background:var(--bg);}
+.record-form.editing .edit-summary, .catalog-customize .edit-summary{display:block; margin-bottom:16px; padding:14px 16px; border:1px solid var(--grey-100); border-radius:12px; background:var(--bg);}
 .record-form.editing .edit-only{display:flex; margin:0 0 14px;}
 .record-form.editing .row-3{grid-template-columns:repeat(2,minmax(0,1fr));}
 .edit-summary-head b{font-size:16px; color:var(--dark);}
