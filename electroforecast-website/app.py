@@ -2492,7 +2492,7 @@ def api_contributors():
 
 @app.get("/")
 def root():
-    return redirect("/login.html")
+    return redirect("/index.html")
 
 
 @app.get("/<path:asset_path>")
