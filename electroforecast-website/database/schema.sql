@@ -412,3 +412,64 @@ CREATE TABLE synth_daily_peaks (
   PRIMARY KEY (dataset_version, date),
   INDEX idx_synth_daily_peaks_date (date)
 );
+
+-- ---------------------------------------------------------------
+-- Trained model runs and their outputs (written by tools/model/train.py)
+-- ---------------------------------------------------------------
+CREATE TABLE model_runs (
+  run_id          INT AUTO_INCREMENT PRIMARY KEY,
+  task            ENUM('monthly_energy','annual_peak','demand_class') NOT NULL,
+  model_name      VARCHAR(60) NOT NULL,
+  dataset_version VARCHAR(60) NOT NULL,
+  trained_at      VARCHAR(40) NOT NULL,
+  metrics         TEXT NOT NULL,
+  is_active       TINYINT NOT NULL DEFAULT 0,
+  INDEX idx_model_runs_task_active (task, is_active)
+);
+
+CREATE TABLE forecast_monthly (
+  run_id       INT NOT NULL,
+  year         INT NOT NULL,
+  month        INT NOT NULL,
+  forecast_mwh DOUBLE NOT NULL,
+  lo80         DOUBLE NOT NULL,
+  hi80         DOUBLE NOT NULL,
+  lo95         DOUBLE NOT NULL,
+  hi95         DOUBLE NOT NULL,
+  PRIMARY KEY (run_id, year, month),
+  FOREIGN KEY (run_id) REFERENCES model_runs(run_id)
+);
+
+CREATE TABLE forecast_annual_peak (
+  run_id  INT NOT NULL,
+  year    INT NOT NULL,
+  peak_mw DOUBLE NOT NULL,
+  lo      DOUBLE NOT NULL,
+  hi      DOUBLE NOT NULL,
+  PRIMARY KEY (run_id, year),
+  FOREIGN KEY (run_id) REFERENCES model_runs(run_id)
+);
+
+CREATE TABLE demand_predictions (
+  run_id          INT NOT NULL,
+  date            DATE NOT NULL,
+  predicted_level ENUM('High','Medium','Low') NOT NULL,
+  p_high          DOUBLE NOT NULL,
+  p_medium        DOUBLE NOT NULL,
+  p_low           DOUBLE NOT NULL,
+  actual_level    ENUM('High','Medium','Low') NOT NULL,
+  PRIMARY KEY (run_id, date),
+  FOREIGN KEY (run_id) REFERENCES model_runs(run_id)
+);
+
+CREATE TABLE feature_importance (
+  id         INT AUTO_INCREMENT PRIMARY KEY,
+  run_id     INT NOT NULL,
+  kind       ENUM('permutation','breakdown') NOT NULL,
+  feature    VARCHAR(60) NOT NULL,
+  importance DOUBLE NOT NULL,
+  year       INT NULL,
+  month      INT NULL,
+  INDEX idx_feature_importance_run (run_id, kind),
+  FOREIGN KEY (run_id) REFERENCES model_runs(run_id)
+);

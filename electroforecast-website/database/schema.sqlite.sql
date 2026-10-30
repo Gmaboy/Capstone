@@ -281,3 +281,60 @@ CREATE TABLE IF NOT EXISTS synth_daily_peaks (
   PRIMARY KEY (dataset_version, date)
 );
 CREATE INDEX IF NOT EXISTS idx_synth_daily_peaks_date ON synth_daily_peaks(date);
+
+-- ---------------------------------------------------------------
+-- Trained model runs and their outputs (written by tools/model/train.py)
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS model_runs (
+  run_id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  task            TEXT NOT NULL CHECK (task IN ('monthly_energy','annual_peak','demand_class')),
+  model_name      TEXT NOT NULL,
+  dataset_version TEXT NOT NULL,
+  trained_at      TEXT NOT NULL,
+  metrics         TEXT NOT NULL,
+  is_active       INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_model_runs_task_active ON model_runs(task, is_active);
+
+CREATE TABLE IF NOT EXISTS forecast_monthly (
+  run_id       INTEGER NOT NULL REFERENCES model_runs(run_id),
+  year         INTEGER NOT NULL,
+  month        INTEGER NOT NULL,
+  forecast_mwh REAL NOT NULL,
+  lo80         REAL NOT NULL,
+  hi80         REAL NOT NULL,
+  lo95         REAL NOT NULL,
+  hi95         REAL NOT NULL,
+  PRIMARY KEY (run_id, year, month)
+);
+
+CREATE TABLE IF NOT EXISTS forecast_annual_peak (
+  run_id  INTEGER NOT NULL REFERENCES model_runs(run_id),
+  year    INTEGER NOT NULL,
+  peak_mw REAL NOT NULL,
+  lo      REAL NOT NULL,
+  hi      REAL NOT NULL,
+  PRIMARY KEY (run_id, year)
+);
+
+CREATE TABLE IF NOT EXISTS demand_predictions (
+  run_id          INTEGER NOT NULL REFERENCES model_runs(run_id),
+  date            TEXT NOT NULL,
+  predicted_level TEXT NOT NULL CHECK (predicted_level IN ('High','Medium','Low')),
+  p_high          REAL NOT NULL,
+  p_medium        REAL NOT NULL,
+  p_low           REAL NOT NULL,
+  actual_level    TEXT NOT NULL CHECK (actual_level IN ('High','Medium','Low')),
+  PRIMARY KEY (run_id, date)
+);
+
+CREATE TABLE IF NOT EXISTS feature_importance (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  run_id     INTEGER NOT NULL REFERENCES model_runs(run_id),
+  kind       TEXT NOT NULL CHECK (kind IN ('permutation','breakdown')),
+  feature    TEXT NOT NULL,
+  importance REAL NOT NULL,
+  year       INTEGER,
+  month      INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_feature_importance_run ON feature_importance(run_id, kind);

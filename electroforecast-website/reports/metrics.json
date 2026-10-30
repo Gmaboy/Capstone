@@ -1,0 +1,179 @@
+{
+  "monthly_energy": {
+    "backtest": [
+      {
+        "model_name": "seasonal_naive",
+        "fold": "2024",
+        "mape": 9.518239002512317,
+        "rmse": 420.1890447564445
+      },
+      {
+        "model_name": "holt_winters_add",
+        "fold": "2024",
+        "mape": 6.12365102120708,
+        "rmse": 254.2725218548884
+      },
+      {
+        "model_name": "holt_winters_mul",
+        "fold": "2024",
+        "mape": 5.725102993595938,
+        "rmse": 236.16295208371224
+      },
+      {
+        "model_name": "sarima",
+        "fold": "2024",
+        "mape": 4.389183180900649,
+        "rmse": 210.41594518086433
+      },
+      {
+        "model_name": "regression",
+        "fold": "2024",
+        "mape": 6.919364967928289,
+        "rmse": 276.21856022459144
+      },
+      {
+        "model_name": "seasonal_naive",
+        "fold": "2025",
+        "mape": 6.177262675642417,
+        "rmse": 261.39784492863237
+      },
+      {
+        "model_name": "holt_winters_add",
+        "fold": "2025",
+        "mape": 2.930651765307691,
+        "rmse": 122.91725345690949
+      },
+      {
+        "model_name": "holt_winters_mul",
+        "fold": "2025",
+        "mape": 2.4730352236815785,
+        "rmse": 112.62497330655536
+      },
+      {
+        "model_name": "sarima",
+        "fold": "2025",
+        "mape": 3.000902422740798,
+        "rmse": 121.5758011496865
+      },
+      {
+        "model_name": "regression",
+        "fold": "2025",
+        "mape": 2.180935477706778,
+        "rmse": 103.61477918789477
+      }
+    ],
+    "selected_model": "sarima",
+    "beats_baseline": true,
+    "mean_mape": 3.6950428018207235,
+    "mean_rmse": 165.9958731652754,
+    "baseline_mean_mape": 7.847750839077367,
+    "baseline_mean_rmse": 340.7934448425384
+  },
+  "annual_peak": {
+    "method": "peak_MW = annual_MWh / (load_factor * hours_in_year); central = mean historical LF, lo uses max LF, hi uses min LF; hours = 8784 for leap years",
+    "load_factors": {
+      "2020": 0.4086490732827459,
+      "2021": 0.4009875873432092,
+      "2022": 0.3633666922638658,
+      "2023": 0.40077608996511116,
+      "2024": 0.3784916082700615,
+      "2025": 0.401114889800012
+    },
+    "lf_mean": 0.3922309901541676,
+    "lf_max": 0.4086490732827459,
+    "lf_min": 0.3633666922638658
+  },
+  "demand_class": {
+    "accuracy": 0.6575342465753424,
+    "macro_f1": 0.5916096340674725,
+    "confusion_matrix": [
+      [
+        16,
+        8,
+        0
+      ],
+      [
+        26,
+        161,
+        58
+      ],
+      [
+        2,
+        31,
+        63
+      ]
+    ],
+    "labels": [
+      "High",
+      "Medium",
+      "Low"
+    ],
+    "baseline_accuracy": 0.6219178082191781,
+    "baseline_macro_f1": 0.4282452073652294,
+    "trained_on": "synthetic",
+    "model_name": "random_forest",
+    "test_year": 2025
+  },
+  "backtest": [
+    {
+      "model_name": "seasonal_naive",
+      "fold": "2024",
+      "mape": 9.518239002512317,
+      "rmse": 420.1890447564445
+    },
+    {
+      "model_name": "holt_winters_add",
+      "fold": "2024",
+      "mape": 6.12365102120708,
+      "rmse": 254.2725218548884
+    },
+    {
+      "model_name": "holt_winters_mul",
+      "fold": "2024",
+      "mape": 5.725102993595938,
+      "rmse": 236.16295208371224
+    },
+    {
+      "model_name": "sarima",
+      "fold": "2024",
+      "mape": 4.389183180900649,
+      "rmse": 210.41594518086433
+    },
+    {
+      "model_name": "regression",
+      "fold": "2024",
+      "mape": 6.919364967928289,
+      "rmse": 276.21856022459144
+    },
+    {
+      "model_name": "seasonal_naive",
+      "fold": "2025",
+      "mape": 6.177262675642417,
+      "rmse": 261.39784492863237
+    },
+    {
+      "model_name": "holt_winters_add",
+      "fold": "2025",
+      "mape": 2.930651765307691,
+      "rmse": 122.91725345690949
+    },
+    {
+      "model_name": "holt_winters_mul",
+      "fold": "2025",
+      "mape": 2.4730352236815785,
+      "rmse": 112.62497330655536
+    },
+    {
+      "model_name": "sarima",
+      "fold": "2025",
+      "mape": 3.000902422740798,
+      "rmse": 121.5758011496865
+    },
+    {
+      "model_name": "regression",
+      "fold": "2025",
+      "mape": 2.180935477706778,
+      "rmse": 103.61477918789477
+    }
+  ]
+}

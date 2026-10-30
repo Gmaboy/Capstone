@@ -116,3 +116,20 @@ def small_daily():
 
         _DAILY_CACHE["d"] = daily_peaks(build_small_system(), load_config(CFG_SMALL))
     return _DAILY_CACHE["d"]
+
+
+import pytest  # noqa: E402
+
+
+@pytest.fixture
+def loaded_small_db(tmp_path):
+    """SQLite DB holding the real utility tables plus the small synthetic dataset."""
+    from tools.common.anchors import DEFAULT_REAL_CSV
+    from tools.synth.generate import generate
+    from tools.synth.load import load
+
+    out = tmp_path / "synth"
+    generate(CFG_SMALL, out)
+    db = tmp_path / "small.db"
+    load(db, DEFAULT_REAL_CSV, out)
+    return db
