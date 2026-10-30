@@ -93,3 +93,20 @@ def build_small_feeder_hourly():
 
 def build_small_transformer_peaks():
     return _network_pipeline()["peaks"]
+
+
+def _real_series():
+    import pandas as pd
+
+    from tools.synth.config import load_config
+    from tools.synth.customers import monthly_customers
+
+    cust = monthly_customers(ANCHORS, load_config(CFG))
+    keys = sorted(ANCHORS.monthly_mwh)
+    idx = pd.PeriodIndex([pd.Period(year=y, month=m, freq="M") for y, m in keys])
+    series = pd.Series([ANCHORS.monthly_mwh[k] for k in keys], index=idx, name="mwh")
+    customers = pd.Series([float(cust[k]) for k in keys], index=idx, name="customers")
+    return series, customers
+
+
+SERIES, CUSTOMERS = _real_series()
