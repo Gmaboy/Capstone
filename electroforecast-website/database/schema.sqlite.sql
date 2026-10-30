@@ -161,3 +161,123 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at DESC);
+
+-- ---------------------------------------------------------------
+-- Real GUIMELCO utility data and synthetic dataset (offline tools/)
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS utility_monthly_energy (
+  year INTEGER NOT NULL,
+  month INTEGER NOT NULL,
+  energy_mwh REAL NOT NULL,
+  source TEXT NOT NULL,
+  PRIMARY KEY (year, month)
+);
+
+CREATE TABLE IF NOT EXISTS utility_annual_stats (
+  year INTEGER PRIMARY KEY,
+  total_mwh_reported REAL NOT NULL,
+  customers INTEGER NOT NULL,
+  coincident_peak_mw REAL NOT NULL,
+  notes TEXT
+);
+
+CREATE TABLE IF NOT EXISTS synth_feeders (
+  feeder_id INTEGER NOT NULL,
+  feeder_code TEXT NOT NULL,
+  substation_zone TEXT NOT NULL,
+  barangays TEXT NOT NULL,
+  dataset_version TEXT NOT NULL,
+  PRIMARY KEY (dataset_version, feeder_id)
+);
+
+CREATE TABLE IF NOT EXISTS synth_transformers (
+  transformer_id INTEGER NOT NULL,
+  transformer_code TEXT NOT NULL,
+  feeder_id INTEGER NOT NULL,
+  barangays TEXT NOT NULL,
+  rating_kva REAL NOT NULL,
+  dataset_version TEXT NOT NULL,
+  PRIMARY KEY (dataset_version, transformer_id)
+);
+
+CREATE TABLE IF NOT EXISTS synth_households (
+  synth_household_id TEXT NOT NULL,
+  municipality TEXT NOT NULL,
+  barangay TEXT NOT NULL,
+  household_type TEXT NOT NULL,
+  household_size INTEGER NOT NULL,
+  feeder_id INTEGER NOT NULL,
+  transformer_id INTEGER NOT NULL,
+  dataset_version TEXT NOT NULL,
+  PRIMARY KEY (dataset_version, synth_household_id)
+);
+
+CREATE TABLE IF NOT EXISTS synth_household_monthly (
+  synth_household_id TEXT NOT NULL,
+  year INTEGER NOT NULL,
+  month INTEGER NOT NULL,
+  kwh REAL NOT NULL,
+  weight REAL NOT NULL,
+  dataset_version TEXT NOT NULL,
+  PRIMARY KEY (dataset_version, synth_household_id, year, month)
+);
+
+CREATE TABLE IF NOT EXISTS synth_customer_counts (
+  year INTEGER NOT NULL,
+  month INTEGER NOT NULL,
+  municipality TEXT NOT NULL,
+  barangay TEXT NOT NULL,
+  customers INTEGER NOT NULL,
+  dataset_version TEXT NOT NULL,
+  PRIMARY KEY (dataset_version, year, month, municipality, barangay)
+);
+
+CREATE TABLE IF NOT EXISTS synth_load_profiles (
+  household_type TEXT NOT NULL,
+  month INTEGER NOT NULL,
+  daytype TEXT NOT NULL,
+  hour INTEGER NOT NULL,
+  share REAL NOT NULL,
+  dataset_version TEXT NOT NULL,
+  PRIMARY KEY (dataset_version, household_type, month, daytype, hour)
+);
+
+CREATE TABLE IF NOT EXISTS synth_system_hourly (
+  ts TEXT NOT NULL,
+  year INTEGER NOT NULL,
+  month INTEGER NOT NULL,
+  load_mw REAL NOT NULL,
+  dataset_version TEXT NOT NULL,
+  PRIMARY KEY (dataset_version, ts)
+);
+CREATE INDEX IF NOT EXISTS idx_synth_system_hourly_ts ON synth_system_hourly(ts);
+
+CREATE TABLE IF NOT EXISTS synth_feeder_hourly (
+  ts TEXT NOT NULL,
+  feeder_id INTEGER NOT NULL,
+  load_mw REAL NOT NULL,
+  dataset_version TEXT NOT NULL,
+  PRIMARY KEY (dataset_version, feeder_id, ts)
+);
+CREATE INDEX IF NOT EXISTS idx_synth_feeder_hourly_feeder_ts ON synth_feeder_hourly(feeder_id, ts);
+
+CREATE TABLE IF NOT EXISTS synth_transformer_monthly_peak (
+  transformer_id INTEGER NOT NULL,
+  year INTEGER NOT NULL,
+  month INTEGER NOT NULL,
+  peak_kva REAL NOT NULL,
+  utilization REAL NOT NULL,
+  dataset_version TEXT NOT NULL,
+  PRIMARY KEY (dataset_version, transformer_id, year, month)
+);
+
+CREATE TABLE IF NOT EXISTS synth_daily_peaks (
+  date TEXT NOT NULL,
+  year INTEGER NOT NULL,
+  peak_mw REAL NOT NULL,
+  pct_of_annual_peak REAL NOT NULL,
+  demand_level TEXT NOT NULL CHECK (demand_level IN ('High','Medium','Low')),
+  dataset_version TEXT NOT NULL,
+  PRIMARY KEY (dataset_version, date)
+);
+CREATE INDEX IF NOT EXISTS idx_synth_daily_peaks_date ON synth_daily_peaks(date);
