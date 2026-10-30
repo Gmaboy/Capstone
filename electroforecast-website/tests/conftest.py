@@ -133,3 +133,79 @@ def loaded_small_db(tmp_path):
     db = tmp_path / "small.db"
     load(db, DEFAULT_REAL_CSV, out)
     return db
+
+
+# ---- API fixtures -------------------------------------------------------
+
+DEMO_LOGIN = {"email": "household@electroforecast.local", "password": "Household123!"}
+
+
+@pytest.fixture(scope="module")
+def trained_db_template(tmp_path_factory):
+    """Small synthetic data loaded and trained once per module (read-only template)."""
+    from tools.common.anchors import DEFAULT_REAL_CSV
+    from tools.model.train import train
+    from tools.synth.generate import generate
+    from tools.synth.load import load
+
+    base = tmp_path_factory.mktemp("api_trained")
+    out = base / "synth"
+    generate(CFG_SMALL, out)
+    db = base / "trained.db"
+    load(db, DEFAULT_REAL_CSV, out)
+    train(db, base / "models", base / "reports")
+    return db
+
+
+def _import_app(monkeypatch, db_path):
+    import sys
+
+    monkeypatch.setenv("ELECTROFORECAST_DB", str(db_path))
+    sys.modules.pop("app", None)
+    import importlib
+
+    return importlib.import_module("app")
+
+
+def _login(app_module):
+    client = app_module.app.test_client()
+    resp = client.post("/api/auth/login", json=DEMO_LOGIN)
+    assert resp.status_code == 200, resp.get_data(as_text=True)
+    return client
+
+
+@pytest.fixture
+def client(tmp_path, monkeypatch):
+    """Flask test client on an empty temp DB, not logged in."""
+    import sys
+
+    mod = _import_app(monkeypatch, tmp_path / "empty.db")
+    try:
+        yield mod.app.test_client()
+    finally:
+        sys.modules.pop("app", None)
+
+
+@pytest.fixture
+def client_logged_in_empty(tmp_path, monkeypatch):
+    import sys
+
+    mod = _import_app(monkeypatch, tmp_path / "empty.db")
+    try:
+        yield _login(mod)
+    finally:
+        sys.modules.pop("app", None)
+
+
+@pytest.fixture
+def client_logged_in_trained(trained_db_template, tmp_path, monkeypatch):
+    import shutil
+    import sys
+
+    db = tmp_path / "trained_copy.db"
+    shutil.copyfile(trained_db_template, db)
+    mod = _import_app(monkeypatch, db)
+    try:
+        yield _login(mod)
+    finally:
+        sys.modules.pop("app", None)

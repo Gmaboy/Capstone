@@ -6,7 +6,7 @@ import re
 import secrets
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from functools import wraps
 from pathlib import Path
 from typing import Any, Iterator
@@ -17,7 +17,7 @@ from werkzeug.utils import secure_filename
 
 
 ROOT = Path(__file__).resolve().parent
-DATABASE_PATH = ROOT / "database" / "electroforecast.db"
+DATABASE_PATH = Path(os.environ.get("ELECTROFORECAST_DB", ROOT / "database" / "electroforecast.db"))
 SCHEMA_PATH = ROOT / "database" / "schema.sqlite.sql"
 BILL_IMAGE_DIR = ROOT / "database" / "uploads" / "bills"
 BILL_IMAGE_MAX_BYTES = 5 * 1024 * 1024
@@ -2151,6 +2151,230 @@ def list_notifications():
             (request.current_user["user_id"],),
         ).fetchall()
     return jsonify(notifications=[dict(row) for row in rows])
+
+
+NO_MODEL = "No trained model yet"
+DATA_SOURCES = {"monthly_energy": "real", "annual_peak": "real", "demand_class": "synthetic"}
+MAX_DAILY_RANGE_DAYS = 400
+
+
+def active_run(db: sqlite3.Connection, task: str) -> dict[str, Any] | None:
+    """Latest active model run for a task, with parsed metrics; None if absent."""
+    try:
+        row = db.execute(
+            """
+            SELECT run_id, task, model_name, dataset_version, trained_at, metrics
+            FROM model_runs WHERE task = ? AND is_active = 1
+            ORDER BY run_id DESC LIMIT 1
+            """,
+            (task,),
+        ).fetchone()
+    except sqlite3.OperationalError:
+        return None
+    if not row:
+        return None
+    try:
+        metrics = json.loads(row["metrics"]) if row["metrics"] else {}
+    except (TypeError, ValueError):
+        metrics = {}
+    return {
+        "task": row["task"],
+        "run_id": row["run_id"],
+        "model_name": row["model_name"],
+        "dataset_version": row["dataset_version"],
+        "trained_at": row["trained_at"],
+        "metrics": metrics if isinstance(metrics, dict) else {},
+        "data_source": DATA_SOURCES.get(row["task"], "real"),
+    }
+
+
+def no_model_response():
+    return jsonify(error=NO_MODEL), 404
+
+
+@app.get("/api/models/active")
+@require_auth()
+def api_models_active():
+    with get_db() as db:
+        runs = [r for r in (active_run(db, t) for t in DATA_SOURCES) if r]
+    return jsonify(runs=runs)
+
+
+@app.get("/api/forecast/monthly")
+@require_auth()
+def api_forecast_monthly():
+    try:
+        with get_db() as db:
+            run = active_run(db, "monthly_energy")
+            if not run:
+                return no_model_response()
+            history = db.execute(
+                "SELECT year, month, energy_mwh FROM utility_monthly_energy ORDER BY year, month"
+            ).fetchall()
+            forecast = db.execute(
+                """
+                SELECT year, month, forecast_mwh, lo80, hi80, lo95, hi95
+                FROM forecast_monthly WHERE run_id = ? ORDER BY year, month
+                """,
+                (run["run_id"],),
+            ).fetchall()
+    except sqlite3.OperationalError:
+        return no_model_response()
+    return jsonify(
+        data_source="real",
+        model=run,
+        history=[dict(r) for r in history],
+        forecast=[dict(r) for r in forecast],
+    )
+
+
+@app.get("/api/forecast/peak")
+@require_auth()
+def api_forecast_peak():
+    try:
+        with get_db() as db:
+            run = active_run(db, "annual_peak")
+            if not run:
+                return no_model_response()
+            history = db.execute(
+                """
+                SELECT year, coincident_peak_mw AS peak_mw FROM utility_annual_stats
+                WHERE coincident_peak_mw IS NOT NULL ORDER BY year
+                """
+            ).fetchall()
+            forecast = db.execute(
+                "SELECT year, peak_mw, lo, hi FROM forecast_annual_peak WHERE run_id = ? ORDER BY year",
+                (run["run_id"],),
+            ).fetchall()
+    except sqlite3.OperationalError:
+        return no_model_response()
+    return jsonify(
+        data_source="real",
+        model=run,
+        history=[dict(r) for r in history],
+        forecast=[dict(r) for r in forecast],
+    )
+
+
+def parse_iso_date(value: str) -> date | None:
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+@app.get("/api/demand/daily")
+@require_auth()
+def api_demand_daily():
+    raw_from = request.args.get("from")
+    raw_to = request.args.get("to")
+    start = end = None
+    if raw_from is not None:
+        start = parse_iso_date(raw_from)
+        if start is None:
+            return jsonify(error="'from' must be a date in YYYY-MM-DD format"), 400
+    if raw_to is not None:
+        end = parse_iso_date(raw_to)
+        if end is None:
+            return jsonify(error="'to' must be a date in YYYY-MM-DD format"), 400
+    if start and end and start > end:
+        return jsonify(error="'from' must not be after 'to'"), 400
+    try:
+        with get_db() as db:
+            run = active_run(db, "demand_class")
+            if not run:
+                return no_model_response()
+            version = run["dataset_version"]
+            bounds = db.execute(
+                "SELECT MIN(date) AS lo, MAX(date) AS hi FROM synth_daily_peaks WHERE dataset_version = ?",
+                (version,),
+            ).fetchone()
+            if not bounds["lo"]:
+                return no_model_response()
+            data_min = date.fromisoformat(bounds["lo"])
+            data_max = date.fromisoformat(bounds["hi"])
+            if start is None and end is None:
+                end = data_max
+                start = max(data_min, end - timedelta(days=29))
+            else:
+                start = start or data_min
+                end = end or data_max
+            if start > end:
+                return jsonify(error="'from' must not be after 'to'"), 400
+            if (end - start).days + 1 > MAX_DAILY_RANGE_DAYS:
+                return jsonify(error=f"Date range is limited to {MAX_DAILY_RANGE_DAYS} days"), 400
+            rows = db.execute(
+                """
+                SELECT s.date AS date, s.peak_mw AS peak_mw, s.demand_level AS actual_level,
+                       p.predicted_level AS predicted_level,
+                       p.p_high AS p_high, p.p_medium AS p_medium, p.p_low AS p_low
+                FROM synth_daily_peaks s
+                LEFT JOIN demand_predictions p ON p.date = s.date AND p.run_id = ?
+                WHERE s.dataset_version = ? AND s.date >= ? AND s.date <= ?
+                ORDER BY s.date
+                """,
+                (run["run_id"], version, start.isoformat(), end.isoformat()),
+            ).fetchall()
+    except sqlite3.OperationalError:
+        return no_model_response()
+    return jsonify(
+        data_source="synthetic",
+        dataset_version=version,
+        model=run,
+        days=[dict(r) for r in rows],
+    )
+
+
+@app.get("/api/explain")
+@require_auth()
+def api_explain():
+    try:
+        with get_db() as db:
+            clf = active_run(db, "demand_class")
+            fc = active_run(db, "monthly_energy")
+            if not clf or not fc:
+                return no_model_response()
+            importance = db.execute(
+                """
+                SELECT feature, importance FROM feature_importance
+                WHERE run_id = ? AND kind = 'permutation'
+                ORDER BY importance DESC, feature
+                """,
+                (clf["run_id"],),
+            ).fetchall()
+            parts = db.execute(
+                """
+                SELECT year, month, feature, importance FROM feature_importance
+                WHERE run_id = ? AND kind = 'breakdown' ORDER BY year, month
+                """,
+                (fc["run_id"],),
+            ).fetchall()
+    except sqlite3.OperationalError:
+        return no_model_response()
+    pivot: dict[tuple[int, int], dict[str, Any]] = {}
+    for r in parts:
+        if r["year"] is None or r["month"] is None:
+            continue
+        row = pivot.setdefault(
+            (r["year"], r["month"]),
+            {"year": r["year"], "month": r["month"], "trend": None, "seasonality": None, "customer_growth": None},
+        )
+        if r["feature"] in ("trend", "seasonality", "customer_growth"):
+            row[r["feature"]] = r["importance"]
+    return jsonify(
+        classifier={
+            "data_source": "synthetic",
+            "model": clf,
+            "importance": [dict(r) for r in importance],
+        },
+        forecast={
+            "data_source": "real",
+            "model": fc,
+            "breakdown": [pivot[k] for k in sorted(pivot)],
+        },
+    )
 
 
 @app.get("/")
