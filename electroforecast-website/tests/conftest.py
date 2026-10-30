@@ -42,3 +42,54 @@ def build_small_system():
     profiles = load_profiles(types, cfg)
     rng = np.random.default_rng(cfg.seed)
     return system_hourly(ANCHORS, cfg, types, profiles, rng)
+
+
+_NET_CACHE: dict = {}
+
+
+def _network_pipeline():
+    """Small-config pipeline through transformer peaks, one RNG, generator order."""
+    if "p" in _NET_CACHE:
+        return _NET_CACHE["p"]
+    import numpy as np
+
+    from tools.synth.config import load_config
+    from tools.synth.customers import customer_counts
+    from tools.synth.households import (
+        household_monthly,
+        load_household_types,
+        sample_households,
+    )
+    from tools.synth.network import build_network, feeder_hourly, transformer_monthly_peak
+    from tools.synth.profiles import load_profiles
+    from tools.synth.system_load import system_hourly
+
+    cfg = load_config(CFG_SMALL)
+    types = load_household_types(TYPES)
+    rng = np.random.default_rng(cfg.seed)
+    counts = customer_counts(ANCHORS, cfg)
+    hh = sample_households(ANCHORS, cfg, types, rng, counts)
+    hm = household_monthly(ANCHORS, cfg, types, hh, counts, rng)
+    profiles = load_profiles(types, cfg)
+    system = system_hourly(ANCHORS, cfg, types, profiles, rng)
+    feeders, transformers, hh_net = build_network(cfg, hh, counts, rng)
+    fh = feeder_hourly(feeders, hh_net, hm, profiles, system)
+    tm = transformer_monthly_peak(transformers, hh_net, hm, fh, cfg, rng)
+    _NET_CACHE["p"] = {
+        "network": (feeders, transformers, hh_net),
+        "feeder_hourly": (fh, system),
+        "peaks": (tm, transformers),
+    }
+    return _NET_CACHE["p"]
+
+
+def build_small_network():
+    return _network_pipeline()["network"]
+
+
+def build_small_feeder_hourly():
+    return _network_pipeline()["feeder_hourly"]
+
+
+def build_small_transformer_peaks():
+    return _network_pipeline()["peaks"]

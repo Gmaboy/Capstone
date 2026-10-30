@@ -30,7 +30,7 @@
     "San Lorenzo": 2,
     "Sibunag": 2
   },
-  "transformers_total": 20,
+  "transformers_total": 100,
   "transformer_sizes_kva": [
     10,
     15,
@@ -39,7 +39,10 @@
     50,
     75,
     100,
-    167
+    167,
+    250,
+    333,
+    500
   ],
   "power_factor": 0.9,
   "transformer_util_normal": [

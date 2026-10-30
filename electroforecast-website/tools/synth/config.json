@@ -36,7 +36,10 @@
     50,
     75,
     100,
-    167
+    167,
+    250,
+    333,
+    500
   ],
   "power_factor": 0.9,
   "transformer_util_normal": [
