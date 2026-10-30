@@ -155,6 +155,8 @@
     $('#manual-appliance-id').value = '';
     $('#save-manual-appliance').innerHTML = '<i data-feather="send"></i> Submit for Validation';
     setTechnicalLock(false);
+    $('#manual-appliance-form').classList.remove('editing');
+    $('#manual-confirm-text').textContent = 'I confirm that this information is accurate to the best of my knowledge.';
     $('#library-eyebrow').textContent = 'Add appliance';
     renderCatalogResults();
     setMode(mode);
@@ -229,8 +231,24 @@
     $('#manual-lock-note').hidden = false;
     $('#manual-lock-note span').textContent = 'Only household quantity and average hours per day can be changed. Your original submission is not modified.';
     setTechnicalLock(true);
+    // Only quantity and hours are editable, so the technical fields give way to a read-only summary.
+    $('#manual-appliance-form').classList.add('editing');
+    $('#edit-summary-name').innerHTML = `${ElectroAPI.escapeHTML(record.appliance_name)}${VERIFIED_ICON}`;
+    $('#edit-summary-meta').textContent = [record.brand,record.model,record.category_name].filter(Boolean).join(' · ');
+    $('#edit-summary-watts').textContent = `${Number(record.power_rating_watts).toLocaleString()} W`;
+    $('#edit-summary-source').textContent = sourceLabel(record.source_of_info);
+    $('#manual-confirm-text').textContent = 'I confirm that the quantity and usage hours match my household.';
+    updateEditLoadPreview();
     $('#save-manual-appliance').innerHTML = '<i data-feather="save"></i> Save Household Usage';
     feather.replace({ 'stroke-width':2 });
+    $('#manual-quantity').focus();
+  }
+
+  function updateEditLoadPreview() {
+    if (!state.editingInventory) return;
+    const quantity = Number($('#manual-quantity').value) || 0;
+    const hours = Number($('#manual-hours').value) || 0;
+    $('#edit-load-preview').textContent = `${(Number(state.editingInventory.power_rating_watts)*quantity*hours/1000).toFixed(2)} kWh/day`;
   }
 
   async function loadData() {
@@ -345,6 +363,8 @@
   $('#modal-catalog-search').addEventListener('input',renderCatalogResults);
   $('#back-to-catalog').addEventListener('click',()=>{ state.selectedCatalog=null; $('#catalog-customize-form').hidden=true; $('#catalog-picker').hidden=false; $('#modal-catalog-search').focus(); });
   $('#catalog-quantity').addEventListener('input',updateLoadPreview);
+  $('#manual-quantity').addEventListener('input',updateEditLoadPreview);
+  $('#manual-hours').addEventListener('input',updateEditLoadPreview);
   $('#catalog-hours').addEventListener('input',updateLoadPreview);
   $('#catalog-customize-form').addEventListener('submit',submitCatalog);
   $('#manual-appliance-form').addEventListener('submit',submitManual);

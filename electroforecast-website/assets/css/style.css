@@ -1454,3 +1454,15 @@ body.landing{background:var(--surface); font-size:15px;}
 .name-verified{display:inline-flex; align-items:center; gap:5px;}
 .verified-icon{display:inline-flex; width:16px; height:16px; color:var(--primary); flex-shrink:0; cursor:help;}
 .verified-icon svg{width:100%; height:100%;}
+
+/* Edit-usage mode of the appliance form: summary + quantity/hours only. */
+.edit-summary, .edit-only{display:none;}
+.record-form.editing .technical-field{display:none;}
+.record-form.editing .edit-summary{display:block; margin-bottom:16px; padding:14px 16px; border:1px solid var(--grey-100); border-radius:12px; background:var(--bg);}
+.record-form.editing .edit-only{display:flex; margin:0 0 14px;}
+.record-form.editing .row-3{grid-template-columns:repeat(2,minmax(0,1fr));}
+.edit-summary-head b{font-size:16px; color:var(--dark);}
+.edit-summary-head small{display:block; margin-top:2px; color:var(--grey-600); font-size:13px;}
+.edit-summary-facts{display:flex; flex-wrap:wrap; gap:8px 28px; margin:12px 0 0;}
+.edit-summary-facts dt{font-size:12px; color:var(--grey-600);}
+.edit-summary-facts dd{margin:2px 0 0; font-weight:700; color:var(--dark);}
