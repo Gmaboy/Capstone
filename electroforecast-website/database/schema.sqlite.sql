@@ -146,6 +146,18 @@ CREATE TABLE IF NOT EXISTS notifications (
   type TEXT NOT NULL CHECK (type IN ('demand_alert','submission_update','forecast_update','report_ready','system')),
   is_read INTEGER NOT NULL DEFAULT 0 CHECK (is_read IN (0,1)),
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  entity_type TEXT,
+  entity_id INTEGER,
+  FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS notification_feedback (
+  feedback_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  notification_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  message TEXT NOT NULL CHECK (length(message) BETWEEN 1 AND 1000),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (notification_id) REFERENCES notifications(notification_id) ON DELETE CASCADE,
   FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 

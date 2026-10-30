@@ -278,6 +278,18 @@ CREATE TABLE notifications (
   type          ENUM('demand_alert','rating_update','forecast_update','report_ready','system') NOT NULL,
   is_read       TINYINT(1) NOT NULL DEFAULT 0,
   created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+  entity_type   VARCHAR(30) NULL,
+  entity_id     INT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE notification_feedback (
+  feedback_id     INT AUTO_INCREMENT PRIMARY KEY,
+  notification_id INT NOT NULL,
+  user_id         INT NOT NULL,
+  message         VARCHAR(1000) NOT NULL,
+  created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (notification_id) REFERENCES notifications(notification_id) ON DELETE CASCADE,
   FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
 

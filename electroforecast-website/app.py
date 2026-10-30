@@ -60,6 +60,56 @@ def row_dict(row: sqlite3.Row | None) -> dict[str, Any] | None:
     return dict(row) if row else None
 
 
+def link_review_notifications(db: sqlite3.Connection) -> None:
+    """Link older 'Submission reviewed' notifications to their submission.
+
+    Each review wrote an audit row in the same transaction, so the decision, submission type
+    and timestamp identify the submission; only notifications whose owner matches are linked.
+    """
+    pending = db.execute(
+        """
+        SELECT notification_id, user_id, message, created_at FROM notifications
+        WHERE type='submission_update' AND entity_id IS NULL AND title='Submission reviewed'
+        """
+    ).fetchall()
+    owners = {
+        "appliance": "SELECT h.user_id FROM appliances s JOIN households h ON h.household_id=s.household_id WHERE s.appliance_id=?",
+        "consumption": "SELECT h.user_id FROM monthly_consumption s JOIN households h ON h.household_id=s.household_id WHERE s.consumption_id=?",
+    }
+    for note in pending:
+        match = re.fullmatch(r"Your (appliance|consumption) submission was (approved|rejected)\.", note["message"])
+        if not match:
+            continue
+        kind, decision = match.groups()
+        candidates = db.execute(
+            """
+            SELECT entity_id FROM audit_logs
+            WHERE action=? AND entity_type=? AND entity_id IS NOT NULL
+              AND ABS(strftime('%s', created_at) - strftime('%s', ?)) <= 2
+            ORDER BY audit_id
+            """,
+            (decision, kind, note["created_at"]),
+        ).fetchall()
+        for candidate in candidates:
+            owner = db.execute(owners[kind], (candidate["entity_id"],)).fetchone()
+            if not owner:
+                # Submission since deleted: its creator is recorded in the 'created' audit row.
+                owner = db.execute(
+                    """
+                    SELECT actor_user_id AS user_id FROM audit_logs
+                    WHERE action='created' AND entity_type=? AND entity_id=?
+                    ORDER BY audit_id LIMIT 1
+                    """,
+                    ("appliance" if kind == "appliance" else "monthly_consumption", candidate["entity_id"]),
+                ).fetchone()
+            if owner and owner["user_id"] == note["user_id"]:
+                db.execute(
+                    "UPDATE notifications SET entity_type=?, entity_id=? WHERE notification_id=?",
+                    (kind, candidate["entity_id"], note["notification_id"]),
+                )
+                break
+
+
 def initialize_database() -> None:
     DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
     with get_db() as db:
@@ -110,6 +160,13 @@ def initialize_database() -> None:
             ON monthly_consumption(household_id, deleted_at)
             """
         )
+        notification_columns = {
+            row["name"] for row in db.execute("PRAGMA table_info(notifications)")
+        }
+        for column_name, column_type in (("entity_type", "TEXT"), ("entity_id", "INTEGER")):
+            if column_name not in notification_columns:
+                db.execute(f"ALTER TABLE notifications ADD COLUMN {column_name} {column_type}")
+        link_review_notifications(db)
         db.execute(
             """
             UPDATE appliances
@@ -2081,13 +2138,15 @@ def review_submission(submission_type: str, submission_id: int):
         )
         db.execute(
             """
-            INSERT INTO notifications(user_id, title, message, type)
-            VALUES (?, ?, ?, 'submission_update')
+            INSERT INTO notifications(user_id, title, message, type, entity_type, entity_id)
+            VALUES (?, ?, ?, 'submission_update', ?, ?)
             """,
             (
                 row["user_id"],
                 "Submission reviewed",
                 f"Your {submission_type} submission was {status}.",
+                submission_type,
+                submission_id,
             ),
         )
         audit(
@@ -2148,13 +2207,155 @@ def list_notifications():
     with get_db() as db:
         rows = db.execute(
             """
-            SELECT notification_id, title, message, type, is_read, created_at
+            SELECT notification_id, title, message, type, is_read, created_at, entity_type, entity_id
             FROM notifications WHERE user_id=?
-            ORDER BY created_at DESC LIMIT 30
+            ORDER BY created_at DESC, notification_id DESC LIMIT 30
             """,
             (request.current_user["user_id"],),
         ).fetchall()
     return jsonify(notifications=[dict(row) for row in rows])
+
+
+def submission_snapshot(db: sqlite3.Connection, kind: str | None, entity_id: int | None) -> dict[str, Any] | None:
+    """Current state of the submission a notification refers to; None if unlinked, deleted=True if gone."""
+    if kind == "appliance" and entity_id:
+        row = db.execute(
+            """
+            SELECT a.appliance_name AS title, c.category_name, a.brand, a.power_rating_watts,
+                   a.quantity, a.avg_daily_usage_hours, a.source_of_info,
+                   a.verification_status, a.reviewer_notes, a.reviewed_at, NULL AS deleted_at
+            FROM appliances a JOIN appliance_categories c ON c.category_id=a.category_id
+            WHERE a.appliance_id=?
+            """,
+            (entity_id,),
+        ).fetchone()
+    elif kind == "consumption" and entity_id:
+        row = db.execute(
+            """
+            SELECT billing_month AS title, consumption_kwh, bill_amount_php, source_of_info,
+                   verification_status, reviewer_notes, reviewed_at, deleted_at
+            FROM monthly_consumption WHERE consumption_id=?
+            """,
+            (entity_id,),
+        ).fetchone()
+    else:
+        return None
+    if not row:
+        return {"type": kind, "id": entity_id, "deleted": True}
+    return {"type": kind, "id": entity_id, **dict(row), "deleted": bool(row["deleted_at"])}
+
+
+def owned_notification(db: sqlite3.Connection, notification_id: int) -> sqlite3.Row | None:
+    return db.execute(
+        "SELECT * FROM notifications WHERE notification_id=? AND user_id=?",
+        (notification_id, request.current_user["user_id"]),
+    ).fetchone()
+
+
+@app.get("/api/notifications/<int:notification_id>")
+@require_auth()
+def notification_detail(notification_id: int):
+    with get_db() as db:
+        note = owned_notification(db, notification_id)
+        if not note:
+            return jsonify(error="Notification not found"), 404
+        payload = dict(note)
+        payload["feedback"] = []
+        payload["can_send_feedback"] = False
+        if note["entity_type"] == "feedback":
+            # Admin view of feedback a household sent about a reviewed submission.
+            feedback = db.execute(
+                """
+                SELECT f.feedback_id, f.message, f.created_at, u.full_name AS sender,
+                       n.entity_type, n.entity_id
+                FROM notification_feedback f
+                JOIN users u ON u.user_id=f.user_id
+                JOIN notifications n ON n.notification_id=f.notification_id
+                WHERE f.feedback_id=?
+                """,
+                (note["entity_id"],),
+            ).fetchone()
+            payload["feedback_received"] = dict(feedback) if feedback else None
+            payload["submission"] = (
+                submission_snapshot(db, feedback["entity_type"], feedback["entity_id"]) if feedback else None
+            )
+        else:
+            payload["submission"] = submission_snapshot(db, note["entity_type"], note["entity_id"])
+            payload["feedback"] = [dict(r) for r in db.execute(
+                """
+                SELECT feedback_id, message, created_at FROM notification_feedback
+                WHERE notification_id=? ORDER BY feedback_id
+                """,
+                (notification_id,),
+            )]
+            payload["can_send_feedback"] = note["type"] == "submission_update"
+    return jsonify(notification=payload)
+
+
+@app.patch("/api/notifications/<int:notification_id>")
+@require_auth()
+def update_notification(notification_id: int):
+    is_read = json_body().get("is_read")
+    if not isinstance(is_read, bool):
+        return jsonify(error="is_read must be true or false"), 400
+    with get_db() as db:
+        if not owned_notification(db, notification_id):
+            return jsonify(error="Notification not found"), 404
+        db.execute(
+            "UPDATE notifications SET is_read=? WHERE notification_id=?",
+            (1 if is_read else 0, notification_id),
+        )
+    return jsonify(ok=True, is_read=is_read)
+
+
+@app.post("/api/notifications/read-all")
+@require_auth()
+def read_all_notifications():
+    with get_db() as db:
+        updated = db.execute(
+            "UPDATE notifications SET is_read=1 WHERE user_id=? AND is_read=0",
+            (request.current_user["user_id"],),
+        ).rowcount
+    return jsonify(ok=True, updated=updated)
+
+
+@app.post("/api/notifications/<int:notification_id>/feedback")
+@require_auth()
+def send_notification_feedback(notification_id: int):
+    message = text_value(json_body(), "message") or ""
+    if not message:
+        return jsonify(error="Feedback message is required"), 400
+    if len(message) > 1000:
+        return jsonify(error="Feedback must be 1000 characters or fewer"), 400
+    sender = request.current_user
+    with get_db() as db:
+        note = owned_notification(db, notification_id)
+        if not note:
+            return jsonify(error="Notification not found"), 404
+        if note["type"] != "submission_update" or note["entity_type"] == "feedback":
+            return jsonify(error="Feedback can only be sent about a reviewed submission"), 400
+        feedback_id = db.execute(
+            "INSERT INTO notification_feedback(notification_id, user_id, message) VALUES (?, ?, ?)",
+            (notification_id, sender["user_id"], message),
+        ).lastrowid
+        kind = note["entity_type"] or "submission"
+        preview = message if len(message) <= 160 else message[:157] + "..."
+        admins = db.execute(
+            """
+            SELECT u.user_id FROM users u JOIN roles r ON r.role_id=u.role_id
+            WHERE r.role_name='admin' AND u.status='active'
+            """
+        ).fetchall()
+        for admin in admins:
+            db.execute(
+                """
+                INSERT INTO notifications(user_id, title, message, type, entity_type, entity_id)
+                VALUES (?, ?, ?, 'submission_update', 'feedback', ?)
+                """,
+                (admin["user_id"], f"Feedback from {sender['full_name']}", f"About their {kind} review: {preview}", feedback_id),
+            )
+        audit(db, sender["user_id"], "feedback_sent", "notification", notification_id, {"feedback_id": feedback_id})
+    return jsonify(ok=True, feedback_id=feedback_id), 201
 
 
 NO_MODEL = "No trained model yet"

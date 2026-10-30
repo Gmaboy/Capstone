@@ -18,14 +18,32 @@
 
       <div class="card">
         <div class="card-head">
-          <div><h3>Notifications</h3><div class="card-sub">Your 30 most recent notifications</div></div>
-          <select id="notifFilter" aria-label="Filter notifications" style="width:auto; padding:6px 10px;"><option value="all">All</option><option value="unread">Unread</option></select>
+          <div><h3>Notifications</h3><div class="card-sub" id="notifSub">Your 30 most recent notifications</div></div>
+          <div class="notif-toolbar">
+            <button type="button" class="btn btn-secondary btn-sm" id="readAllBtn" disabled><i data-feather="check-square"></i> Mark all as read</button>
+            <select id="notifFilter" aria-label="Filter notifications" style="width:auto; padding:6px 10px;"><option value="all">All</option><option value="unread">Unread</option></select>
+          </div>
         </div>
         <div id="notifList" class="text-sm text-muted">Loading…</div>
       </div>
 
     </div>
   </div>
+</div>
+
+<div class="record-modal" id="notifModal" hidden>
+  <button class="modal-scrim" type="button" data-close-notif aria-label="Close notification"></button>
+  <section class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="notifModalTitle">
+    <header class="modal-header">
+      <div><div class="eyebrow" id="notifModalEyebrow">Notification</div><h3 id="notifModalTitle">Notification</h3><div class="notif-time" id="notifModalTime"></div></div>
+      <button class="icon-btn modal-close" type="button" data-close-notif aria-label="Close notification"><i data-feather="x"></i></button>
+    </header>
+    <div id="notifModalBody"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" id="markUnreadBtn"><i data-feather="mail"></i> Mark as unread</button>
+      <button type="button" class="btn btn-primary" data-close-notif>Close</button>
+    </div>
+  </section>
 </div>
 
 <script src="assets/js/api.js"></script>
@@ -35,46 +53,195 @@ ElectroShell.mount('notifications', 'Notifications', { dateRange:false });
 
 (function () {
   const esc = ElectroAPI.escapeHTML;
+  const $ = selector => document.querySelector(selector);
   const ICONS = {
     demand_alert: ['alert-triangle', 'var(--danger-bg)', 'var(--danger)'],
     submission_update: ['clipboard', 'var(--primary-50)', 'var(--primary)'],
+    feedback: ['message-square', 'var(--warning-bg)', 'var(--warning)'],
     forecast_update: ['trending-up', 'var(--success-bg)', 'var(--success)'],
     report_ready: ['file-text', 'var(--warning-bg)', 'var(--warning)'],
     system: ['info', 'var(--grey-100)', 'var(--grey-600)']
   };
+  const SOURCES = { nameplate_label:'Nameplate label', user_manual:'User manual', retailer_specs:'Retailer specifications', manual_estimate:'Manual estimate', electric_bill:'Electric bill', meter_reading:'Meter reading', utility_portal:'Utility portal', manual_entry:'Manual entry' };
+  const when = ts => ts ? ElectroAPI.formatDate(String(ts).replace(' ', 'T') + 'Z', { year:'numeric', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : '';
   let items = [];
+  let open = null;
 
   function render() {
-    const unreadOnly = document.getElementById('notifFilter').value === 'unread';
+    const unreadOnly = $('#notifFilter').value === 'unread';
     const shown = unreadOnly ? items.filter(n => !n.is_read) : items;
-    const list = document.getElementById('notifList');
+    const unread = items.filter(n => !n.is_read).length;
+    $('#notifSub').textContent = unread ? `${unread} unread · your 30 most recent notifications` : 'Your 30 most recent notifications';
+    $('#readAllBtn').disabled = !unread;
+    const list = $('#notifList');
     if (!shown.length) {
       list.innerHTML = `<div class="empty-table"><i data-feather="bell-off"></i><b>${unreadOnly ? 'No unread notifications' : 'No notifications yet'}</b><span>You will be notified here when your submissions are reviewed.</span></div>`;
     } else {
       list.innerHTML = shown.map(n => {
-        const [icon, bg, fg] = ICONS[n.type] || ICONS.system;
-        const when = ElectroAPI.formatDate(String(n.created_at).replace(' ', 'T') + 'Z', { year:'numeric', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
-        return `<div class="notif-item">
-          <div class="notif-icon" style="background:${bg}; color:${fg};"><i data-feather="${icon}"></i></div>
-          <div style="flex:1;">
-            <div class="notif-title">${esc(n.title)}${n.is_read ? '' : ' <span class="badge pending">New</span>'}</div>
-            <div class="text-sm text-muted">${esc(n.message)}</div>
-            <div class="notif-time">${esc(when)}</div>
-          </div>
-        </div>`;
+        const [icon, bg, fg] = ICONS[n.entity_type === 'feedback' ? 'feedback' : n.type] || ICONS.system;
+        return `<button type="button" class="notif-item ${n.is_read ? 'is-read' : 'is-unread'}" data-open-notif="${n.notification_id}" aria-label="${esc(n.title)}${n.is_read ? '' : ', unread'}">
+          <span class="notif-icon" style="background:${bg}; color:${fg};"><i data-feather="${icon}"></i></span>
+          <span class="notif-text">
+            <span class="notif-title">${esc(n.title)}${n.is_read ? '' : ' <span class="badge pending">New</span>'}</span>
+            <span class="notif-message">${esc(n.message)}</span>
+            <span class="notif-time">${esc(when(n.created_at))}</span>
+          </span>
+          ${n.is_read ? '' : '<span class="notif-unread-dot" aria-hidden="true"></span>'}
+          <i data-feather="chevron-right" class="notif-chevron"></i>
+        </button>`;
       }).join('');
     }
     if (window.feather) feather.replace();
   }
 
-  document.getElementById('notifFilter').addEventListener('change', render);
+  function submissionCard(sub) {
+    if (!sub) return '<div class="notif-detail-empty">Details for this older notification are not available.</div>';
+    if (sub.deleted && !sub.title) return '<div class="notif-detail-empty">This submission has since been deleted.</div>';
+    const isAppliance = sub.type === 'appliance';
+    const name = isAppliance ? sub.title : `${ElectroAPI.formatMonth(sub.title)} bill`;
+    const facts = isAppliance
+      ? [[ 'Power rating', `${Number(sub.power_rating_watts).toLocaleString()} W` ], [ 'Usage', `Qty ${sub.quantity} · ${sub.avg_daily_usage_hours} hr/day` ], [ 'Source', SOURCES[sub.source_of_info] || sub.source_of_info ]]
+      : [[ 'Consumption', `${Number(sub.consumption_kwh).toLocaleString()} kWh` ], [ 'Bill amount', sub.bill_amount_php == null ? '—' : `₱${Number(sub.bill_amount_php).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2})}` ], [ 'Source', SOURCES[sub.source_of_info] || sub.source_of_info ]];
+    const meta = isAppliance ? [sub.brand, sub.category_name].filter(Boolean).join(' · ') : 'Monthly consumption';
+    return `<div class="edit-summary notif-summary">
+        <div class="notif-summary-top">
+          <div class="edit-summary-head"><b>${esc(name)}</b><small>${esc(meta)}</small></div>
+          ${ElectroAPI.statusBadge(sub.verification_status)}
+        </div>
+        <dl class="edit-summary-facts">${facts.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>
+        ${sub.deleted ? '<div class="notif-detail-empty" style="margin-top:10px;">This submission has since been deleted.</div>' : ''}
+      </div>
+      ${sub.reviewer_notes ? `<div class="notif-note"><b>Administrator's note</b><p>${esc(sub.reviewer_notes)}</p></div>` : ''}`;
+  }
+
+  function feedbackSection(n) {
+    if (!n.can_send_feedback) return '';
+    const sent = n.feedback.length
+      ? `<ul class="notif-feedback-list">${n.feedback.map(f => `<li><span class="notif-time">You sent · ${esc(when(f.created_at))}</span><p>${esc(f.message)}</p></li>`).join('')}</ul>`
+      : '';
+    return `<form class="notif-feedback" id="feedbackForm">
+        <label for="feedbackText"><b>Send feedback to the administrator</b><span>Questions about this decision, or extra details that support your submission.</span></label>
+        ${sent}
+        <textarea id="feedbackText" rows="3" maxlength="1000" required placeholder="Write your message…"></textarea>
+        <div class="notif-feedback-foot"><span class="notif-time" id="feedbackCount">0 / 1000</span><button type="submit" class="btn btn-primary btn-sm" id="feedbackSend"><i data-feather="send"></i> Send feedback</button></div>
+      </form>`;
+  }
+
+  function links(n) {
+    const sub = n.submission;
+    if (n.entity_type === 'feedback') return '<a class="btn btn-secondary btn-sm" href="admin-dashboard.html#review"><i data-feather="clipboard"></i> Open review queue</a>';
+    if (!sub || sub.deleted) return '';
+    return sub.type === 'appliance'
+      ? '<a class="btn btn-secondary btn-sm" href="my-submissions.html"><i data-feather="clipboard"></i> View in My Submissions</a>'
+      : '<a class="btn btn-secondary btn-sm" href="monthly-consumption.html"><i data-feather="bar-chart-2"></i> View in Monthly Consumption</a>';
+  }
+
+  function renderDetail(n) {
+    $('#notifModalEyebrow').textContent = n.entity_type === 'feedback' ? 'Household feedback' : n.type === 'submission_update' ? 'Submission review' : 'Notification';
+    $('#notifModalTitle').textContent = n.title;
+    $('#notifModalTime').textContent = when(n.created_at);
+    const received = n.feedback_received
+      ? `<div class="notif-note feedback"><b>${esc(n.feedback_received.sender)} wrote</b><p>${esc(n.feedback_received.message)}</p></div>`
+      : '';
+    const link = links(n);
+    $('#notifModalBody').innerHTML = `
+      <p class="notif-detail-message">${esc(n.message)}</p>
+      ${received}
+      ${submissionCard(n.submission)}
+      ${link ? `<div class="notif-links">${link}</div>` : ''}
+      ${feedbackSection(n)}`;
+    const form = $('#feedbackForm');
+    if (form) {
+      const text = $('#feedbackText');
+      text.addEventListener('input', () => { $('#feedbackCount').textContent = `${text.value.length} / 1000`; });
+      form.addEventListener('submit', sendFeedback);
+    }
+    if (window.feather) feather.replace();
+  }
+
+  async function setRead(id, isRead) {
+    await ElectroAPI.request(`/api/notifications/${id}`, { method:'PATCH', body:{ is_read:isRead } });
+    const item = items.find(n => n.notification_id === id);
+    if (item) item.is_read = isRead ? 1 : 0;
+    render();
+    ElectroShell.refreshUnread();
+  }
+
+  async function openNotification(id) {
+    try {
+      const { notification } = await ElectroAPI.request(`/api/notifications/${id}`);
+      open = notification;
+      renderDetail(notification);
+      $('#notifModal').hidden = false;
+      document.body.classList.add('modal-open');
+      $('#notifModal .modal-close').focus();
+      // Opening a notification marks it read, like an email.
+      if (!notification.is_read) await setRead(id, true);
+    } catch (error) {
+      ElectroAPI.notify(error.message, 'error');
+    }
+  }
+
+  function closeNotification() {
+    $('#notifModal').hidden = true;
+    document.body.classList.remove('modal-open');
+    const row = open && document.querySelector(`[data-open-notif="${open.notification_id}"]`);
+    open = null;
+    if (row) row.focus();
+  }
+
+  async function sendFeedback(event) {
+    event.preventDefault();
+    const text = $('#feedbackText').value.trim();
+    if (!text) { ElectroAPI.notify('Write a message first.', 'error'); return; }
+    const button = $('#feedbackSend');
+    button.disabled = true;
+    try {
+      await ElectroAPI.request(`/api/notifications/${open.notification_id}/feedback`, { method:'POST', body:{ message:text } });
+      ElectroAPI.notify('Feedback sent to the administrator.');
+      const { notification } = await ElectroAPI.request(`/api/notifications/${open.notification_id}`);
+      open = notification;
+      renderDetail(notification);
+    } catch (error) {
+      ElectroAPI.notify(error.message, 'error');
+      button.disabled = false;
+    }
+  }
+
+  document.addEventListener('click', event => {
+    const row = event.target.closest('[data-open-notif]');
+    if (row) { openNotification(Number(row.dataset.openNotif)); return; }
+    if (event.target.closest('[data-close-notif]')) closeNotification();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !$('#notifModal').hidden) closeNotification();
+  });
+  $('#markUnreadBtn').addEventListener('click', async () => {
+    if (!open) return;
+    const id = open.notification_id;
+    try {
+      await setRead(id, false);
+      closeNotification();
+      ElectroAPI.notify('Marked as unread.');
+    } catch (error) { ElectroAPI.notify(error.message, 'error'); }
+  });
+  $('#readAllBtn').addEventListener('click', async () => {
+    try {
+      await ElectroAPI.request('/api/notifications/read-all', { method:'POST' });
+      items.forEach(n => { n.is_read = 1; });
+      render();
+      ElectroShell.refreshUnread();
+    } catch (error) { ElectroAPI.notify(error.message, 'error'); }
+  });
+  $('#notifFilter').addEventListener('change', render);
+
   ElectroAPI.request('/api/notifications').then(data => {
     items = data.notifications || [];
     render();
   }).catch(error => {
     if (error.status === 401) { window.location.href = 'login.html'; return; }
     ElectroAPI.notify(error.message, 'error');
-    document.getElementById('notifList').innerHTML = '<div class="empty-mini">Notifications are unavailable right now.</div>';
+    $('#notifList').innerHTML = '<div class="empty-mini">Notifications are unavailable right now.</div>';
   });
 })();
 </script>
