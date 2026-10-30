@@ -246,7 +246,7 @@ h1,h2,h3,h4{margin:0; font-weight:700; color:var(--dark); letter-spacing:-0.01em
 .field{margin-bottom:16px;}
 .field label{display:block; font-size:12.5px;font-weight:600; color:var(--grey-800); margin-bottom:6px;}
 .field .hint{font-size:12px;color:var(--grey-600); margin-top:5px;}
-input[type=text], input[type=email], input[type=password], input[type=number], input[type=date], input[type=tel], input[type=search], select, textarea{
+input:not([type]), input[type=text], input[type=email], input[type=password], input[type=number], input[type=date], input[type=tel], input[type=search], select, textarea{
   width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--grey-300); background:var(--surface);
   font-size:13.5px; color:var(--dark); font-family:inherit;
 }
@@ -263,7 +263,7 @@ input:focus, select:focus, textarea:focus{border-color:var(--primary); outline:n
 .password-toggle svg{width:16px;height:16px;}
 .checkbox-row{display:flex;align-items:center;gap:8px; font-size:12.5px; color:var(--grey-600);}
 .checkbox-row input{width:auto;}
-.row-2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+.row-2{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px;}
 
 /* Tables */
 .table-wrap{overflow-x:auto;}
@@ -937,8 +937,11 @@ tbody tr:hover{background:var(--grey-100);}
   .login-form-card .brand-sm{margin-bottom:42px;}
   .signup-form-card .signup-brand-sm{margin:18px 0 24px;}
   .signup-form-side{padding:22px 18px 32px;}
+  /* Stacked fields rely on .field margins, so drop the row gap to keep spacing even. */
+  .row-2, .row-3{row-gap:0;}
   .row-2{grid-template-columns:1fr;}
-  .row-3{grid-template-columns:1fr;}
+  .row-3{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .row-3 > :first-child{grid-column:1 / -1;}
   .settings-page-head{align-items:flex-start;flex-direction:column;gap:12px;margin-bottom:16px;}
   .settings-page-head h2{font-size:22px;}
   .settings-admin-badge{display:none;}
