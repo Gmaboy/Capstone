@@ -2446,6 +2446,50 @@ def api_validated_data():
     )
 
 
+def short_name(full_name: str) -> str:
+    """'Juan Dela Cruz' -> 'Juan D.' so staff views don't expose full household names."""
+    parts = str(full_name or "").split()
+    if not parts:
+        return "Household"
+    return parts[0] if len(parts) == 1 else f"{parts[0]} {parts[1][0]}."
+
+
+@app.get("/api/contributors")
+@require_auth("admin", "guimelco", "researcher")
+def api_contributors():
+    with get_db() as db:
+        rows = db.execute(
+            """
+            WITH subs AS (
+              SELECT household_id, verification_status FROM appliances
+              UNION ALL
+              SELECT household_id, verification_status FROM monthly_consumption WHERE deleted_at IS NULL
+            )
+            SELECT u.full_name, u.created_at, COUNT(*) AS submissions,
+                   SUM(s.verification_status = 'approved') AS approved
+            FROM subs s
+            JOIN households h ON h.household_id = s.household_id
+            JOIN users u ON u.user_id = h.user_id
+            WHERE u.status = 'active'
+            GROUP BY h.household_id
+            ORDER BY approved DESC, submissions DESC, u.created_at
+            """
+        ).fetchall()
+    contributors = []
+    for rank, r in enumerate(rows, start=1):
+        name = short_name(r["full_name"])
+        contributors.append({
+            "rank": rank,
+            "name": name,
+            "initials": "".join(p[0] for p in name.replace(".", "").split()[:2]).upper(),
+            "submissions": int(r["submissions"]),
+            "approved": int(r["approved"]),
+            "approval_rate": round(int(r["approved"]) / int(r["submissions"]) * 100, 1),
+            "joined": str(r["created_at"])[:7],
+        })
+    return jsonify(contributors=contributors)
+
+
 @app.get("/")
 def root():
     return redirect("/login.html")

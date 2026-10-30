@@ -15,28 +15,75 @@
     <div id="shell-topbar"></div>
     <div class="content">
 
-      <div class="grid grid-12">
+      <div class="grid grid-12" style="margin-bottom:18px;">
         <div class="card span-4">
-          <div class="card-head"><h3>Generate Report</h3></div>
-          <div class="field"><label>Report Type</label><select><option>Consumption Summary</option><option>Forecast Accuracy</option><option>Demand Classification</option><option>Appliance Contribution</option></select></div>
-          <div class="field"><label>Period</label><select><option>Last 7 Days</option><option>Last 30 Days</option><option>Custom Range</option></select></div>
-          <div class="field"><label>Format</label><select><option>PDF</option><option>CSV</option></select></div>
-          <button class="btn btn-primary btn-block"><i data-feather="file-text"></i> Generate Report</button>
+          <div class="card-head"><div><h3>Download a Report</h3><div class="card-sub">CSV files built from the current data and models</div></div></div>
+          <div class="field">
+            <label for="reportType">Report</label>
+            <select id="reportType">
+              <option value="forecast">Monthly energy forecast</option>
+              <option value="backtest">Forecast backtest results</option>
+              <option value="demand">Daily demand classification</option>
+              <option value="utility">GUIMELCO monthly records</option>
+              <option value="bills">Approved bills by month</option>
+            </select>
+            <div class="hint" id="reportHint"></div>
+          </div>
+          <div id="demandRange" hidden>
+            <div class="field"><label for="demandFrom">From</label><input type="date" id="demandFrom"></div>
+            <div class="field"><label for="demandTo">To</label><input type="date" id="demandTo"><div class="hint">Up to 400 days. Leave both empty for the last 30 days.</div></div>
+          </div>
+          <button class="btn btn-primary btn-block" id="downloadBtn"><i data-feather="download"></i> Download CSV</button>
         </div>
 
         <div class="card span-8">
-          <div class="card-head"><div><h3>Generated Reports</h3><div class="card-sub">Download or review previously generated reports</div></div></div>
+          <div class="card-head">
+            <div><h3>Forecast Model Evaluation</h3><div class="card-sub" id="backtestSub">Loading…</div></div>
+            <span class="data-badge real">Real GUIMELCO data</span>
+          </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Report</th><th>Type</th><th>Period</th><th>Generated</th><th></th></tr></thead>
-              <tbody>
-                <tr><td>Weekly Consumption Summary</td><td>Consumption Summary</td><td>May 19 – May 25, 2026</td><td>May 25, 2026</td><td class="row-actions"><button><i data-feather="download"></i></button><button><i data-feather="eye"></i></button></td></tr>
-                <tr><td>Forecast Accuracy Report</td><td>Forecast Accuracy</td><td>April 2026</td><td>May 2, 2026</td><td class="row-actions"><button><i data-feather="download"></i></button><button><i data-feather="eye"></i></button></td></tr>
-                <tr><td>Demand Classification Log</td><td>Demand Classification</td><td>April 2026</td><td>May 1, 2026</td><td class="row-actions"><button><i data-feather="download"></i></button><button><i data-feather="eye"></i></button></td></tr>
-                <tr><td>Appliance Contribution Analysis</td><td>Appliance Contribution</td><td>Q1 2026</td><td>Apr 3, 2026</td><td class="row-actions"><button><i data-feather="download"></i></button><button><i data-feather="eye"></i></button></td></tr>
-              </tbody>
+              <thead id="backtestHead"></thead>
+              <tbody id="backtestRows"><tr><td class="text-muted">Loading…</td></tr></tbody>
             </table>
           </div>
+          <div class="text-sm text-muted" id="nestedNote" style="margin-top:12px;"></div>
+        </div>
+      </div>
+
+      <div class="grid grid-12" style="margin-bottom:18px;">
+        <div class="card span-6">
+          <div class="card-head">
+            <div><h3>Demand Classifier Evaluation</h3><div class="card-sub" id="clfSub">Loading…</div></div>
+            <span class="data-badge synthetic">Synthetic</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Model</th><th>Macro-F1</th><th>Accuracy</th></tr></thead>
+              <tbody id="clfRows"><tr><td colspan="3" class="text-muted">Loading…</td></tr></tbody>
+            </table>
+          </div>
+          <div class="text-sm text-muted" style="margin-top:12px;">Macro-F1 weighs High, Medium, and Low days equally, so it is the main score. Always guessing the most common level gets high accuracy but low macro-F1.</div>
+        </div>
+
+        <div class="card span-6">
+          <div class="card-head"><div><h3>Confusion Matrix</h3><div class="card-sub">Rows are actual levels, columns are predicted levels (days)</div></div></div>
+          <div class="table-wrap">
+            <table>
+              <thead id="cmHead"></thead>
+              <tbody id="cmRows"><tr><td class="text-muted">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div><h3>Training Report Charts</h3><div class="card-sub">Generated by <code>python -m tools.model.train</code> in the reports folder</div></div></div>
+        <div class="grid grid-2" id="reportCharts">
+          <figure style="margin:0;"><img src="reports/forecast_backtest_2024.png" alt="Forecast backtest, 2024 fold" loading="lazy"><figcaption class="text-sm text-muted">Forecast backtest, 2024 fold</figcaption></figure>
+          <figure style="margin:0;"><img src="reports/forecast_backtest_2025.png" alt="Forecast backtest, 2025 fold" loading="lazy"><figcaption class="text-sm text-muted">Forecast backtest, 2025 fold</figcaption></figure>
+          <figure style="margin:0;"><img src="reports/demand_confusion_matrix.png" alt="Demand classifier confusion matrix" loading="lazy"><figcaption class="text-sm text-muted">Demand classifier confusion matrix (synthetic)</figcaption></figure>
+          <figure style="margin:0;"><img src="reports/feature_importance.png" alt="Demand classifier feature importance" loading="lazy"><figcaption class="text-sm text-muted">Feature importance (synthetic)</figcaption></figure>
         </div>
       </div>
 
@@ -44,7 +91,153 @@
   </div>
 </div>
 
+<script src="assets/js/api.js"></script>
 <script src="assets/js/shell.js"></script>
-<script>ElectroShell.mount('reports', 'Reports', { dateRange:false });</script>
+<script>
+ElectroShell.mount('reports', 'Reports');
+
+(function () {
+  const esc = ElectroAPI.escapeHTML;
+  const pct = v => Number.isFinite(v) ? `${v.toFixed(2)}%` : '—';
+  const dec = v => Number.isFinite(v) ? v.toFixed(3) : '—';
+  const today = () => new Date().toISOString().slice(0, 10);
+
+  const REPORTS = {
+    forecast: {
+      hint: 'Forecast MWh per month with 80% and 95% intervals.',
+      async rows() {
+        const j = await ElectroAPI.request('/api/forecast/monthly');
+        return [['year', 'month', 'forecast_mwh', 'lo80', 'hi80', 'lo95', 'hi95', 'model'],
+          ...j.forecast.map(r => [r.year, r.month, r.forecast_mwh, r.lo80, r.hi80, r.lo95, r.hi95, j.model.model_name])];
+      }
+    },
+    backtest: {
+      hint: 'MAPE and RMSE of every candidate model on each held-out year.',
+      async rows() {
+        const run = await activeRun('monthly_energy');
+        return [['model', 'fold', 'mape', 'rmse'], ...(run.metrics.backtest || []).map(r => [r.model_name, r.fold, r.mape, r.rmse])];
+      }
+    },
+    demand: {
+      hint: 'Synthetic daily peaks with actual and predicted demand levels.',
+      async rows() {
+        const params = new URLSearchParams();
+        const from = document.getElementById('demandFrom').value;
+        const to = document.getElementById('demandTo').value;
+        if (from) params.set('from', from);
+        if (to) params.set('to', to);
+        const j = await ElectroAPI.request('/api/demand/daily' + (params.toString() ? `?${params}` : ''));
+        return [['date', 'peak_mw', 'actual_level', 'predicted_level', 'p_high', 'p_medium', 'p_low', 'data_source'],
+          ...j.days.map(d => [d.date, d.peak_mw, d.actual_level, d.predicted_level, d.p_high, d.p_medium, d.p_low, j.data_source])];
+      }
+    },
+    utility: {
+      hint: 'The 72 real monthly residential MWh values from GUIMELCO.',
+      async rows() {
+        const j = await ElectroAPI.request('/api/validated-data');
+        return [['year', 'month', 'energy_mwh'], ...j.utility.monthly.map(r => [r.year, r.month, r.energy_mwh])];
+      }
+    },
+    bills: {
+      hint: 'Admin-approved crowdsourced bills, totals per billing month.',
+      async rows() {
+        const j = await ElectroAPI.request('/api/validated-data');
+        return [['billing_month', 'households', 'bills', 'total_kwh', 'avg_kwh'],
+          ...j.crowdsourced.monthly.map(m => [m.billing_month, m.households, m.bills, m.total_kwh, m.avg_kwh])];
+      }
+    }
+  };
+
+  let runsPromise = null;
+  function activeRun(task) {
+    runsPromise = runsPromise || ElectroAPI.request('/api/models/active');
+    return runsPromise.then(j => {
+      const run = (j.runs || []).find(r => r.task === task);
+      if (!run) throw Object.assign(new Error('No trained model yet. Run python -m tools.model.train.'), { status: 404 });
+      return run;
+    });
+  }
+
+  function downloadCSV(filename, rows) {
+    const cell = v => { const s = v == null ? '' : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([rows.map(r => r.map(cell).join(',')).join('\n')], { type: 'text/csv' }));
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
+  const typeSelect = document.getElementById('reportType');
+  const syncForm = () => {
+    document.getElementById('reportHint').textContent = REPORTS[typeSelect.value].hint;
+    document.getElementById('demandRange').hidden = typeSelect.value !== 'demand';
+  };
+  typeSelect.addEventListener('change', syncForm);
+  syncForm();
+
+  document.getElementById('downloadBtn').addEventListener('click', async event => {
+    const button = event.currentTarget;
+    const type = typeSelect.value;
+    button.disabled = true;
+    try {
+      const rows = await REPORTS[type].rows();
+      if (rows.length < 2) { ElectroAPI.notify('There is no data for this report yet.', 'error'); return; }
+      downloadCSV(`${type}_report_${today()}.csv`, rows);
+      ElectroAPI.notify(`Downloaded ${rows.length - 1} rows.`);
+    } catch (error) {
+      if (error.status === 401) { window.location.href = 'login.html'; return; }
+      ElectroAPI.notify(error.status === 404 ? 'No trained model yet. Run python -m tools.model.train.' : error.message, 'error');
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  function renderBacktest(run) {
+    const m = run.metrics || {};
+    const bt = m.backtest || [];
+    const folds = [...new Set(bt.map(r => r.fold))].sort();
+    const models = [...new Set(bt.map(r => r.model_name))];
+    const mape = (model, fold) => { const r = bt.find(x => x.model_name === model && x.fold === fold); return r ? r.mape : NaN; };
+    const mean = model => { const v = folds.map(f => mape(model, f)).filter(Number.isFinite); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : NaN; };
+    models.sort((a, b) => mean(a) - mean(b));
+    document.getElementById('backtestSub').textContent = `Rolling-origin backtest, MAPE per held-out year · selected: ${ElectroAPI.titleCase(m.selected_model || run.model_name)}`;
+    document.getElementById('backtestHead').innerHTML = `<tr><th>Model</th>${folds.map(f => `<th>${esc(f)}</th>`).join('')}<th>Mean</th></tr>`;
+    document.getElementById('backtestRows').innerHTML = models.length ? models.map(model => {
+      const selected = model === (m.selected_model || run.model_name);
+      const tag = selected ? ' <span class="badge low">Selected</span>' : model === 'seasonal_naive' ? ' <span class="badge neutral">Baseline</span>' : '';
+      return `<tr><td><b>${esc(ElectroAPI.titleCase(model))}</b>${tag}</td>${folds.map(f => `<td>${esc(pct(mape(model, f)))}</td>`).join('')}<td><b>${esc(pct(mean(model)))}</b></td></tr>`;
+    }).join('') : '<tr><td class="text-muted">No backtest stored for this run.</td></tr>';
+    const n = m.nested;
+    document.getElementById('nestedNote').textContent = n
+      ? `Stricter check: choosing the model on the ${n.selected_on} fold alone picks ${ElectroAPI.titleCase(n.model)}, which scores ${pct(n.mape_2025)} on 2025 vs ${pct(n.baseline_mape_2025)} for the seasonal-naive baseline.`
+      : '';
+  }
+
+  function renderClassifier(run) {
+    const m = run.metrics || {};
+    document.getElementById('clfSub').textContent = `Held-out test year ${m.test_year ?? '—'}`;
+    document.getElementById('clfRows').innerHTML = [
+      [ElectroAPI.titleCase(m.model_name || run.model_name) + ' (used)', m.macro_f1, m.accuracy],
+      ['Logistic regression (baseline)', m.baseline_macro_f1, m.baseline_accuracy],
+      [`Always "${m.majority_label || 'Medium'}"`, m.majority_macro_f1, m.majority_accuracy]
+    ].map(([name, f1, acc]) => `<tr><td>${esc(name)}</td><td>${esc(dec(f1))}</td><td>${esc(dec(acc))}</td></tr>`).join('');
+    const labels = m.labels || [];
+    const cm = m.confusion_matrix || [];
+    document.getElementById('cmHead').innerHTML = `<tr><th>Actual ↓ / Predicted →</th>${labels.map(l => `<th>${esc(l)}</th>`).join('')}</tr>`;
+    document.getElementById('cmRows').innerHTML = cm.length
+      ? cm.map((row, i) => `<tr><td><b>${esc(labels[i])}</b></td>${row.map((v, j) => `<td${i === j ? ' style="font-weight:800;color:var(--success);"' : ''}>${esc(v)}</td>`).join('')}</tr>`).join('')
+      : '<tr><td class="text-muted">No confusion matrix stored.</td></tr>';
+  }
+
+  const missing = (id, cols) => { document.getElementById(id).innerHTML = `<tr><td colspan="${cols}" class="text-muted">No trained model yet. Run python -m tools.model.train.</td></tr>`; };
+  activeRun('monthly_energy').then(renderBacktest).catch(() => { document.getElementById('backtestSub').textContent = ''; missing('backtestRows', 1); });
+  activeRun('demand_class').then(renderClassifier).catch(() => { document.getElementById('clfSub').textContent = ''; missing('clfRows', 3); missing('cmRows', 1); });
+
+  document.querySelectorAll('#reportCharts img').forEach(img => img.addEventListener('error', () => {
+    img.closest('figure').innerHTML = '<div class="empty-mini">Chart not generated yet.</div>';
+  }));
+  if (window.feather) feather.replace();
+})();
+</script>
 </body>
 </html>
