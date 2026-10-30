@@ -103,3 +103,16 @@ def _real_series():
 
 
 SERIES, CUSTOMERS = _real_series()
+
+
+_DAILY_CACHE: dict = {}
+
+
+def small_daily():
+    """Daily peaks for the small config (built once, lazily)."""
+    if "d" not in _DAILY_CACHE:
+        from tools.synth.config import load_config
+        from tools.synth.daily import daily_peaks
+
+        _DAILY_CACHE["d"] = daily_peaks(build_small_system(), load_config(CFG_SMALL))
+    return _DAILY_CACHE["d"]
