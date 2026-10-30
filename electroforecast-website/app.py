@@ -2222,6 +2222,7 @@ def api_forecast_monthly():
         return no_model_response()
     return jsonify(
         data_source="real",
+        dataset_version=run["dataset_version"],
         model=run,
         history=[dict(r) for r in history],
         forecast=[dict(r) for r in forecast],
@@ -2250,6 +2251,7 @@ def api_forecast_peak():
         return no_model_response()
     return jsonify(
         data_source="real",
+        dataset_version=run["dataset_version"],
         model=run,
         history=[dict(r) for r in history],
         forecast=[dict(r) for r in forecast],
@@ -2366,11 +2368,13 @@ def api_explain():
     return jsonify(
         classifier={
             "data_source": "synthetic",
+            "dataset_version": clf["dataset_version"],
             "model": clf,
             "importance": [dict(r) for r in importance],
         },
         forecast={
             "data_source": "real",
+            "dataset_version": fc["dataset_version"],
             "model": fc,
             "breakdown": [pivot[k] for k in sorted(pivot)],
         },

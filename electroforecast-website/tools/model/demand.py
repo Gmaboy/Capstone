@@ -79,22 +79,28 @@ def train_demand(features: pd.DataFrame, test_year: int = 2025) -> DemandResult:
     train, test = features[years < test_year], features[years == test_year]
     if train.empty or test.empty:
         raise ValueError(f"need training rows before and rows within test year {test_year}")
-    fitted, scores = {}, {}
-    for name, model in _candidates().items():
-        model.fit(train[FEATURES], train["demand_level"])
-        fitted[name] = model
-        scores[name] = _scores(test["demand_level"], model.predict(test[FEATURES]))
-    best = max(fitted, key=lambda n: (scores[n]["macro_f1"], n == "logistic_regression"))
-    model = fitted[best]
+    # random_forest is fixed up front as THE model; nothing is selected on the test year.
+    # logistic_regression and a majority-class predictor are reported as baselines only.
+    cands = _candidates()
+    model, lr = cands["random_forest"], cands["logistic_regression"]
+    model.fit(train[FEATURES], train["demand_level"])
+    lr.fit(train[FEATURES], train["demand_level"])
+    y_test = test["demand_level"]
     pred = model.predict(test[FEATURES])
     proba = _proba(model, test[FEATURES])
-    cm = confusion_matrix(test["demand_level"], pred, labels=LABELS)
+    lr_scores = _scores(y_test, lr.predict(test[FEATURES]))
+    majority = train["demand_level"].value_counts().sort_index().idxmax()
+    maj_scores = _scores(y_test, np.full(len(y_test), majority, dtype=object))
+    cm = confusion_matrix(y_test, pred, labels=LABELS)
     metrics = {
-        **scores[best],
+        **_scores(y_test, pred),
         "confusion_matrix": [[int(v) for v in row] for row in cm],
         "labels": list(LABELS),
-        "baseline_accuracy": scores["logistic_regression"]["accuracy"],
-        "baseline_macro_f1": scores["logistic_regression"]["macro_f1"],
+        "baseline_accuracy": lr_scores["accuracy"],
+        "baseline_macro_f1": lr_scores["macro_f1"],
+        "majority_label": str(majority),
+        "majority_accuracy": maj_scores["accuracy"],
+        "majority_macro_f1": maj_scores["macro_f1"],
     }
     predictions = pd.DataFrame({
         "date": test["date"].to_numpy(),
@@ -104,4 +110,4 @@ def train_demand(features: pd.DataFrame, test_year: int = 2025) -> DemandResult:
         PROB_COLS["Low"]: proba[:, 2],
         "actual_level": test["demand_level"].to_numpy(),
     })
-    return DemandResult(best, model, metrics, predictions)
+    return DemandResult("random_forest", model, metrics, predictions)

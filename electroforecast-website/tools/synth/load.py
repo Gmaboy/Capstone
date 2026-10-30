@@ -24,6 +24,14 @@ def _insert(con: sqlite3.Connection, table: str, df: pd.DataFrame, chunksize: in
 
 
 def load(db_path: Path, real_csv: Path, synthetic_dir: Path) -> None:
+    report = Path(synthetic_dir) / "validation_report.md"
+    if not report.exists():
+        raise RuntimeError(
+            f"{report} is missing: refusing to load unvalidated synthetic data. "
+            "Run python -m tools.synth.generate first."
+        )
+    if "FAIL" in report.read_text(encoding="utf-8"):
+        raise RuntimeError(f"{report} contains FAIL: refusing to load synthetic data that failed validation.")
     anchors = load_anchors(real_csv)
     monthly = pd.DataFrame(
         [(y, m, v, SOURCE) for (y, m), v in sorted(anchors.monthly_mwh.items())],

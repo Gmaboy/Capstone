@@ -130,6 +130,16 @@ def build_report(
     else:
         lines.append("None.")
 
+    lines += [
+        "",
+        "## Limitations",
+        "",
+        "- Household type mix: the sampled households' types are drawn from the final config year's "
+        "mix and stay fixed for all years. Year-to-year growth in kWh/customer comes from the monthly "
+        "scale factor, not from a changing mix of household types.",
+        "- Only monthly energy and the annual peak are real (the utility sheet); hourly, daily, "
+        "feeder, transformer and household values are synthetic reconstructions.",
+    ]
     notes = [anchors.notes[y] for y in years if y in anchors.notes]
     if notes:
         lines += ["", "## Notes", ""] + [f"- {n}" for n in notes]

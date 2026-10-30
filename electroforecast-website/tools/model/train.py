@@ -22,6 +22,7 @@ from tools.model.forecast import (  # noqa: E402
 from tools.model.store import MissingDataError, check_inputs, connect, ensure_schema, read_anchors, read_daily, save_run  # noqa: E402
 from tools.synth.config import load_config  # noqa: E402
 
+DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / "synth" / "config.json"
 REAL_VERSION = "real:guimelco_residential_2020_2025"
 FC_COLS = ["year", "month", "forecast_mwh", "lo80", "hi80", "lo95", "hi95"]
 
@@ -32,6 +33,23 @@ def _load_factors(anchors) -> dict[int, float]:
     return {
         int(y): float(sum(anchors.monthly_mwh[(y, m)] for m in range(1, 13)) / (anchors.peak_mw[y] * _hours(y)))
         for y in anchors.years
+    }
+
+
+def nested_metric(bt: pd.DataFrame) -> dict:
+    """Select the model on the 2024 fold only, then report its untouched 2025 fold.
+
+    Less optimistic than the headline mean MAPE, which selects and scores on the same folds.
+    """
+    f24 = bt[bt.fold == "2024"].set_index("model_name")["mape"]
+    f25 = bt[bt.fold == "2025"].set_index("model_name")
+    model = str(f24.idxmin())
+    return {
+        "selected_on": "2024",
+        "model": model,
+        "mape_2025": float(f25.loc[model, "mape"]),
+        "rmse_2025": float(f25.loc[model, "rmse"]),
+        "baseline_mape_2025": float(f25.loc["seasonal_naive", "mape"]),
     }
 
 
@@ -104,7 +122,7 @@ def train(
     models_dir: Path,
     reports_dir: Path,
     dataset_version: str = "synth-v1-seed42",
-    config_path: Path = Path("tools/synth/config.json"),
+    config_path: Path = DEFAULT_CONFIG,
 ) -> dict[str, int]:
     db_path, models_dir, reports_dir = Path(db_path), Path(models_dir), Path(reports_dir)
     with connect(db_path) as con:
@@ -130,6 +148,7 @@ def train(
             "mean_rmse": float(means.loc[best, "rmse"]),
             "baseline_mean_mape": float(means.loc["seasonal_naive", "mape"]),
             "baseline_mean_rmse": float(means.loc["seasonal_naive", "rmse"]),
+            "nested": nested_metric(bt),
         }
         breakdown = forecast_breakdown(series, customers, best)
         bd_rows = breakdown.melt(id_vars=["year", "month"], var_name="feature", value_name="importance")
@@ -184,14 +203,19 @@ def train(
 def _table(reports_dir: Path) -> str:
     m = json.loads((Path(reports_dir) / "metrics.json").read_text(encoding="utf-8"))
     me, ap, dc = m["monthly_energy"], m["annual_peak"], m["demand_class"]
+    ne = me["nested"]
     rows = [
         ("task", "model", "key metric", "beats baseline"),
         ("monthly_energy", me["selected_model"],
          f"MAPE {me['mean_mape']:.2f}% (baseline {me['baseline_mean_mape']:.2f}%)", str(me["beats_baseline"])),
+        ("  nested", ne["model"],
+         f"2025 MAPE {ne['mape_2025']:.2f}% (baseline {ne['baseline_mape_2025']:.2f}%), selected on 2024 only",
+         str(ne["mape_2025"] < ne["baseline_mape_2025"])),
         ("annual_peak", "load_factor", f"LF mean {ap['lf_mean']:.3f}", "n/a"),
         ("demand_class", dc["model_name"],
-         f"macro F1 {dc['macro_f1']:.3f} (baseline {dc['baseline_macro_f1']:.3f})",
-         str(dc["macro_f1"] > dc["baseline_macro_f1"])),
+         f"macro F1 {dc['macro_f1']:.3f} (LR baseline {dc['baseline_macro_f1']:.3f}, "
+         f"majority {dc['majority_macro_f1']:.3f}); acc {dc['accuracy']:.3f} (majority {dc['majority_accuracy']:.3f})",
+         str(dc["macro_f1"] > max(dc["baseline_macro_f1"], dc["majority_macro_f1"]))),
     ]
     w = [max(len(r[i]) for r in rows) for i in range(4)]
     return "\n".join("  ".join(c.ljust(w[i]) for i, c in enumerate(r)).rstrip() for r in rows)
@@ -203,7 +227,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--models-dir", type=Path, default=Path("models"))
     ap.add_argument("--reports-dir", type=Path, default=Path("reports"))
     ap.add_argument("--dataset-version", default="synth-v1-seed42")
-    ap.add_argument("--config", type=Path, default=Path("tools/synth/config.json"))
+    ap.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     a = ap.parse_args(argv)
     try:
         train(a.db, a.models_dir, a.reports_dir, a.dataset_version, a.config)

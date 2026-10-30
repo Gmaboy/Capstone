@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import calendar
 import warnings
+from dataclasses import replace
 from typing import Callable, Protocol
 
 import numpy as np
@@ -29,7 +30,7 @@ class FittedModel(Protocol):
 
 def real_series(anchors: Anchors, cfg: SynthConfig) -> tuple[pd.Series, pd.Series]:
     """The 72 real monthly MWh values and aligned monthly customer counts."""
-    cust = monthly_customers(anchors, cfg)
+    cust = monthly_customers(anchors, replace(cfg, years=list(anchors.years)))
     keys = sorted(anchors.monthly_mwh)
     idx = pd.PeriodIndex([pd.Period(year=y, month=m, freq="M") for y, m in keys])
     series = pd.Series([anchors.monthly_mwh[k] for k in keys], index=idx, name="mwh")

@@ -67,7 +67,14 @@
     "mean_mape": 3.6950428018207235,
     "mean_rmse": 165.9958731652754,
     "baseline_mean_mape": 7.847750839077367,
-    "baseline_mean_rmse": 340.7934448425384
+    "baseline_mean_rmse": 340.7934448425384,
+    "nested": {
+      "selected_on": "2024",
+      "model": "sarima",
+      "mape_2025": 3.000902422740798,
+      "rmse_2025": 121.5758011496865,
+      "baseline_mape_2025": 6.177262675642417
+    }
   },
   "annual_peak": {
     "method": "peak_MW = annual_MWh / (load_factor * hours_in_year); central = mean historical LF, lo uses max LF, hi uses min LF; hours = 8784 for leap years",
@@ -110,6 +117,9 @@
     ],
     "baseline_accuracy": 0.6219178082191781,
     "baseline_macro_f1": 0.4282452073652294,
+    "majority_label": "Medium",
+    "majority_accuracy": 0.6712328767123288,
+    "majority_macro_f1": 0.2677595628415301,
     "trained_on": "synthetic",
     "model_name": "random_forest",
     "test_year": 2025

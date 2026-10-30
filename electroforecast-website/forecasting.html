@@ -97,7 +97,7 @@ ElectroShell.mount('forecasting', 'Forecasting', { dateRange:false });
       ? peak.forecast.map(r => `<div style="margin-top:10px;">
           <div class="text-sm text-muted">${esc(r.year)} peak</div>
           <div class="h3">${esc(mw(r.peak_mw))} MW</div>
-          <div class="text-sm text-muted">Range ${esc(mw(r.lo))} – ${esc(mw(r.hi))} MW</div>
+          <div class="text-sm text-muted">Load-factor range ${esc(mw(r.lo))} – ${esc(mw(r.hi))} MW</div>
         </div>`).join('') + `<div style="margin-top:10px;">${ElectroAnalytics.dataBadge(peak.data_source)}</div>`
       : '<div class="empty-mini">No peak forecast available.</div>';
   }

@@ -25,12 +25,14 @@ def test_monthly_forecast_shape(client_logged_in_trained):
     assert j["data_source"] == "real" and len(j["history"]) == 72 and len(j["forecast"]) == 24
     assert set(j["forecast"][0]) == {"year", "month", "forecast_mwh", "lo80", "hi80", "lo95", "hi95"}
     assert j["model"]["task"] == "monthly_energy"
+    assert j["dataset_version"] == j["model"]["dataset_version"] == "real:guimelco_residential_2020_2025"
 
 
 def test_peak_forecast_shape(client_logged_in_trained):
     j = client_logged_in_trained.get("/api/forecast/peak").json
     assert j["data_source"] == "real" and len(j["history"]) >= 1
     assert set(j["history"][0]) == {"year", "peak_mw"}
+    assert j["dataset_version"] == j["model"]["dataset_version"]
     assert set(j["forecast"][0]) == {"year", "peak_mw", "lo", "hi"}
 
 
@@ -58,6 +60,8 @@ def test_demand_daily_range_cap_and_one_sided(client_logged_in_trained):
 def test_explain_has_both_sources(client_logged_in_trained):
     j = client_logged_in_trained.get("/api/explain").json
     assert j["classifier"]["data_source"] == "synthetic" and j["forecast"]["data_source"] == "real"
+    assert j["classifier"]["dataset_version"] == j["classifier"]["model"]["dataset_version"]
+    assert j["forecast"]["dataset_version"] == "real:guimelco_residential_2020_2025"
     imp = [r["importance"] for r in j["classifier"]["importance"]]
     assert imp and imp == sorted(imp, reverse=True)
     bd = j["forecast"]["breakdown"]

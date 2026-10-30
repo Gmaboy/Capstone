@@ -313,7 +313,7 @@ Six real annual points are too few to train a model.
 - `reports/*.png` (actual vs predicted per fold, confusion matrix,
   importance)
 
-**Command:** `python tools/model/train.py`
+**Command:** `python -m tools.model.train`
 
 - trains all models;
 - prints a results table;

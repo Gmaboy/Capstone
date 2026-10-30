@@ -35,7 +35,8 @@ def test_train_demand_reports_metrics_on_test_year_only():
     r = train_demand(build_features(small_daily(), CFG), test_year=2025)
     assert set(r.predictions.date.dt.year) == {2025}
     assert 0 <= r.metrics["macro_f1"] <= 1
-    assert r.model_name in {"logistic_regression", "random_forest"}
+    assert r.model_name == "random_forest"
+    assert {"baseline_macro_f1", "majority_accuracy", "majority_macro_f1"} <= set(r.metrics)
     p = r.predictions[["p_high", "p_medium", "p_low"]].sum(axis=1)
     assert np.allclose(p, 1)
     assert r.metrics["labels"] == ["High", "Medium", "Low"]
@@ -63,3 +64,17 @@ def test_breakdown_sums_to_point_forecast(model_name):
     assert np.all(np.abs(total - point) / point < tol)
     if model_name != "regression":
         assert (bd.customer_growth == 0).all()
+
+
+def test_majority_baseline_on_hand_built_frame():
+    n_train, n_test = 10, 4
+    dates = list(pd.date_range("2024-01-01", periods=n_train)) + list(pd.date_range("2025-01-01", periods=n_test))
+    labels = ["Low"] * 6 + ["High"] * 4 + ["Low", "High", "High", "Medium"]
+    f = pd.DataFrame({"date": dates, "demand_level": labels})
+    for c in FEATURES:
+        f[c] = np.arange(len(f), dtype=float)
+    r = train_demand(f, test_year=2025)
+    assert r.metrics["majority_label"] == "Low"
+    assert r.metrics["majority_accuracy"] == pytest.approx(0.25)
+    # Low: p=1/4,r=1 -> F1 0.4; High and Medium: 0 -> macro 0.4/3
+    assert r.metrics["majority_macro_f1"] == pytest.approx(0.4 / 3)

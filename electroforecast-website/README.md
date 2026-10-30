@@ -91,6 +91,15 @@ Until `tools.model.train` has run, the three pages show "No trained model yet".
   classifier is trained on synthetic data and is labelled "Synthetic" in the UI.
 - The synthetic data validation report is `data/synthetic/validation_report.md`.
   Model reports and charts are written to `reports/`.
+- Limitation (household type mix): the synthetic household sample's types are
+  drawn from the final config year's mix and stay fixed for all years. The
+  year-to-year growth in kWh/customer comes from the monthly scale factor, not
+  from a changing mix of household types.
+- Method notes: the demand classifier is a random forest chosen up front (no
+  selection on the test year); logistic regression and a majority-class
+  predictor are reported as baselines. `reports/metrics.json` also holds a
+  "nested" monthly-energy metric (model selected on the 2024 fold only, scored
+  on the 2025 fold).
 - Known discrepancy: the 2023 monthly values sum to 38,689 while the printed
   2023 total is 38,369. The monthly values are used.
 

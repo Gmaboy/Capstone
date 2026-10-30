@@ -41,3 +41,58 @@ def test_load_is_idempotent(tmp_path):
     assert con.execute("select count(*) from synth_households").fetchone()[0] == 200
     assert con.execute("select count(*) from utility_monthly_energy").fetchone()[0] == 72
     assert con.execute("select notes from utility_annual_stats where year=2023").fetchone()[0]
+
+
+def _failing(monkeypatch):
+    import tools.synth.generate as g
+    from tools.synth.validate import Check
+
+    monkeypatch.setattr(g, "validate", lambda *a, **k: [Check("forced", 1.0, 0.0, False)])
+
+
+def test_failed_validation_leaves_no_csvs_but_writes_fail_report(tmp_path, monkeypatch):
+    import pytest
+
+    from tools.synth.validate import ValidationError
+
+    out = tmp_path / "out"
+    generate(SMALL_CFG, out)  # a previous good run exists
+    _failing(monkeypatch)
+    with pytest.raises(ValidationError):
+        generate(SMALL_CFG, out)
+    assert not list(out.glob("*.csv"))
+    assert "FAIL" in (out / "validation_report.md").read_text()
+    assert [p.name for p in tmp_path.iterdir()] == ["out"]  # no temp dirs left
+
+
+def test_failed_validation_fresh_dir(tmp_path, monkeypatch):
+    import pytest
+
+    from tools.synth.validate import ValidationError
+
+    _failing(monkeypatch)
+    with pytest.raises(ValidationError):
+        generate(SMALL_CFG, tmp_path / "new")
+    assert not list((tmp_path / "new").glob("*.csv"))
+    assert "FAIL" in (tmp_path / "new" / "validation_report.md").read_text()
+
+
+def test_load_refuses_missing_or_failed_report(tmp_path):
+    import pytest
+
+    generate(SMALL_CFG, tmp_path / "out")
+    report = tmp_path / "out" / "validation_report.md"
+    good = report.read_text()
+    report.write_text(good + "\n| FAIL | x | 1 | 0 |\n")
+    with pytest.raises(RuntimeError, match="FAIL"):
+        load(tmp_path / "t.db", REAL_CSV, tmp_path / "out")
+    report.unlink()
+    with pytest.raises(RuntimeError, match="missing"):
+        load(tmp_path / "t.db", REAL_CSV, tmp_path / "out")
+    assert not (tmp_path / "t.db").exists()
+
+
+def test_report_has_limitations_section(tmp_path):
+    generate(SMALL_CFG, tmp_path)
+    r = (tmp_path / "validation_report.md").read_text()
+    assert "## Limitations" in r and "final config year" in r

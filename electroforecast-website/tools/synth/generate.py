@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import shutil
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -72,18 +74,30 @@ def generate(config_path: Path, out_dir: Path) -> dict[str, pd.DataFrame]:
     tables["synth_household_monthly"].attrs["scale_factors"] = scale
 
     checks = validate(anchors, cfg, tables)
+    report = build_report(anchors, cfg, tables, checks)
     out_dir = Path(out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    for name, df in tables.items():
-        df.to_csv(out_dir / f"{name}.csv", index=False, float_format="%.6f", lineterminator="\n")
-    (out_dir / "validation_report.md").write_text(
-        build_report(anchors, cfg, tables, checks), encoding="utf-8", newline="\n"
-    )
     failed = [c for c in checks if not c.passed]
+    out_dir.parent.mkdir(parents=True, exist_ok=True)
     if failed:
+        # Never leave unvalidated CSVs loadable: drop any stale ones, keep only the FAIL report.
+        out_dir.mkdir(parents=True, exist_ok=True)
+        for stale in out_dir.glob("synth_*.csv"):
+            stale.unlink()
+        (out_dir / "validation_report.md").write_text(report, encoding="utf-8", newline="\n")
         raise ValidationError(
             "; ".join(f"{c.name}: {c.actual:.6g} (tolerance {c.tolerance:.6g})" for c in failed)
         )
+    tmp = Path(tempfile.mkdtemp(prefix=out_dir.name + ".tmp-", dir=out_dir.parent))
+    try:
+        for name, df in tables.items():
+            df.to_csv(tmp / f"{name}.csv", index=False, float_format="%.6f", lineterminator="\n")
+        (tmp / "validation_report.md").write_text(report, encoding="utf-8", newline="\n")
+        if out_dir.exists():
+            shutil.rmtree(out_dir)
+        tmp.rename(out_dir)
+    except BaseException:
+        shutil.rmtree(tmp, ignore_errors=True)
+        raise
     return tables
 
 

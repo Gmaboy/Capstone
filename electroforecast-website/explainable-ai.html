@@ -28,14 +28,14 @@
 
         <div class="card span-6">
           <div class="card-head">
-            <div><h3>Forecast Breakdown</h3><div class="card-sub">Trend, seasonality, and customer growth per forecast month</div></div>
+            <div><h3>Forecast Breakdown</h3><div class="card-sub">Descriptive trend and seasonality per forecast month (customer growth shown only if the model uses it)</div></div>
             <span id="fcBadge"></span>
           </div>
           <div class="chart-box"><canvas id="chartBreakdown"></canvas></div>
           <div class="legend-row">
             <div class="legend-item"><span class="legend-swatch" style="background:#2563EB;"></span>Trend</div>
             <div class="legend-item"><span class="legend-swatch" style="background:#16A34A;"></span>Seasonality</div>
-            <div class="legend-item"><span class="legend-swatch" style="background:#F59E0B;"></span>Customer growth</div>
+            <div class="legend-item" id="legendGrowth"><span class="legend-swatch" style="background:#F59E0B;"></span>Customer growth</div>
           </div>
           <div id="fcModelCard"></div>
         </div>
@@ -43,7 +43,7 @@
 
       <div class="card" style="margin-top:18px;">
         <div class="card-head"><div><h3>About Explainable AI in this System</h3></div></div>
-        <div class="text-sm text-muted">This page shows which inputs drive the trained models. The demand classifier is explained with permutation importance: how much its held-out accuracy drops when a feature is shuffled. The monthly energy forecast is explained by splitting each forecast into trend, seasonality, and customer-growth components. The classifier is trained on synthetic data; the energy forecast is trained on real GUIMELCO data.</div>
+        <div class="text-sm text-muted">This page shows which inputs drive the trained models. The demand classifier is explained with permutation importance: how much its held-out macro-F1 drops when a feature is shuffled. For the selected SARIMA model, the forecast breakdown is a descriptive STL decomposition (trend and seasonality) of history plus forecast, not the model's internal components. The classifier is trained on synthetic data; the energy forecast is trained on real GUIMELCO data. The classifier's importances reflect how the synthetic daily data was constructed (real monthly energy plus daily variation), not observed GUIMELCO behaviour.</div>
       </div>
 
     </div>
@@ -99,6 +99,8 @@ ElectroShell.mount('explainable', 'Explainable AI', { dateRange:false });
       : '<div class="empty-mini">No importance values stored for this run.</div>';
 
     const rows = fc.breakdown;
+    const showGrowth = rows.some(r => Number(r.customer_growth) !== 0 && r.customer_growth != null);
+    if (!showGrowth) document.getElementById('legendGrowth').style.display = 'none';
     if (rows.length) {
       new Chart(document.getElementById('chartBreakdown'), {
         type:'line',
@@ -106,7 +108,7 @@ ElectroShell.mount('explainable', 'Explainable AI', { dateRange:false });
           datasets:[
             { label:'Trend', data: rows.map(r => r.trend), borderColor:'#2563EB', pointRadius:0, tension:.35 },
             { label:'Seasonality', data: rows.map(r => r.seasonality), borderColor:'#16A34A', pointRadius:0, tension:.35 },
-            { label:'Customer growth', data: rows.map(r => r.customer_growth), borderColor:'#F59E0B', pointRadius:0, tension:.35 }
+            ...(showGrowth ? [{ label:'Customer growth', data: rows.map(r => r.customer_growth), borderColor:'#F59E0B', pointRadius:0, tension:.35 }] : [])
           ]},
         options:{ plugins:{ legend:{ display:false } }, maintainAspectRatio:false }
       });

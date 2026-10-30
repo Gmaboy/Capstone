@@ -4,6 +4,7 @@ from contextlib import closing
 
 import pytest
 
+from tools.model.forecast import CANDIDATES
 from tools.model.train import MissingDataError, train
 
 
@@ -40,6 +41,10 @@ def test_run_contents_and_versions(loaded_small_db, tmp_path):
     metrics = json.loads((tmp_path / "r" / "metrics.json").read_text())
     assert {"monthly_energy", "annual_peak", "demand_class", "backtest"} <= set(metrics)
     assert "beats_baseline" in metrics["monthly_energy"]
+    nested = metrics["monthly_energy"]["nested"]
+    assert nested["selected_on"] == "2024" and nested["model"] in CANDIDATES
+    assert {"mape_2025", "rmse_2025", "baseline_mape_2025"} <= set(nested)
+    assert metrics["demand_class"]["majority_macro_f1"] >= 0
     for png in ("forecast_backtest_2024", "forecast_backtest_2025", "demand_confusion_matrix", "feature_importance"):
         assert (tmp_path / "r" / f"{png}.png").exists()
 
@@ -59,3 +64,17 @@ def test_train_on_empty_existing_file_raises(tmp_path):
 def test_missing_synthetic_rows_raise(loaded_small_db, tmp_path):
     with pytest.raises(MissingDataError, match="synth_daily_peaks"):
         train(loaded_small_db, tmp_path / "m", tmp_path / "r", dataset_version="nope")
+
+
+def test_nested_metric_selects_on_2024_only():
+    import pandas as pd
+
+    from tools.model.train import nested_metric
+
+    bt = pd.DataFrame([
+        ("seasonal_naive", "2024", 5.0, 50.0), ("seasonal_naive", "2025", 6.0, 60.0),
+        ("a", "2024", 3.0, 30.0), ("a", "2025", 9.0, 90.0),
+        ("b", "2024", 4.0, 40.0), ("b", "2025", 1.0, 10.0),
+    ], columns=["model_name", "fold", "mape", "rmse"])
+    n = nested_metric(bt)
+    assert n == {"selected_on": "2024", "model": "a", "mape_2025": 9.0, "rmse_2025": 90.0, "baseline_mape_2025": 6.0}
