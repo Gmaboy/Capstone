@@ -210,8 +210,10 @@ def select_model(bt: pd.DataFrame) -> tuple[str, bool]:
     best = str(means.idxmin())
     if best == "seasonal_naive":
         return "seasonal_naive", False
-    baseline = means.get("seasonal_naive")
-    if baseline is None or means[best] < baseline:
+    if "seasonal_naive" not in means.index:
+        raise ValueError("backtest results must include seasonal_naive")
+    baseline = means["seasonal_naive"]
+    if means[best] < baseline:
         return best, True
     return "seasonal_naive", False
 
@@ -237,20 +239,27 @@ def forecast_monthly(
     return out
 
 
+def _hours(year: int) -> int:
+    return 8784 if calendar.isleap(int(year)) else 8760
+
+
 def forecast_peak(anchors: Anchors, monthly_fc: pd.DataFrame) -> pd.DataFrame:
     """peak_MW = annual_MWh / (LF * hours_in_year).
 
-    LF_y = historical annual MWh / (coincident peak MW * 8760). Central value uses
-    mean LF; lo uses max LF, hi uses min LF. Hours use the forecast year's length.
+    LF_y = historical annual MWh / (coincident peak MW * hours in year y), using
+    8784 h for leap years. Central value uses mean LF; lo uses max LF, hi uses min
+    LF. The forecast year's own hours are used for the forecast peak.
     """
     lfs = np.array([
-        sum(anchors.monthly_mwh[(y, m)] for m in range(1, 13)) / (anchors.peak_mw[y] * 8760)
+        sum(anchors.monthly_mwh[(y, m)] for m in range(1, 13)) / (anchors.peak_mw[y] * _hours(y))
         for y in anchors.years
     ])
     lf_mean, lf_max, lf_min = lfs.mean(), lfs.max(), lfs.min()
     rows = []
     for year, g in monthly_fc.groupby("year"):
-        hours = 8784 if calendar.isleap(int(year)) else 8760
+        if len(g) != 12:
+            raise ValueError(f"forecast year {year} has {len(g)} months, need 12")
+        hours = _hours(year)
         mwh = float(g["forecast_mwh"].sum())
         rows.append((int(year), mwh / (lf_mean * hours), mwh / (lf_max * hours), mwh / (lf_min * hours)))
     return pd.DataFrame(rows, columns=["year", "peak_mw", "lo", "hi"])
