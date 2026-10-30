@@ -23,19 +23,23 @@
     $('#my-pending').textContent = state.submissions.filter(item=>item.verification_status==='pending').length;
   }
 
+  // Every household appliance comes from an admin-approved rating, so each name carries a verified mark.
+  const VERIFIED_ICON = '<span class="verified-icon" role="img" aria-label="Verified rating" title="Verified rating (approved by an administrator)">'
+    + '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 1.5l2.4 1.8 3-.2 1 2.8 2.6 1.5-.8 2.9 1.3 2.7-2.3 1.9-.3 3-2.9.6-1.6 2.5-2.8-1L12 22.5l-2.4-1.8-3 .2-1-2.8-2.6-1.5.8-2.9L2.5 11l2.3-1.9.3-3 2.9-.6 1.6-2.5 2.8 1z"/>'
+    + '<path d="M8 12.2l2.6 2.6L16.2 9.2" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
+
   function renderAppliances() {
     const body = $('#my-appliance-body');
     // Every row here is in the household inventory, so the status is shown once in the card header.
     $('#inventory-count').textContent = state.appliances.length;
     body.innerHTML = state.appliances.length ? state.appliances.map(item=>`
       <tr>
-        <td data-label="Appliance"><div class="record-title"><b>${ElectroAPI.escapeHTML(item.appliance_name)}</b><small>${ElectroAPI.escapeHTML([item.brand,item.model,item.category_name].filter(Boolean).join(' · '))}</small></div></td>
+        <td data-label="Appliance"><div class="record-title"><b class="name-verified">${ElectroAPI.escapeHTML(item.appliance_name)}${VERIFIED_ICON}</b><small>${ElectroAPI.escapeHTML([item.brand,item.model,item.category_name,sourceLabel(item.source_of_info)].filter(Boolean).join(' · '))}</small></div></td>
         <td data-label="Power & Usage"><b>${Number(item.power_rating_watts).toLocaleString()} W</b><div class="text-sm text-muted">Qty ${item.quantity} · ${item.avg_daily_usage_hours} hr/day</div></td>
         <td data-label="Estimated Load"><b>${Number(item.estimated_daily_kwh).toFixed(2)} kWh/day</b><div class="text-sm text-muted">${(Number(item.estimated_daily_kwh)*30).toFixed(1)} kWh/month</div></td>
-        <td data-label="Origin"><div class="record-origin catalog"><i data-feather="database"></i><span><b>Approved rating</b><small>${ElectroAPI.escapeHTML(sourceLabel(item.source_of_info))}</small></span></div></td>
         <td data-label="Actions"><div class="row-actions portal-actions"><button type="button" data-edit-inventory="${item.inventory_id}" aria-label="Edit ${ElectroAPI.escapeHTML(item.appliance_name)} usage"><i data-feather="edit-2"></i></button><button type="button" class="reject" data-delete-inventory="${item.inventory_id}" aria-label="Remove ${ElectroAPI.escapeHTML(item.appliance_name)} from My Appliances"><i data-feather="trash-2"></i></button></div></td>
       </tr>`).join('')
-      : `<tr><td colspan="5"><div class="empty-table"><i data-feather="zap"></i><b>No household appliances yet</b><span>Choose an approved rating to start calculating your estimated load.</span></div></td></tr>`;
+      : `<tr><td colspan="4"><div class="empty-table"><i data-feather="zap"></i><b>No household appliances yet</b><span>Choose an approved rating to start calculating your estimated load.</span></div></td></tr>`;
   }
 
   function renderSubmissionStage() {
