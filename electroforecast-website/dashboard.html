@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Dashboard · GUIMPOWERCORE</title>
+<title>Forecast Dashboard · GUIMPOWERCORE</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
@@ -14,39 +14,39 @@
   <div id="shell-sidebar"></div>
   <div class="main">
     <div id="shell-topbar"></div>
-    <div class="content">
+    <div class="content" id="page-content">
 
       <div class="grid grid-4" style="margin-bottom:18px;">
         <div class="card kpi-card">
           <div class="kpi-icon blue"><i data-feather="zap"></i></div>
           <div>
-            <div class="kpi-label">Total Consumption (This Week)</div>
-            <div class="kpi-value">1,243.58 kWh</div>
-            <div class="kpi-delta up"><i data-feather="arrow-up"></i> 6.4% vs last week</div>
+            <div class="kpi-label">Next Month Forecast</div>
+            <div class="kpi-value" id="kpiNext">—</div>
+            <div class="text-sm text-muted" id="kpiNextSub">Residential energy</div>
           </div>
         </div>
         <div class="card kpi-card">
           <div class="kpi-icon amber"><i data-feather="trending-up"></i></div>
           <div>
-            <div class="kpi-label">Forecast (Next 7 Days)</div>
-            <div class="kpi-value">1,356.72 kWh</div>
-            <div class="text-sm text-muted">Predicted</div>
+            <div class="kpi-label">Forecast Annual Peak</div>
+            <div class="kpi-value" id="kpiPeak">—</div>
+            <div class="text-sm text-muted" id="kpiPeakSub">Coincident peak</div>
           </div>
         </div>
         <div class="card kpi-card">
-          <div class="kpi-icon amber"><i data-feather="activity"></i></div>
+          <div class="kpi-icon green"><i data-feather="target"></i></div>
           <div>
-            <div class="kpi-label">Demand Level</div>
-            <div class="kpi-value">High</div>
-            <div class="kpi-delta up"><i data-feather="arrow-up"></i> 78% probability</div>
+            <div class="kpi-label">Forecast Error (MAPE)</div>
+            <div class="kpi-value" id="kpiMape">—</div>
+            <div class="text-sm text-muted" id="kpiMapeSub">Mean backtest</div>
           </div>
         </div>
         <div class="card kpi-card">
-          <div class="kpi-icon violet"><i data-feather="users"></i></div>
+          <div class="kpi-icon violet"><i data-feather="activity"></i></div>
           <div>
-            <div class="kpi-label">Active Contributors</div>
-            <div class="kpi-value">152</div>
-            <div class="kpi-delta up"><i data-feather="arrow-up"></i> 12 new this month</div>
+            <div class="kpi-label">Latest Demand Level</div>
+            <div class="kpi-value" id="kpiLevel">—</div>
+            <div class="text-sm text-muted" id="kpiLevelSub">Synthetic daily data</div>
           </div>
         </div>
       </div>
@@ -55,81 +55,43 @@
         <div class="card span-8">
           <div class="card-head">
             <div>
-              <h3>Consumption vs Forecast</h3>
-              <div class="card-sub">Actual usage compared with the Hybrid BLSTM–SARIMA forecast</div>
+              <h3>Monthly Energy: Actual vs Forecast</h3>
+              <div class="card-sub" id="forecastSub">Loading…</div>
             </div>
-            <div class="tabs" style="border:0;margin:0;">
-              <div class="tab active" style="margin-right:10px;">Daily</div>
-              <div class="tab" style="margin-right:10px;">Weekly</div>
-              <div class="tab">Monthly</div>
-            </div>
+            <div id="forecastBadge"></div>
           </div>
           <div class="chart-box"><canvas id="chartConsumption"></canvas></div>
           <div class="legend-row">
             <div class="legend-item"><span class="legend-swatch" style="background:#2563EB;"></span>Actual</div>
             <div class="legend-item"><span class="legend-swatch" style="background:#16A34A;"></span>Forecast</div>
-            <div class="legend-item"><span class="legend-swatch" style="background:#CBD5E1;"></span>Confidence Interval</div>
+            <div class="legend-item"><span class="legend-swatch" style="background:#CBD5E1;"></span>80% interval</div>
           </div>
+          <a href="forecasting.html" class="link-more" style="margin-top:12px;">View forecast details <i data-feather="arrow-right"></i></a>
         </div>
 
         <div class="card span-4">
-          <div class="card-head"><h3>Demand Level Gauge</h3></div>
-          <div class="gauge-wrap">
-            <canvas id="chartGauge" width="220" height="130"></canvas>
-            <div class="gauge-value">High <span style="color:var(--grey-600); font-weight:700; font-size:15px;">(78%)</span></div>
-            <div class="gauge-caption">Forecasted for the week of May 25–31</div>
-            <a href="demand-classification.html" class="link-more" style="margin-top:14px;">View Details <i data-feather="arrow-right"></i></a>
-          </div>
+          <div class="card-head"><div><h3>Annual Peak Forecast</h3><div class="card-sub">Energy ÷ (load factor × hours in year)</div></div></div>
+          <div id="peakCard" class="text-sm text-muted">Loading…</div>
         </div>
       </div>
 
       <div class="grid grid-12">
-        <div class="card span-4">
+        <div class="card span-6">
           <div class="card-head">
-            <div>
-              <h3>Top Contributing Appliances</h3>
-              <div class="card-sub">This week</div>
-            </div>
+            <div><h3>Demand Levels, Last 30 Days</h3><div class="card-sub" id="demandSub">Loading…</div></div>
+            <div id="demandBadge"></div>
           </div>
-          <div class="chart-box sm donut-wrap">
-            <canvas id="chartAppliances"></canvas>
-            <div class="donut-center"><div class="val">1,243</div><div class="lbl">kWh total</div></div>
-          </div>
-          <div class="legend-row" style="flex-direction:column; align-items:stretch; gap:8px;">
-            <div class="legend-item" style="justify-content:space-between;"><span><span class="legend-swatch" style="background:#2563EB;"></span>Air Conditioner</span><b>28% (348.2 kWh)</b></div>
-            <div class="legend-item" style="justify-content:space-between;"><span><span class="legend-swatch" style="background:#16A34A;"></span>Refrigerator</span><b>22% (273.6 kWh)</b></div>
-            <div class="legend-item" style="justify-content:space-between;"><span><span class="legend-swatch" style="background:#F59E0B;"></span>Washing Machine</span><b>16% (198.9 kWh)</b></div>
-            <div class="legend-item" style="justify-content:space-between;"><span><span class="legend-swatch" style="background:#7C3AED;"></span>Television</span><b>12% (149.2 kWh)</b></div>
-          </div>
-          <a href="my-appliances.html" class="link-more" style="margin-top:12px;">View All <i data-feather="arrow-right"></i></a>
+          <div id="demandBars" class="text-sm text-muted">Loading…</div>
+          <a href="demand-classification.html" class="link-more" style="margin-top:12px;">View demand classification <i data-feather="arrow-right"></i></a>
         </div>
 
-        <div class="card span-4">
-          <div class="card-head"><h3>Explainable AI Insights</h3></div>
-          <div style="display:flex; flex-direction:column; gap:12px;">
-            <div style="display:flex; gap:10px;">
-              <div class="kpi-icon blue" style="width:34px;height:34px;border-radius:8px;"><i data-feather="thermometer" style="width:15px;height:15px;"></i></div>
-              <div><div style="font-size:12.5px;font-weight:600;">High appliance usage</div><div class="text-sm text-muted">Air conditioner &amp; refrigerator load is the top driver</div></div>
-            </div>
-            <div style="display:flex; gap:10px;">
-              <div class="kpi-icon amber" style="width:34px;height:34px;border-radius:8px;"><i data-feather="sun" style="width:15px;height:15px;"></i></div>
-              <div><div style="font-size:12.5px;font-weight:600;">Weekend effect</div><div class="text-sm text-muted">Higher consumption observed on weekends</div></div>
-            </div>
-            <div style="display:flex; gap:10px;">
-              <div class="kpi-icon green" style="width:34px;height:34px;border-radius:8px;"><i data-feather="cloud-rain" style="width:15px;height:15px;"></i></div>
-              <div><div style="font-size:12.5px;font-weight:600;">Seasonal trend</div><div class="text-sm text-muted">Rising temperature is increasing cooling appliance use</div></div>
-            </div>
+        <div class="card span-6">
+          <div class="card-head">
+            <div><h3>Top Demand Drivers</h3><div class="card-sub">Permutation importance of the demand classifier</div></div>
+            <div id="driverBadge"></div>
           </div>
-          <a href="explainable-ai.html" class="link-more" style="margin-top:14px;">View All <i data-feather="arrow-right"></i></a>
-        </div>
-
-        <div class="card span-4">
-          <div class="card-head"><h3>Crowdsourced Ratings</h3></div>
-          <div class="kpi-value" style="font-size:26px;">1,248 <span class="text-sm text-muted" style="font-weight:600;">total ratings</span></div>
-          <div class="kpi-delta up"><i data-feather="arrow-up"></i> 65 new this week</div>
-          <div class="divider"></div>
-          <div class="text-sm text-muted">Help improve forecast accuracy by verifying appliance power ratings submitted by other households.</div>
-          <button class="btn btn-primary btn-block" style="margin-top:14px;" onclick="window.location.href='crowdsourced-ratings.html'">Contribute Now</button>
+          <div id="driverBars" class="text-sm text-muted">Loading…</div>
+          <a href="explainable-ai.html" class="link-more" style="margin-top:12px;">View explainable AI <i data-feather="arrow-right"></i></a>
         </div>
       </div>
 
@@ -137,35 +99,150 @@
   </div>
 </div>
 
+<script src="assets/js/api.js"></script>
 <script src="assets/js/shell.js"></script>
+<script src="assets/js/analytics.js"></script>
 <script>
-ElectroShell.mount('dashboard', 'Dashboard');
+ElectroShell.mount('dashboard', 'Forecast Dashboard');
 
-const days = ['May 21','May 22','May 23','May 24','May 25','May 26','May 27'];
-new Chart(document.getElementById('chartConsumption'), {
-  type:'line',
-  data:{ labels:days,
-    datasets:[
-      { label:'Actual', data:[168,182,171,205,240,255,222], borderColor:'#2563EB', backgroundColor:'rgba(37,99,235,.08)', tension:.35, fill:true, pointRadius:3 },
-      { label:'Forecast', data:[172,180,178,210,232,248,235], borderColor:'#16A34A', borderDash:[5,4], tension:.35, pointRadius:0 },
-      { label:'Upper', data:[190,198,196,228,252,268,256], borderColor:'rgba(203,213,225,.7)', pointRadius:0, fill:'+1', backgroundColor:'rgba(203,213,225,.35)' },
-      { label:'Lower', data:[154,162,160,192,212,228,214], borderColor:'rgba(203,213,225,.7)', pointRadius:0 },
-    ]},
-  options:{ plugins:{ legend:{ display:false } }, scales:{ y:{ ticks:{ callback:v=>v }, grid:{ color:'#F1F5F9' } }, x:{ grid:{ display:false } } }, maintainAspectRatio:false }
-});
+(function () {
+  const esc = ElectroAPI.escapeHTML;
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const COLORS = { High:'#EF4444', Medium:'#F59E0B', Low:'#16A34A' };
+  const label = r => `${MONTHS[r.month - 1]} ${String(r.year).slice(2)}`;
+  const longLabel = r => `${MONTHS[r.month - 1]} ${r.year}`;
+  const fixed = (v, d) => (v == null || !Number.isFinite(Number(v))) ? '—' : Number(v).toLocaleString('en-US', { minimumFractionDigits:d, maximumFractionDigits:d });
+  const set = (id, text) => { document.getElementById(id).textContent = text; };
+  const settle = promise => promise.then(data => ({ data }), error => ({ error }));
+  const fmtDate = iso => ElectroAPI.formatDate(iso + 'T00:00:00Z', { year:'numeric', month:'short', day:'numeric', timeZone:'UTC' });
 
-new Chart(document.getElementById('chartGauge'), {
-  type:'doughnut',
-  data:{ datasets:[{ data:[25,25,25,25,100], backgroundColor:['#16A34A','#F59E0B','#EF4444','#B91C1C','transparent'], borderWidth:0, circumference:180, rotation:270, cutout:'72%' }] },
-  options:{ plugins:{ tooltip:{enabled:false}, legend:{display:false} }, maintainAspectRatio:false }
-});
+  function unavailable(error) {
+    if (error.status !== 404) ElectroAPI.notify(error.message, 'error');
+    const msg = error.status === 404 ? 'No trained model yet. Run python -m tools.model.train.' : 'Unavailable right now.';
+    return `<div class="empty-mini">${esc(msg)}</div>`;
+  }
 
-new Chart(document.getElementById('chartAppliances'), {
-  type:'doughnut',
-  data:{ labels:['Air Conditioner','Refrigerator','Washing Machine','Television'],
-    datasets:[{ data:[28,22,16,12,22], backgroundColor:['#2563EB','#16A34A','#F59E0B','#7C3AED','#E2E8F0'], borderWidth:0 }] },
-  options:{ plugins:{ legend:{display:false} }, cutout:'68%', maintainAspectRatio:false }
-});
+  async function load() {
+    const results = await Promise.all([
+      settle(ElectroAPI.request('/api/forecast/monthly')),
+      settle(ElectroAPI.request('/api/forecast/peak')),
+      settle(ElectroAPI.request('/api/demand/daily')),
+      settle(ElectroAPI.request('/api/explain'))
+    ]);
+    const [monthly, peak, demand, explain] = results;
+    if (results.every(r => r.error && r.error.status === 404)) {
+      ElectroAnalytics.emptyState(document.getElementById('page-content'));
+      return;
+    }
+    if (monthly.error) renderMonthlyError(monthly.error); else renderMonthly(monthly.data);
+    if (peak.error) document.getElementById('peakCard').innerHTML = unavailable(peak.error); else renderPeak(peak.data);
+    if (demand.error) { set('demandSub', ''); document.getElementById('demandBars').innerHTML = unavailable(demand.error); }
+    else renderDemand(demand.data);
+    if (explain.error) document.getElementById('driverBars').innerHTML = unavailable(explain.error); else renderDrivers(explain.data.classifier);
+    if (window.feather) feather.replace();
+  }
+
+  function renderMonthlyError(error) {
+    set('forecastSub', '');
+    document.getElementById('chartConsumption').closest('.chart-box').innerHTML = unavailable(error);
+  }
+
+  function renderMonthly(monthly) {
+    const history = monthly.history.slice(-24);
+    const forecast = monthly.forecast.slice(0, 12);
+    if (!forecast.length) return renderMonthlyError({ status: 404 });
+    const metrics = (monthly.model && monthly.model.metrics) || {};
+    const model = ElectroAPI.titleCase(monthly.model.model_name);
+    const pad = n => Array(n).fill(null);
+    const rows = [...history, ...forecast];
+
+    set('kpiNext', `${fixed(forecast[0].forecast_mwh, 0)} MWh`);
+    set('kpiNextSub', `${longLabel(forecast[0])} · real data`);
+    set('kpiMape', Number.isFinite(metrics.mean_mape) ? `${metrics.mean_mape.toFixed(1)}%` : '—');
+    set('kpiMapeSub', `${model} · lower is better`);
+    set('forecastSub', `Last ${history.length} months and ${forecast.length}-month forecast · ${model}`);
+    document.getElementById('forecastBadge').innerHTML = ElectroAnalytics.dataBadge(monthly.data_source);
+
+    new Chart(document.getElementById('chartConsumption'), {
+      type:'line',
+      data:{ labels: rows.map((r, i) => i % 3 === 0 ? label(r) : ''),
+        datasets:[
+          { label:'Actual', data:[...history.map(r => r.energy_mwh), ...pad(forecast.length)], borderColor:'#2563EB', backgroundColor:'rgba(37,99,235,.08)', fill:true, pointRadius:2, tension:.35 },
+          { label:'Forecast', data:[...pad(history.length), ...forecast.map(r => r.forecast_mwh)], borderColor:'#16A34A', borderDash:[5,4], pointRadius:0, tension:.35 },
+          { label:'Upper', data:[...pad(history.length), ...forecast.map(r => r.hi80)], borderColor:'rgba(203,213,225,.7)', pointRadius:0, fill:'+1', backgroundColor:'rgba(203,213,225,.35)', tension:.35 },
+          { label:'Lower', data:[...pad(history.length), ...forecast.map(r => r.lo80)], borderColor:'rgba(203,213,225,.7)', pointRadius:0, tension:.35 }
+        ]},
+      options:{ plugins:{ legend:{ display:false } }, scales:{ y:{ grid:{ color:'#F1F5F9' } }, x:{ grid:{ display:false } } }, maintainAspectRatio:false }
+    });
+  }
+
+  function renderPeak(peak) {
+    const next = peak.forecast[0];
+    if (next) {
+      set('kpiPeak', `${fixed(next.peak_mw, 2)} MW`);
+      set('kpiPeakSub', `${next.year} · real data`);
+    }
+    const last = peak.history[peak.history.length - 1];
+    const actual = last ? `<div>
+        <div class="text-sm text-muted">${esc(last.year)} actual peak</div>
+        <div class="h3">${esc(fixed(last.peak_mw, 2))} MW</div>
+      </div>` : '';
+    const forecasts = peak.forecast.length
+      ? peak.forecast.map(r => `<div style="margin-top:12px;">
+          <div class="text-sm text-muted">${esc(r.year)} forecast</div>
+          <div class="h3">${esc(fixed(r.peak_mw, 2))} MW</div>
+          <div class="text-sm text-muted">Load-factor range ${esc(fixed(r.lo, 2))} – ${esc(fixed(r.hi, 2))} MW</div>
+        </div>`).join('')
+      : '<div class="empty-mini">No peak forecast available.</div>';
+    document.getElementById('peakCard').innerHTML = actual + forecasts
+      + `<div style="margin-top:12px;">${ElectroAnalytics.dataBadge(peak.data_source)}</div>`;
+  }
+
+  function renderDemand(daily) {
+    const days = daily.days;
+    document.getElementById('demandBadge').innerHTML = ElectroAnalytics.dataBadge(daily.data_source);
+    if (!days.length) {
+      set('demandSub', '');
+      document.getElementById('demandBars').innerHTML = '<div class="empty-mini">No demand days available.</div>';
+      return;
+    }
+    const levelOf = d => d.predicted_level || d.actual_level;
+    const counts = { High:0, Medium:0, Low:0 };
+    days.forEach(d => { const l = levelOf(d); if (l in counts) counts[l] += 1; });
+    const last = days[days.length - 1];
+
+    set('kpiLevel', levelOf(last) || '—');
+    set('kpiLevelSub', `${fmtDate(last.date)} · synthetic`);
+    set('demandSub', `${fmtDate(days[0].date)} – ${fmtDate(last.date)} · ${days.length} days`);
+    document.getElementById('demandBars').innerHTML = ['High', 'Medium', 'Low'].map(l => {
+      const pct = counts[l] / days.length * 100;
+      return `<div class="bar-row">
+        <div class="bar-label"><span>${l}</span><span>${counts[l]} days (${pct.toFixed(0)}%)</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct.toFixed(1)}%; background:${COLORS[l]};"></div></div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderDrivers(clf) {
+    document.getElementById('driverBadge').innerHTML = ElectroAnalytics.dataBadge(clf.data_source);
+    const items = clf.importance
+      .filter(i => i.importance != null && Number.isFinite(Number(i.importance)))
+      .sort((a, b) => b.importance - a.importance)
+      .slice(0, 5);
+    const max = Math.max(...items.map(i => Number(i.importance)), 0);
+    document.getElementById('driverBars').innerHTML = items.length
+      ? items.map(item => {
+          const width = max > 0 ? Math.max(Number(item.importance), 0) / max * 100 : 0;
+          return `<div class="bar-row">
+            <div class="bar-label"><span>${esc(ElectroAPI.titleCase(item.feature))}</span><span>${esc(Number(item.importance).toFixed(3))}</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:${width.toFixed(1)}%;"></div></div>
+          </div>`;
+        }).join('')
+      : '<div class="empty-mini">No importance values stored for this run.</div>';
+  }
+
+  load();
+})();
 </script>
 </body>
 </html>

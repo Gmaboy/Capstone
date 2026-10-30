@@ -17,62 +17,65 @@
 
       <div class="card">
         <div class="card-head">
-          <div><h3>Notifications</h3><div class="card-sub">Stay updated with important events</div></div>
-          <div style="display:flex; align-items:center; gap:14px;">
-            <select style="width:auto; padding:6px 10px;"><option>All</option><option>Unread</option></select>
-            <button class="notif-more" style="font-weight:600; color:var(--primary);">Mark all as read</button>
-          </div>
+          <div><h3>Notifications</h3><div class="card-sub">Your 30 most recent notifications</div></div>
+          <select id="notifFilter" aria-label="Filter notifications" style="width:auto; padding:6px 10px;"><option value="all">All</option><option value="unread">Unread</option></select>
         </div>
-
-        <div class="notif-item">
-          <div class="notif-icon" style="background:var(--danger-bg); color:var(--danger);"><i data-feather="alert-triangle"></i></div>
-          <div style="flex:1;">
-            <div class="notif-title">High demand expected on May 27, 2026</div>
-            <div class="text-sm text-muted">The model forecasts a High demand level with 78% probability for tomorrow.</div>
-            <div class="notif-time">2 hours ago</div>
-          </div>
-        </div>
-        <div class="notif-item">
-          <div class="notif-icon" style="background:var(--primary-50); color:var(--primary);"><i data-feather="users"></i></div>
-          <div style="flex:1;">
-            <div class="notif-title">New appliance rating submitted</div>
-            <div class="text-sm text-muted">Ana P. submitted a rating for Induction Cooker (2000W), pending review.</div>
-            <div class="notif-time">5 hours ago</div>
-          </div>
-        </div>
-        <div class="notif-item">
-          <div class="notif-icon" style="background:var(--success-bg); color:var(--success);"><i data-feather="trending-up"></i></div>
-          <div style="flex:1;">
-            <div class="notif-title">Forecast updated to Hybrid BLSTM–SARIMA</div>
-            <div class="text-sm text-muted">The 14-day forecast has been regenerated using the latest consumption data.</div>
-            <div class="notif-time">1 day ago</div>
-          </div>
-        </div>
-        <div class="notif-item">
-          <div class="notif-icon" style="background:var(--warning-bg); color:var(--warning);"><i data-feather="file-text"></i></div>
-          <div style="flex:1;">
-            <div class="notif-title">Monthly report is now available</div>
-            <div class="text-sm text-muted">Your April 2026 consumption summary report has been generated.</div>
-            <div class="notif-time">2 days ago</div>
-          </div>
-        </div>
-        <div class="notif-item">
-          <div class="notif-icon" style="background:var(--grey-100); color:var(--grey-600);"><i data-feather="shield"></i></div>
-          <div style="flex:1;">
-            <div class="notif-title">Account role updated</div>
-            <div class="text-sm text-muted">Your account was granted Administrator access by the system owner.</div>
-            <div class="notif-time">4 days ago</div>
-          </div>
-        </div>
-
-        <a href="#" class="link-more" style="margin-top:14px;">View All Notifications <i data-feather="arrow-right"></i></a>
+        <div id="notifList" class="text-sm text-muted">Loading…</div>
       </div>
 
     </div>
   </div>
 </div>
 
+<script src="assets/js/api.js"></script>
 <script src="assets/js/shell.js"></script>
-<script>ElectroShell.mount('notifications', 'Notifications', { dateRange:false });</script>
+<script>
+ElectroShell.mount('notifications', 'Notifications', { dateRange:false });
+
+(function () {
+  const esc = ElectroAPI.escapeHTML;
+  const ICONS = {
+    demand_alert: ['alert-triangle', 'var(--danger-bg)', 'var(--danger)'],
+    submission_update: ['clipboard', 'var(--primary-50)', 'var(--primary)'],
+    forecast_update: ['trending-up', 'var(--success-bg)', 'var(--success)'],
+    report_ready: ['file-text', 'var(--warning-bg)', 'var(--warning)'],
+    system: ['info', 'var(--grey-100)', 'var(--grey-600)']
+  };
+  let items = [];
+
+  function render() {
+    const unreadOnly = document.getElementById('notifFilter').value === 'unread';
+    const shown = unreadOnly ? items.filter(n => !n.is_read) : items;
+    const list = document.getElementById('notifList');
+    if (!shown.length) {
+      list.innerHTML = `<div class="empty-table"><i data-feather="bell-off"></i><b>${unreadOnly ? 'No unread notifications' : 'No notifications yet'}</b><span>You will be notified here when your submissions are reviewed.</span></div>`;
+    } else {
+      list.innerHTML = shown.map(n => {
+        const [icon, bg, fg] = ICONS[n.type] || ICONS.system;
+        const when = ElectroAPI.formatDate(String(n.created_at).replace(' ', 'T') + 'Z', { year:'numeric', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+        return `<div class="notif-item">
+          <div class="notif-icon" style="background:${bg}; color:${fg};"><i data-feather="${icon}"></i></div>
+          <div style="flex:1;">
+            <div class="notif-title">${esc(n.title)}${n.is_read ? '' : ' <span class="badge pending">New</span>'}</div>
+            <div class="text-sm text-muted">${esc(n.message)}</div>
+            <div class="notif-time">${esc(when)}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+    if (window.feather) feather.replace();
+  }
+
+  document.getElementById('notifFilter').addEventListener('change', render);
+  ElectroAPI.request('/api/notifications').then(data => {
+    items = data.notifications || [];
+    render();
+  }).catch(error => {
+    if (error.status === 401) { window.location.href = 'login.html'; return; }
+    ElectroAPI.notify(error.message, 'error');
+    document.getElementById('notifList').innerHTML = '<div class="empty-mini">Notifications are unavailable right now.</div>';
+  });
+})();
+</script>
 </body>
 </html>

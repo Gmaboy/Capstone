@@ -18,8 +18,8 @@
       <div class="about-hero" style="margin-bottom:18px;">
         <div>
           <div class="version-pill">Version 1.0.0</div>
-          <h2>Hybrid BLSTM–SARIMA Crowdsourcing Platform for Electricity Consumption Forecasting</h2>
-          <p>A web-based platform that collects electricity consumption data through crowdsourcing and applies a hybrid deep-learning and statistical model to forecast demand and classify consumption levels for GUIMELCO, researchers, and consumers.</p>
+          <h2>Crowdsourcing Platform for Electricity Consumption Forecasting and Demand Level Classification</h2>
+          <p>A web-based platform that collects household appliance data through crowdsourcing, forecasts residential electricity demand for GUIMELCO from its real monthly records, and classifies daily demand levels for utility staff, researchers, and consumers.</p>
         </div>
       </div>
 
@@ -27,19 +27,19 @@
         <div class="card span-7">
           <div class="card-head"><h3>About the Project</h3></div>
           <div class="text-sm text-muted" style="line-height:1.7;">
-            The Hybrid BLSTM-SARIMA Crowdsourcing Platform for Electricity Consumption Forecasting and Demand Level Classification is a web-based platform developed to collect electricity consumption data through crowdsourcing and utilize advanced machine learning models for forecasting and demand classification. The system integrates Bidirectional Long Short-Term Memory (BLSTM) and Seasonal AutoRegressive Integrated Moving Average (SARIMA) algorithms to improve the accuracy of electricity consumption predictions.
+            The monthly energy forecast is trained on GUIMELCO's real residential records for 2020–2025. Several models are compared with a rolling-origin backtest (SARIMA, Holt-Winters, regression, and a seasonal-naive baseline), and the most accurate one is used. The annual peak is forecast from energy and historical load factors.
             <br><br>
-            The project aims to provide utility companies, researchers, and consumers with a reliable forecasting tool that can analyze historical electricity usage patterns and predict future consumption trends. Through the integration of crowdsourced data, the platform continuously gathers real-time information from users, enhancing the dataset used for forecasting and classification.
+            GUIMELCO does not yet provide household, hourly, or feeder data, so daily demand data is synthetic: generated to match the real monthly totals, customer counts, and annual peaks exactly. Every page and table that uses it is labeled "Synthetic".
             <br><br>
-            The system also classifies electricity demand into Low, Normal, High, and Peak levels, allowing users and energy providers to better understand consumption behavior, optimize energy distribution, and support informed decision-making.
+            Daily demand is classified into Low, Medium, and High levels with a random forest, compared against a logistic regression baseline. Crowdsourced appliance submissions are reviewed by administrators before they are used.
           </div>
           <div class="divider"></div>
           <div class="card-head" style="margin-bottom:10px;"><h3>Key Definitions</h3></div>
           <div class="grid grid-2">
-            <div class="text-sm" style="margin-bottom:10px;"><b>BLSTM</b><div class="text-muted">Bidirectional LSTM used to forecast future residential electricity consumption from sequential data.</div></div>
-            <div class="text-sm" style="margin-bottom:10px;"><b>SARIMA</b><div class="text-muted">Seasonal ARIMA model that captures seasonal patterns in historical consumption data.</div></div>
+            <div class="text-sm" style="margin-bottom:10px;"><b>SARIMA</b><div class="text-muted">Seasonal ARIMA model that captures trend and yearly seasonality in monthly consumption.</div></div>
+            <div class="text-sm" style="margin-bottom:10px;"><b>MAPE</b><div class="text-muted">Mean absolute percentage error of the forecast on held-out years. Lower is better.</div></div>
             <div class="text-sm" style="margin-bottom:10px;"><b>Crowdsourcing Platform</b><div class="text-muted">Enables participating households to voluntarily submit appliance and consumption data.</div></div>
-            <div class="text-sm" style="margin-bottom:10px;"><b>Explainable AI (XAI)</b><div class="text-muted">Explains how and why the model produces its predictions, using SHAP or LIME.</div></div>
+            <div class="text-sm" style="margin-bottom:10px;"><b>Explainable AI (XAI)</b><div class="text-muted">Shows which inputs drive the models, using permutation importance and a trend/seasonality breakdown.</div></div>
           </div>
         </div>
 
@@ -49,15 +49,13 @@
             <table>
               <tbody>
                 <tr><td style="font-weight:600;">HTML / CSS</td><td class="text-muted">Structure and visual presentation of web pages</td></tr>
-                <tr><td style="font-weight:600;">JavaScript</td><td class="text-muted">Interactivity and real-time UI updates</td></tr>
-                <tr><td style="font-weight:600;">Flask (Python)</td><td class="text-muted">Server-side scripting, routing, and communication between the web app and database</td></tr>
-                <tr><td style="font-weight:600;">Flask-SQLAlchemy</td><td class="text-muted">ORM for database access and queries</td></tr>
-                <tr><td style="font-weight:600;">Flask-Login</td><td class="text-muted">Session and authentication management</td></tr>
-                <tr><td style="font-weight:600;">MySQL / MariaDB</td><td class="text-muted">Storage for users, consumption data, and forecasts</td></tr>
-                <tr><td style="font-weight:600;">Python</td><td class="text-muted">BLSTM / SARIMA model implementation</td></tr>
-                <tr><td style="font-weight:600;">TensorFlow / Keras</td><td class="text-muted">Training the BLSTM model</td></tr>
-                <tr><td style="font-weight:600;">Scikit-learn</td><td class="text-muted">Preprocessing, metrics, and classification</td></tr>
-                <tr><td style="font-weight:600;">Python venv</td><td class="text-muted">Local development environment for the Flask app</td></tr>
+                <tr><td style="font-weight:600;">JavaScript</td><td class="text-muted">Interactivity, charts, and API calls</td></tr>
+                <tr><td style="font-weight:600;">Flask (Python)</td><td class="text-muted">Routing, session authentication, and the JSON API</td></tr>
+                <tr><td style="font-weight:600;">SQLite</td><td class="text-muted">Storage for users, submissions, utility data, and forecasts</td></tr>
+                <tr><td style="font-weight:600;">statsmodels</td><td class="text-muted">SARIMA and Holt-Winters forecasting models</td></tr>
+                <tr><td style="font-weight:600;">scikit-learn</td><td class="text-muted">Demand classification, metrics, and permutation importance</td></tr>
+                <tr><td style="font-weight:600;">pandas / NumPy</td><td class="text-muted">Data preparation and synthetic data generation</td></tr>
+                <tr><td style="font-weight:600;">pytest</td><td class="text-muted">Automated tests for the data, models, and API</td></tr>
               </tbody>
             </table>
           </div>

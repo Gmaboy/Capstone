@@ -216,5 +216,38 @@
     } catch (error) {
       if (error.status !== 401) showSettingsToast(error.message || 'Unable to load account settings.', true);
     }
+    renderSystemModels();
   })();
+
+  async function renderSystemModels() {
+    const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+    const trainedOn = run => ElectroAPI.formatDate(String(run.trained_at).replace(' ', 'T') + (/[zZ]|[+-]\d\d:?\d\d$/.test(run.trained_at) ? '' : 'Z'),
+      { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
+    let runs = [];
+    try {
+      runs = (await ElectroAPI.request('/api/models/active')).runs || [];
+    } catch (_) { /* tiles fall back to "not trained" below */ }
+    const forecast = runs.find(r => r.task === 'monthly_energy');
+    const classifier = runs.find(r => r.task === 'demand_class');
+    if (forecast) {
+      const mape = forecast.metrics && Number.isFinite(forecast.metrics.mean_mape) ? `MAPE ${forecast.metrics.mean_mape.toFixed(1)}%` : 'Active';
+      setText('sysModel', ElectroAPI.titleCase(forecast.model_name));
+      setText('sysModelSub', `${mape} · real GUIMELCO data`);
+      setText('sysTrained', trainedOn(forecast));
+      setText('sysTrainedSub', forecast.dataset_version);
+    } else {
+      setText('sysModel', 'Not trained');
+      setText('sysModelSub', 'Run python -m tools.model.train');
+      setText('sysTrained', '—');
+      setText('sysTrainedSub', 'No model run stored');
+    }
+    if (classifier) {
+      const f1 = classifier.metrics && Number.isFinite(classifier.metrics.macro_f1) ? `Macro-F1 ${classifier.metrics.macro_f1.toFixed(2)}` : 'Active';
+      setText('sysClf', ElectroAPI.titleCase(classifier.model_name));
+      setText('sysClfSub', `${f1} · synthetic data`);
+    } else {
+      setText('sysClf', 'Not trained');
+      setText('sysClfSub', 'Run python -m tools.model.train');
+    }
+  }
 })();

@@ -169,16 +169,15 @@
               <div><h3>System Overview</h3><div class="card-sub">Platform, forecasting model, and environment information</div></div>
             </div>
             <div class="system-grid">
-              <div class="system-tile"><span class="source-icon connected"><i data-feather="activity"></i></span><div><small>Forecasting Model</small><b>Hybrid BLSTM–SARIMA</b><span>Version 1.0.0 · Active</span></div></div>
-              <div class="system-tile"><span class="source-icon neutral"><i data-feather="clock"></i></span><div><small>Last Retraining</small><b>May 20, 2026</b><span>04:30 AM</span></div></div>
-              <div class="system-tile"><span class="source-icon connected"><i data-feather="database"></i></span><div><small>Database</small><b>MySQL / MariaDB</b><span>Connected</span></div></div>
+              <div class="system-tile"><span class="source-icon connected"><i data-feather="activity"></i></span><div><small>Forecasting Model</small><b id="sysModel">—</b><span id="sysModelSub">Loading…</span></div></div>
+              <div class="system-tile"><span class="source-icon neutral"><i data-feather="clock"></i></span><div><small>Last Training</small><b id="sysTrained">—</b><span id="sysTrainedSub">Loading…</span></div></div>
+              <div class="system-tile"><span class="source-icon connected"><i data-feather="database"></i></span><div><small>Database</small><b>SQLite</b><span>Local file database</span></div></div>
               <div class="system-tile"><span class="source-icon connected"><i data-feather="server"></i></span><div><small>Application Server</small><b>Flask · Python</b><span>Development environment</span></div></div>
-              <div class="system-tile"><span class="source-icon connected"><i data-feather="cpu"></i></span><div><small>Explainability Engine</small><b>SHAP / LIME</b><span>Active</span></div></div>
-              <div class="system-tile"><span class="source-icon connected"><i data-feather="check-circle"></i></span><div><small>Platform Status</small><b>All systems operational</b><span>Checked just now</span></div></div>
+              <div class="system-tile"><span class="source-icon connected"><i data-feather="cpu"></i></span><div><small>Explainability</small><b>Permutation importance</b><span>Plus trend/seasonality breakdown</span></div></div>
+              <div class="system-tile"><span class="source-icon neutral"><i data-feather="git-branch"></i></span><div><small>Demand Classifier</small><b id="sysClf">—</b><span id="sysClfSub">Loading…</span></div></div>
             </div>
             <div class="divider"></div>
-            <div class="settings-subhead"><h3>Maintenance</h3><span>Administrator tools for model and system upkeep</span></div>
-            <div class="settings-actions split"><button class="btn btn-outline"><i data-feather="refresh-cw"></i> Retrain Model</button><button class="btn btn-outline"><i data-feather="download"></i> Export System Logs</button></div>
+            <div class="settings-subhead"><h3>Maintenance</h3><span>Models are retrained offline with <code>python -m tools.model.train</code></span></div>
           </div>
 
           <div class="settings-toast" id="settings-toast" role="status" aria-live="polite"><i data-feather="check-circle"></i><span>Settings saved successfully.</span></div>

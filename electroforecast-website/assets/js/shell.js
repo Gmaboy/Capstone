@@ -59,7 +59,7 @@
       </div>`;
     }).join("");
     const home = role === "household" ? "user-portal.html" : "admin-dashboard.html";
-    const name = user.full_name || "Greence Mark";
+    const name = user.full_name || "Signed-in user";
     const roleLabel = role === "guimelco" ? "GUIMELCO Staff" : role.charAt(0).toUpperCase()+role.slice(1);
 
     return `
@@ -85,8 +85,6 @@
   }
 
   function topbarHTML(title, opts, user){
-    opts = opts || {};
-    const showRange = opts.dateRange !== false;
     return `
     <header class="topbar">
       <div class="topbar-left">
@@ -94,9 +92,8 @@
         <div class="page-title">${title}</div>
       </div>
       <div class="topbar-right">
-        ${showRange ? `<div class="date-range"><i data-feather="calendar"></i><span>May 21 – May 27, 2026</span></div>` : ``}
-        <button class="icon-btn" onclick="window.location.href='notifications.html'"><i data-feather="bell"></i><span class="dot"></span></button>
-        <div class="topbar-avatar">${initials(user.full_name || "Greence Mark")}</div>
+        <button class="icon-btn" id="notifBtn" aria-label="Notifications" onclick="window.location.href='notifications.html'"><i data-feather="bell"></i><span class="dot" id="notifDot" hidden></span></button>
+        <div class="topbar-avatar" title="${user.full_name || ""}">${initials(user.full_name || "User")}</div>
       </div>
     </header>`;
   }
@@ -115,6 +112,7 @@
       document.getElementById('shell-sidebar').innerHTML = sidebarHTML(active, user);
       document.getElementById('shell-topbar').innerHTML = topbarHTML(title, opts, user);
       if (window.feather) feather.replace({ 'stroke-width': 2, width: 17, height: 17 });
+      this.refreshUnread();
       const burger = document.getElementById('burgerBtn');
       if (burger){
         const sidebar = document.getElementById('sidebar');
@@ -135,6 +133,14 @@
           if (event.key === 'Escape') closeSidebar();
         });
       }
+    },
+    refreshUnread(){
+      if (!window.ElectroAPI || !ElectroAPI.request) return;
+      ElectroAPI.request('/api/notifications').then(data => {
+        const unread = (data.notifications || []).some(n => !n.is_read);
+        const dot = document.getElementById('notifDot');
+        if (dot) dot.hidden = !unread;
+      }).catch(() => {});
     },
     setUser(user){
       sessionStorage.setItem("electro_user", JSON.stringify(user));
