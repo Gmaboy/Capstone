@@ -84,14 +84,15 @@ ElectroShell.mount('explainable', 'Explainable AI', { dateRange:false });
     document.getElementById('fcModelCard').innerHTML = ElectroAnalytics.modelCard(
       fc.model, 'Mean backtest', Number.isFinite(fcMetrics.mean_mape) ? `MAPE ${fcMetrics.mean_mape.toFixed(1)}%` : 'MAPE —');
 
-    const items = clf.importance.slice().sort((a, b) => b.importance - a.importance);
-    const max = Math.max(...items.map(i => i.importance), 0);
+    const items = clf.importance.slice().sort((a, b) => (b.importance ?? -1e9) - (a.importance ?? -1e9));
+    const max = Math.max(...items.map(i => Number(i.importance)).filter(Number.isFinite), 0);
     document.getElementById('importanceBars').innerHTML = items.length
       ? items.map((item, index) => {
-          const width = max > 0 ? Math.max(item.importance, 0) / max * 100 : 0;
+          const valid = item.importance != null && Number.isFinite(Number(item.importance));
+          const width = valid && max > 0 ? Math.max(Number(item.importance), 0) / max * 100 : 0;
           const last = index === items.length - 1 ? ' style="margin-bottom:0;"' : '';
           return `<div class="bar-row"${last}>
-            <div class="bar-label"><span>${esc(ElectroAPI.titleCase(item.feature))}</span><span>${esc(Number(item.importance).toFixed(3))}</span></div>
+            <div class="bar-label"><span>${esc(ElectroAPI.titleCase(item.feature))}</span><span>${esc(valid ? Number(item.importance).toFixed(3) : '—')}</span></div>
             <div class="bar-track"><div class="bar-fill" style="width:${width.toFixed(1)}%; background:#2563EB;"></div></div>
           </div>`;
         }).join('')
@@ -101,7 +102,7 @@ ElectroShell.mount('explainable', 'Explainable AI', { dateRange:false });
     if (rows.length) {
       new Chart(document.getElementById('chartBreakdown'), {
         type:'line',
-        data:{ labels: rows.map(r => `${MONTHS[r.month - 1]} ${String(r.year).slice(2)}`),
+        data:{ labels: rows.map((r, i) => i % 2 === 0 ? `${MONTHS[r.month - 1]} ${String(r.year).slice(2)}` : ''),
           datasets:[
             { label:'Trend', data: rows.map(r => r.trend), borderColor:'#2563EB', pointRadius:0, tension:.35 },
             { label:'Seasonality', data: rows.map(r => r.seasonality), borderColor:'#16A34A', pointRadius:0, tension:.35 },

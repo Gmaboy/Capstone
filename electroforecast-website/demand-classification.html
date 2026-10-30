@@ -124,26 +124,22 @@ ElectroShell.mount('demand', 'Demand Classification', { dateRange:false });
     const ps = [d.p_high, d.p_medium, d.p_low].filter(Number.isFinite);
     return ps.length ? Math.max(...ps) * 100 : null;
   };
-  const fmtDate = iso => ElectroAPI.formatDate(iso + 'T00:00:00Z');
+  const fmtDate = iso => ElectroAPI.formatDate(iso + 'T00:00:00Z', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
 
   async function load() {
     const content = document.getElementById('page-content');
     try {
-      const [daily, active] = await Promise.all([
-        ElectroAPI.request('/api/demand/daily'),
-        ElectroAPI.request('/api/models/active')
-      ]);
-      render(daily, active);
+      render(await ElectroAPI.request('/api/demand/daily'));
     } catch (error) {
       if (error.status !== 404) ElectroAPI.notify(error.message, 'error');
       ElectroAnalytics.emptyState(content);
     }
   }
 
-  function render(daily, active) {
+  function render(daily) {
     const days = daily.days;
     if (!days.length) throw Object.assign(new Error('No data'), { status: 404 });
-    const run = (active.runs || []).find(r => r.task === 'demand_class') || daily.model;
+    const run = daily.model;
     const metrics = run.metrics || {};
 
     document.getElementById('demandSub').textContent = `${fmtDate(days[0].date)} – ${fmtDate(days[days.length - 1].date)} · peak MW per day`;

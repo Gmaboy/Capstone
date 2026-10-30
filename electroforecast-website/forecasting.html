@@ -65,29 +65,49 @@ ElectroShell.mount('forecasting', 'Forecasting', { dateRange:false });
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const label = r => `${MONTHS[r.month - 1]} ${String(r.year).slice(2)}`;
   const longLabel = r => `${MONTHS[r.month - 1]} ${r.year}`;
-  const mwh = v => Number(v).toFixed(1);
-  const mw = v => Number(v).toFixed(2);
+  const fixed = (v, d) => (v == null || !Number.isFinite(Number(v))) ? '—' : Number(v).toFixed(d);
+  const mwh = v => fixed(v, 1);
+  const mw = v => fixed(v, 2);
+  const sparse = (rows) => { const step = Math.max(2, Math.ceil(rows.length / 12 / 2) * 2); return rows.map((r, i) => i % step === 0 ? label(r) : ''); };
 
   async function load() {
     const content = document.getElementById('page-content');
+    const peakRequest = ElectroAPI.request('/api/forecast/peak').catch(error => ({ error }));
     try {
-      const [monthly, peak] = await Promise.all([
-        ElectroAPI.request('/api/forecast/monthly'),
-        ElectroAPI.request('/api/forecast/peak')
-      ]);
-      render(monthly, peak);
+      const monthly = await ElectroAPI.request('/api/forecast/monthly');
+      render(monthly);
     } catch (error) {
       if (error.status !== 404) ElectroAPI.notify(error.message, 'error');
       ElectroAnalytics.emptyState(content);
+      return;
     }
+    const peak = await peakRequest;
+    if (peak.error) {
+      if (peak.error.status !== 404) ElectroAPI.notify(peak.error.message, 'error');
+      const msg = peak.error.status === 404 ? 'No trained model yet. Run python -m tools.model.train.' : 'Peak forecast unavailable.';
+      document.getElementById('peakCard').innerHTML = `<div class="empty-mini">${esc(msg)}</div>`;
+    } else {
+      renderPeak(peak);
+    }
+    if (window.feather) feather.replace();
   }
 
-  function render(monthly, peak) {
+  function renderPeak(peak) {
+    document.getElementById('peakCard').innerHTML = peak.forecast.length
+      ? peak.forecast.map(r => `<div style="margin-top:10px;">
+          <div class="text-sm text-muted">${esc(r.year)} peak</div>
+          <div class="h3">${esc(mw(r.peak_mw))} MW</div>
+          <div class="text-sm text-muted">Range ${esc(mw(r.lo))} – ${esc(mw(r.hi))} MW</div>
+        </div>`).join('') + `<div style="margin-top:10px;">${ElectroAnalytics.dataBadge(peak.data_source)}</div>`
+      : '<div class="empty-mini">No peak forecast available.</div>';
+  }
+
+  function render(monthly) {
     const history = monthly.history.slice(-24);
     const forecast = monthly.forecast.slice(0, 24);
     if (!forecast.length) throw Object.assign(new Error('No forecast'), { status: 404 });
     const metrics = (monthly.model && monthly.model.metrics) || {};
-    const labels = [...history.map(label), ...forecast.map(label)];
+    const labels = sparse([...history, ...forecast]);
     const pad = n => Array(n).fill(null);
 
     document.getElementById('forecastSub').textContent =
@@ -100,14 +120,6 @@ ElectroShell.mount('forecasting', 'Forecasting', { dateRange:false });
       card += '<div class="model-card-note">This model does not beat the seasonal-naive baseline.</div>';
     }
     document.getElementById('forecastModelCard').innerHTML = card;
-
-    document.getElementById('peakCard').innerHTML = peak.forecast.length
-      ? peak.forecast.map(r => `<div style="margin-top:10px;">
-          <div class="text-sm text-muted">${esc(r.year)} peak</div>
-          <div class="h3">${esc(mw(r.peak_mw))} MW</div>
-          <div class="text-sm text-muted">Range ${esc(mw(r.lo))} – ${esc(mw(r.hi))} MW</div>
-        </div>`).join('') + `<div style="margin-top:10px;">${ElectroAnalytics.dataBadge(peak.data_source)}</div>`
-      : '<div class="empty-mini">No peak forecast available.</div>';
 
     new Chart(document.getElementById('chartForecast'), {
       type:'line',
