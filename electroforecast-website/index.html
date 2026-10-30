@@ -142,11 +142,18 @@
           <h2>Questions or feedback?</h2>
           <p>Reach the GUIMPOWERCORE team by email. We welcome questions from households, GUIMELCO staff, and fellow researchers.</p>
         </div>
-        <a class="lp-contact-card" href="mailto:guimpowercore@gmail.com">
-          <span class="kpi-icon blue"><i data-feather="mail"></i></span>
-          <span><small>Email us</small><b>guimpowercore@gmail.com</b></span>
-          <i data-feather="arrow-right"></i>
-        </a>
+        <div class="lp-contact-card">
+          <div class="lp-contact-id">
+            <span class="kpi-icon blue"><i data-feather="mail"></i></span>
+            <span><small>Email us</small><b id="contactEmail">guimpowercore@gmail.com</b></span>
+          </div>
+          <div class="lp-contact-actions">
+            <a class="btn btn-primary" href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=guimpowercore@gmail.com&amp;su=GUIMPOWERCORE%20inquiry" target="_blank" rel="noopener"><i data-feather="send"></i> Open in Gmail</a>
+            <button type="button" class="btn btn-secondary" id="copyEmailBtn"><i data-feather="copy"></i> <span>Copy email</span></button>
+          </div>
+          <a class="lp-contact-alt" href="mailto:guimpowercore@gmail.com?subject=GUIMPOWERCORE%20inquiry">Use another email app</a>
+          <span class="lp-sr-only" id="copyStatus" role="status" aria-live="polite"></span>
+        </div>
       </div>
     </div>
   </section>
@@ -185,6 +192,31 @@ if (window.feather) feather.replace();
     });
   }, { rootMargin: '-45% 0px -50% 0px' });
   document.querySelectorAll('main section[id]').forEach(s => observer.observe(s));
+
+  const copyBtn = document.getElementById('copyEmailBtn');
+  const copyStatus = document.getElementById('copyStatus');
+  copyBtn.addEventListener('click', async () => {
+    const email = document.getElementById('contactEmail').textContent.trim();
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText(email);
+      ok = true;
+    } catch (_) {
+      // Clipboard API needs a secure context; fall back to a temporary text field.
+      const field = Object.assign(document.createElement('textarea'), { value: email });
+      field.style.cssText = 'position:fixed;opacity:0;';
+      document.body.appendChild(field);
+      field.select();
+      try { ok = document.execCommand('copy'); } catch (__) { ok = false; }
+      field.remove();
+    }
+    const label = copyBtn.querySelector('span');
+    label.textContent = ok ? 'Copied!' : 'Copy failed';
+    copyStatus.textContent = ok ? 'Email address copied to clipboard.' : 'Could not copy. Select the address and copy it manually.';
+    copyBtn.classList.toggle('copied', ok);
+    clearTimeout(copyBtn._reset);
+    copyBtn._reset = setTimeout(() => { label.textContent = 'Copy email'; copyBtn.classList.remove('copied'); }, 2000);
+  });
 
   const nav = document.getElementById('lpNav');
   const onScroll = () => {
