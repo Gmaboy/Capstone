@@ -1,0 +1,8 @@
+-r requirements.txt
+numpy
+pandas
+statsmodels
+scikit-learn
+joblib
+matplotlib
+pytest

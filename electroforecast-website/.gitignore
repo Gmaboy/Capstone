@@ -3,3 +3,6 @@ __pycache__/
 *.pyc
 .paper-render/
 database/electroforecast.db
+
+models/*.joblib
+data/synthetic/*.csv
