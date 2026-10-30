@@ -8,7 +8,7 @@
       "peak_window": "evening",
       "appliances": [
         {"name": "LED lighting (bulb)", "watts": 9, "quantity": 5, "hours_per_day": 5, "source": "estimate"},
-        {"name": "Electric fan", "watts": 60, "quantity": 1, "hours_per_day": 8, "source": "https://billcheck.ph/meralco-appliance-calculator/ (60 W fan, 8 h/day example)"},
+        {"name": "Electric fan", "watts": 60, "quantity": 1, "hours_per_day": 8, "source": "estimate"},
         {"name": "Television (LED)", "watts": 60, "quantity": 1, "hours_per_day": 4, "source": "estimate"},
         {"name": "Phone charging", "watts": 10, "quantity": 2, "hours_per_day": 3, "source": "estimate"}
       ]
@@ -20,11 +20,11 @@
       "peak_window": "evening",
       "appliances": [
         {"name": "LED lighting (bulb)", "watts": 9, "quantity": 6, "hours_per_day": 5, "source": "estimate"},
-        {"name": "Electric fan", "watts": 60, "quantity": 2, "hours_per_day": 8, "source": "https://billcheck.ph/meralco-appliance-calculator/ (60 W fan, 8 h/day example; quantity is an estimate)"},
+        {"name": "Electric fan", "watts": 60, "quantity": 2, "hours_per_day": 8, "source": "estimate"},
         {"name": "Television (LED)", "watts": 70, "quantity": 1, "hours_per_day": 5, "source": "estimate"},
         {"name": "Phone charging", "watts": 10, "quantity": 3, "hours_per_day": 3, "source": "estimate"},
-        {"name": "Refrigerator (7 cu ft inverter)", "watts": 100, "quantity": 1, "hours_per_day": 12, "source": "https://billcheck.ph/meralco-appliance-calculator/ (100 W rating; 12 h/day compressor duty is an estimate)"},
-        {"name": "Rice cooker", "watts": 700, "quantity": 1, "hours_per_day": 1, "source": "https://billcheck.ph/meralco-appliance-calculator/ (700 W, about 1 h/day example)"}
+        {"name": "Refrigerator (7 cu ft inverter)", "watts": 100, "quantity": 1, "hours_per_day": 12, "source": "estimate"},
+        {"name": "Rice cooker", "watts": 700, "quantity": 1, "hours_per_day": 1, "source": "estimate"}
       ]
     },
     {
@@ -38,7 +38,7 @@
         {"name": "Television (LED)", "watts": 80, "quantity": 1, "hours_per_day": 5, "source": "estimate"},
         {"name": "Phone charging", "watts": 10, "quantity": 4, "hours_per_day": 3, "source": "estimate"},
         {"name": "Refrigerator (10 cu ft)", "watts": 150, "quantity": 1, "hours_per_day": 12, "source": "estimate"},
-        {"name": "Rice cooker", "watts": 700, "quantity": 1, "hours_per_day": 1, "source": "https://billcheck.ph/meralco-appliance-calculator/ (700 W, about 1 h/day example)"},
+        {"name": "Rice cooker", "watts": 700, "quantity": 1, "hours_per_day": 1, "source": "estimate"},
         {"name": "Air conditioner (1 hp window type)", "watts": 900, "quantity": 1, "hours_per_day": 4, "source": "estimate"}
       ]
     },
@@ -52,9 +52,9 @@
         {"name": "Electric fan", "watts": 60, "quantity": 2, "hours_per_day": 10, "source": "estimate"},
         {"name": "Television (LED)", "watts": 70, "quantity": 1, "hours_per_day": 6, "source": "estimate"},
         {"name": "Phone charging", "watts": 10, "quantity": 3, "hours_per_day": 3, "source": "estimate"},
-        {"name": "Refrigerator (7 cu ft inverter)", "watts": 100, "quantity": 1, "hours_per_day": 12, "source": "https://billcheck.ph/meralco-appliance-calculator/ (100 W rating; duty cycle is an estimate)"},
-        {"name": "Rice cooker", "watts": 700, "quantity": 1, "hours_per_day": 1, "source": "https://billcheck.ph/meralco-appliance-calculator/ (700 W, about 1 h/day example)"},
-        {"name": "Chest freezer (sari-sari store)", "watts": 100, "quantity": 1, "hours_per_day": 12, "source": "https://billcheck.ph/meralco-appliance-calculator/ (100 W standard chest freezer; 12 h/day compressor duty is an estimate)"}
+        {"name": "Refrigerator (7 cu ft inverter)", "watts": 100, "quantity": 1, "hours_per_day": 12, "source": "estimate"},
+        {"name": "Rice cooker", "watts": 700, "quantity": 1, "hours_per_day": 1, "source": "estimate"},
+        {"name": "Chest freezer (sari-sari store)", "watts": 100, "quantity": 1, "hours_per_day": 12, "source": "estimate"}
       ]
     },
     {

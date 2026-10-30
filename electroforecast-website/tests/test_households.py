@@ -42,3 +42,38 @@ def test_type_mix_interpolates_and_sums_to_one():
         assert abs(sum(type_mix(types, y).values()) - 1) < 1e-9
     assert type_mix(types, 2020)["aircon"] == types[2].mix_start
     assert abs(type_mix(types, 2025)["aircon"] - types[2].mix_end) < 1e-12
+
+
+def test_every_barangay_sampled_and_scale_factors_complete():
+    import numpy as np
+
+    from tools.common.locations import BARANGAYS
+    from tools.synth.customers import customer_counts
+    from tools.synth.households import sample_households
+
+    types = load_household_types(TYPES)
+    counts = customer_counts(ANCHORS, CFG)
+    hh = sample_households(ANCHORS, CFG, types, np.random.default_rng(CFG.seed), counts)
+    sampled = set(zip(hh.municipality, hh.barangay))
+    assert sampled == {(m, b) for m, bs in BARANGAYS.items() for b in bs}
+
+    hm = build_small()
+    assert set(hm.attrs["scale_factors"]) == {(y, m) for y in CFG.years for m in range(1, 13)}
+    assert len(hm.attrs["scale_factors"]) == 24
+
+
+def test_weights_match_customers_per_barangay():
+    import numpy as np
+
+    from tools.synth.customers import customer_counts
+    from tools.synth.households import household_monthly, sample_households
+
+    types = load_household_types(TYPES)
+    counts = customer_counts(ANCHORS, CFG)
+    rng = np.random.default_rng(CFG.seed)
+    hh = sample_households(ANCHORS, CFG, types, rng, counts)
+    hm = household_monthly(ANCHORS, CFG, types, hh, counts, rng)
+    j = hm.merge(hh[["synth_household_id", "municipality", "barangay"]], on="synth_household_id")
+    got = j.groupby(["year", "month", "municipality", "barangay"]).weight.sum().round().astype(int)
+    exp = counts.set_index(["year", "month", "municipality", "barangay"]).customers
+    assert (got == exp.loc[got.index]).all()

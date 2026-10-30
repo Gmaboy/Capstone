@@ -137,6 +137,11 @@ def household_monthly(
             raw = base * seas * size_f * noise
 
             cust = cust_lookup.loc[(y, m)].reindex(hh_index).to_numpy(dtype=float)
+            if np.isnan(cust).any():
+                bad = households.loc[np.isnan(cust), ["municipality", "barangay"]].iloc[0]
+                raise ValueError(
+                    f"No customer count for {bad.municipality}/{bad.barangay} in {y}-{m:02d}"
+                )
             weight = cust / ns
 
             factor = mwh * 1000.0 / float((weight * raw).sum())
