@@ -26,5 +26,30 @@
     if (window.feather) feather.replace();
   }
 
-  window.ElectroAnalytics = { dataBadge, modelCard, emptyState };
+  // Toggle the inline explanation panel that an .info-btn controls (aria-controls).
+  function initInfoButtons(root) {
+    (root || document).querySelectorAll('.info-btn[aria-controls]').forEach(btn => {
+      if (btn.dataset.infoReady) return;
+      btn.dataset.infoReady = '1';
+      const panel = document.getElementById(btn.getAttribute('aria-controls'));
+      if (!panel) return;
+      btn.addEventListener('click', () => {
+        const open = btn.getAttribute('aria-expanded') !== 'true';
+        btn.setAttribute('aria-expanded', String(open));
+        panel.hidden = !open;
+      });
+    });
+  }
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    document.querySelectorAll('.info-btn[aria-expanded="true"]').forEach(btn => {
+      btn.setAttribute('aria-expanded', 'false');
+      const panel = document.getElementById(btn.getAttribute('aria-controls'));
+      if (panel) panel.hidden = true;
+    });
+  });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => initInfoButtons());
+  else initInfoButtons();
+
+  window.ElectroAnalytics = { dataBadge, modelCard, emptyState, initInfoButtons };
 })();

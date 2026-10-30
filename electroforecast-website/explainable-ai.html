@@ -19,8 +19,22 @@
       <div class="grid grid-12">
         <div class="card span-6">
           <div class="card-head">
-            <div><h3>Demand Classifier Feature Importance</h3><div class="card-sub">Permutation importance on the held-out test set</div></div>
+            <div>
+              <div class="card-title-row"><h3>Demand Classifier Feature Importance</h3><button class="info-btn" type="button" aria-label="What does this chart mean?" aria-expanded="false" aria-controls="infoImportance"><i data-feather="info"></i></button></div>
+              <div class="card-sub">Permutation importance on the held-out test set</div>
+            </div>
             <span id="clfBadge"></span>
+          </div>
+          <div class="info-pop" id="infoImportance" hidden>
+            <p><b>What the numbers mean.</b> Each number shows how much the classifier's score (macro-F1) drops when that input is scrambled. A bigger number means the model relies on it more; a number near 0 means it barely uses it. <span id="infoExample"></span></p>
+            <dl class="info-terms">
+              <dt>Month</dt><dd>Calendar month (January to December), which captures the season.</dd>
+              <dt>Day Of Week</dt><dd>Monday to Sunday, which captures weekday vs weekend use.</dd>
+              <dt>Prev Day Peak</dt><dd>Yesterday's peak demand in MW.</dd>
+              <dt>Is Holiday</dt><dd>Whether the day is a Philippine public holiday.</dd>
+              <dt>Mean 7d Peak</dt><dd>Average peak demand of the previous 7 days.</dd>
+            </dl>
+            <p class="info-note">Trained on synthetic daily data built from GUIMELCO's real monthly totals, so this shows how the model behaves, not proven customer behaviour.</p>
           </div>
           <div id="importanceBars" class="text-sm text-muted">Loading…</div>
           <div id="clfModelCard"></div>
@@ -28,8 +42,20 @@
 
         <div class="card span-6">
           <div class="card-head">
-            <div><h3>Forecast Breakdown</h3><div class="card-sub">Descriptive trend and seasonality per forecast month (customer growth shown only if the model uses it)</div></div>
+            <div>
+              <div class="card-title-row"><h3>Forecast Breakdown</h3><button class="info-btn" type="button" aria-label="What does this chart mean?" aria-expanded="false" aria-controls="infoBreakdown"><i data-feather="info"></i></button></div>
+              <div class="card-sub">Descriptive trend and seasonality per forecast month (customer growth shown only if the model uses it)</div>
+            </div>
             <span id="fcBadge"></span>
+          </div>
+          <div class="info-pop" id="infoBreakdown" hidden>
+            <p><b>What the lines mean.</b> Each forecast month is split into two parts that add up to roughly the forecast energy for that month.</p>
+            <dl class="info-terms">
+              <dt>Trend</dt><dd>The long-run level of monthly residential energy in MWh. A rising line means demand is growing year after year.</dd>
+              <dt>Seasonality</dt><dd>How far each month sits above (+) or below (−) the trend because of the time of year, such as hot months using more cooling.</dd>
+              <dt>Customer growth</dt><dd>Shown only when the model uses customer counts. SARIMA does not, so it is hidden.</dd>
+            </dl>
+            <p class="info-note">Based on real GUIMELCO data. The split is a descriptive STL decomposition of history plus forecast, not SARIMA's internal components.</p>
           </div>
           <div class="chart-box"><canvas id="chartBreakdown"></canvas></div>
           <div class="legend-row">
@@ -83,6 +109,13 @@ ElectroShell.mount('explainable', 'Explainable AI', { dateRange:false });
     const fcMetrics = fc.model.metrics || {};
     document.getElementById('fcModelCard').innerHTML = ElectroAnalytics.modelCard(
       fc.model, 'Mean backtest', Number.isFinite(fcMetrics.mean_mape) ? `MAPE ${fcMetrics.mean_mape.toFixed(1)}%` : 'MAPE —');
+
+    const top = clf.importance.find(i => Number.isFinite(Number(i.importance)));
+    if (top && Number.isFinite(clfMetrics.macro_f1)) {
+      const score = clfMetrics.macro_f1;
+      document.getElementById('infoExample').textContent =
+        `Example: without ${ElectroAPI.titleCase(top.feature)}, the score falls from ${score.toFixed(2)} to about ${(score - Number(top.importance)).toFixed(2)}.`;
+    }
 
     const items = clf.importance.slice().sort((a, b) => (b.importance ?? -1e9) - (a.importance ?? -1e9));
     const max = Math.max(...items.map(i => Number(i.importance)).filter(Number.isFinite), 0);
