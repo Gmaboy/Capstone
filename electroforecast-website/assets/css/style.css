@@ -899,6 +899,9 @@ tbody tr:hover{background:var(--grey-100);}
   .main{margin-left:0;}
   .burger{display:flex; align-items:center; justify-content:center;}
   .grid-4, .grid-3, .grid-2{grid-template-columns:1fr;}
+  /* Stat-card rows stay two across on phones; an odd last card spans the row. */
+  .grid-4:has(> .kpi-card), .grid-3:has(> .kpi-card){grid-template-columns:repeat(2,minmax(0,1fr));}
+  .grid:has(> .kpi-card) > .kpi-card:last-child:nth-child(odd){grid-column:1 / -1;}
   .date-range span{display:none;}
   .login-aside{display:none;}
   .login-form-side{min-height:100vh;}
@@ -921,7 +924,9 @@ tbody tr:hover{background:var(--grey-100);}
   .topbar-avatar{display:none;}
   .content{padding:18px 14px 32px;}
   .card{padding:16px;border-radius:14px;}
-  .kpi-card{min-height:0;}
+  .kpi-card{min-height:0; flex-direction:column; gap:10px; padding:14px;}
+  .kpi-card .kpi-icon{width:36px; height:36px; border-radius:10px;}
+  .kpi-card .kpi-value{font-size:19px; overflow-wrap:anywhere;}
   .grid{gap:14px;}
   .tabs{overflow-x:auto;}
   .tab{white-space:nowrap;}
@@ -952,7 +957,6 @@ tbody tr:hover{background:var(--grey-100);}
   .submission-hero{padding:18px 16px;}
   .submission-hero-copy{align-items:flex-start;}
   .submission-hero-icon{width:42px;height:42px;border-radius:12px;}
-  .submissions-page .submission-kpis{grid-template-columns:1fr;}
   .submission-card-head{align-items:stretch;flex-direction:column;}
   .submission-card-head .btn{width:100%;}
   .submissions-page .portal-table tbody tr{grid-template-columns:1fr;padding:6px 12px;}
