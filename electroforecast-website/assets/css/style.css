@@ -1420,3 +1420,17 @@ body.landing{background:var(--surface); font-size:15px;}
 .lp-nav-actions{display:flex; align-items:center; gap:4px;}
 .login-theme-btn{position:absolute; top:16px; right:16px; z-index:5;}
 .login-form-side{position:relative;}
+
+/* ---------- Confirm dialog (replaces window.confirm) ---------- */
+.confirm-overlay{position:fixed; inset:0; z-index:200; display:flex; align-items:center; justify-content:center; padding:16px; background:rgba(3,10,25,.6); backdrop-filter:blur(3px);}
+.confirm-dialog{width:min(420px,100%); background:var(--surface); border:1px solid var(--grey-100); border-radius:16px; box-shadow:var(--shadow-md); padding:22px;}
+.confirm-dialog h3{font-size:17px;}
+.confirm-dialog p{margin:8px 0 0; color:var(--grey-600); font-size:14px; line-height:1.6;}
+.confirm-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:20px;}
+.confirm-actions .btn{min-height:40px; min-width:96px;}
+.btn-danger{background:var(--danger); color:#fff;}
+.btn-danger:hover{filter:brightness(.94);}
+@media (max-width: 640px){
+  .confirm-actions{flex-direction:column-reverse;}
+  .confirm-actions .btn{width:100%; min-height:44px;}
+}

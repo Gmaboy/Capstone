@@ -178,7 +178,7 @@
   async function remove(id) {
     const record = state.records.find(item=>String(item.consumption_id)===String(id));
     if (record && record.verification_status === 'approved') { ElectroAPI.notify('Approved bills cannot be deleted.', 'error'); return; }
-    if (!record || !window.confirm(`Move the ${ElectroAPI.formatMonth(record.billing_month)} consumption record to Recently Deleted?`)) return;
+    if (!record || !(await ElectroAPI.confirm(`Move the ${ElectroAPI.formatMonth(record.billing_month)} consumption record to Recently Deleted?`, { title: 'Move to Recently Deleted?', confirmLabel: 'Move' }))) return;
     try {
       await ElectroAPI.request(`/api/consumption/${id}`,{method:'DELETE'});
       await load();
@@ -199,7 +199,7 @@
 
   async function permanentlyDeleteSelected() {
     const consumptionIds = [...state.selectedDeleted].map(Number);
-    if (!consumptionIds.length || !window.confirm(`Permanently delete ${consumptionIds.length} selected monthly record${consumptionIds.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
+    if (!consumptionIds.length || !(await ElectroAPI.confirm(`Permanently delete ${consumptionIds.length} selected monthly record${consumptionIds.length === 1 ? '' : 's'}? This cannot be undone.`, { title: 'Delete permanently?', confirmLabel: 'Delete permanently' }))) return;
     const button = $('#delete-selected-monthly');
     button.disabled = true;
     try {

@@ -275,7 +275,7 @@
 
   async function deleteInventory(id) {
     const record = state.appliances.find(item=>String(item.inventory_id)===String(id));
-    if (!record || !window.confirm(`Remove ${record.appliance_name} from your household inventory? Your contribution history will remain.`)) return;
+    if (!record || !(await ElectroAPI.confirm(`Remove ${record.appliance_name} from your household inventory? Your contribution history will remain.`, { title: 'Remove appliance?', confirmLabel: 'Remove' }))) return;
     try {
       await ElectroAPI.request(`/api/my-appliances/${id}`,{method:'DELETE'});
       await loadData();
@@ -296,7 +296,7 @@
 
   async function permanentlyDeleteSelected() {
     const inventoryIds = [...state.selectedDeleted].map(Number);
-    if (!inventoryIds.length || !window.confirm(`Permanently delete ${inventoryIds.length} selected appliance${inventoryIds.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
+    if (!inventoryIds.length || !(await ElectroAPI.confirm(`Permanently delete ${inventoryIds.length} selected appliance${inventoryIds.length === 1 ? '' : 's'}? This cannot be undone.`, { title: 'Delete permanently?', confirmLabel: 'Delete permanently' }))) return;
     const button = $('#delete-selected-appliances');
     button.disabled = true;
     try {
