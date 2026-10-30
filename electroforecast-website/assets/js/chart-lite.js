@@ -99,10 +99,20 @@
       ctx.fillStyle = '#718096';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
+      // Draw left to right and skip any label that would touch the previous one, so narrow charts stay readable.
+      const gap = 8;
+      let lastRight = -Infinity;
       labels.forEach((label, index) => {
-        if (labels.length > 7 && index % 2 === 1) return;
-        ctx.textAlign = index === 0 ? 'left' : index === labels.length - 1 ? 'right' : 'center';
-        ctx.fillText(label, plot.x(index, labels.length), plot.bottom + 11);
+        const text = String(label ?? '');
+        if (!text) return;
+        const align = index === 0 ? 'left' : index === labels.length - 1 ? 'right' : 'center';
+        const x = plot.x(index, labels.length);
+        const width = ctx.measureText(text).width;
+        const left = align === 'left' ? x : align === 'right' ? x - width : x - width / 2;
+        if (left < lastRight + gap) return;
+        ctx.textAlign = align;
+        ctx.fillText(text, x, plot.bottom + 11);
+        lastRight = left + width;
       });
     }
 
