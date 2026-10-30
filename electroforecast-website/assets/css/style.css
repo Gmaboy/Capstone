@@ -1097,10 +1097,10 @@ body.landing{background:var(--surface); font-size:15px;}
 .lp-steps li{position:relative; display:grid; grid-template-columns:64px minmax(0,1fr); gap:22px; align-items:start; padding-bottom:40px;}
 .lp-steps li:last-child{padding-bottom:0;}
 /* Dashed connector from one step number to the next. */
-.lp-steps li:not(:last-child)::before{content:""; position:absolute; left:31px; top:74px; bottom:10px; border-left:2px dashed var(--dark); opacity:.75;}
-.lp-step-num{display:flex; align-items:center; justify-content:center; width:64px; height:64px; border-radius:8px; background:#C9D3DF; color:var(--dark); font-weight:800; font-size:32px; line-height:1;}
-.lp-steps h3{font-size:18px; margin-top:4px;}
-.lp-steps p{color:var(--grey-800); font-size:15px; line-height:1.6; margin:6px 0 0;}
+.lp-steps li:not(:last-child)::before{content:""; position:absolute; left:31px; top:76px; bottom:12px; border-left:2px dashed rgba(8,126,255,.35);}
+.lp-step-num{display:flex; align-items:center; justify-content:center; width:64px; height:64px; border-radius:18px; background:linear-gradient(135deg,#00D9ED,#087EFF); color:#fff; font-weight:800; font-size:28px; line-height:1; box-shadow:0 10px 24px rgba(8,126,255,.25), inset 0 1px 0 rgba(255,255,255,.35);}
+.lp-steps h3{font-size:18px; margin-top:6px; color:var(--dark);}
+.lp-steps p{color:var(--grey-600); font-size:15px; line-height:1.65; margin:6px 0 0;}
 .lp-note{display:flex; align-items:flex-start; gap:10px; margin-top:24px; padding:14px 16px; border-radius:12px; background:var(--primary-50); color:#31567F; font-size:14px; line-height:1.55;}
 .lp-note svg{width:18px; height:18px; flex-shrink:0; margin-top:1px;}
 
@@ -1145,8 +1145,8 @@ body.landing{background:var(--surface); font-size:15px;}
   .lp-section{padding:60px 0;}
   .lp-features{grid-template-columns:1fr;}
   .lp-steps li{grid-template-columns:52px minmax(0,1fr); gap:16px; padding-bottom:32px;}
-  .lp-steps li:not(:last-child)::before{left:25px; top:62px;}
-  .lp-step-num{width:52px; height:52px; font-size:26px;}
+  .lp-steps li:not(:last-child)::before{left:25px; top:64px;}
+  .lp-step-num{width:52px; height:52px; border-radius:15px; font-size:23px;}
   .lp-steps h3{font-size:16px; margin-top:2px;}
   .lp-team{grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px;}
   .lp-team .lp-member:last-child{grid-column:1 / -1;}
