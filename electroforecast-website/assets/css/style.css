@@ -1447,3 +1447,5 @@ body.landing{background:var(--surface); font-size:15px;}
   .review-type-switch{display:flex;}
   .review-type-switch button{flex:1 1 0; justify-content:center; padding:8px 10px;}
 }
+.card-title-row{flex-wrap:wrap;}
+.card-title-row .badge{margin-left:4px;}

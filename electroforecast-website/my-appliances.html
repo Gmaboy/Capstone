@@ -44,7 +44,7 @@
 
       <section class="card portal-table-card">
         <div class="card-head">
-          <div><h3>Household Appliance List</h3><div class="card-sub">Only appliances in this list count toward your household load.</div></div>
+          <div><div class="card-title-row"><h3>Household Appliance List</h3><span class="badge verified" id="inventory-badge"><span class="badge-dot"></span><span id="inventory-count">0</span>&nbsp;In Inventory</span></div><div class="card-sub">Only appliances in this list count toward your household load.</div></div>
           <div class="card-actions">
             <button class="btn btn-secondary btn-sm" id="open-recently-deleted"><i data-feather="rotate-ccw"></i> Recently Deleted <span class="button-count" id="recently-deleted-count">0</span></button>
             <button class="btn btn-primary btn-sm" id="open-add-appliance-secondary"><i data-feather="plus"></i> Add Appliance</button>
@@ -53,8 +53,8 @@
         <div class="table-note"><i data-feather="info"></i> Removing an appliance here does not delete your original contribution from My Submissions.</div>
         <div class="table-wrap portal-table">
           <table>
-            <thead><tr><th>Appliance</th><th>Power & Usage</th><th>Estimated Load</th><th>Origin</th><th>Status</th><th>Actions</th></tr></thead>
-            <tbody id="my-appliance-body"><tr><td colspan="6"><div class="table-loading">Loading appliances…</div></td></tr></tbody>
+            <thead><tr><th>Appliance</th><th>Power & Usage</th><th>Estimated Load</th><th>Origin</th><th>Actions</th></tr></thead>
+            <tbody id="my-appliance-body"><tr><td colspan="5"><div class="table-loading">Loading appliances…</div></td></tr></tbody>
           </table>
         </div>
       </section>

@@ -25,16 +25,17 @@
 
   function renderAppliances() {
     const body = $('#my-appliance-body');
+    // Every row here is in the household inventory, so the status is shown once in the card header.
+    $('#inventory-count').textContent = state.appliances.length;
     body.innerHTML = state.appliances.length ? state.appliances.map(item=>`
       <tr>
         <td data-label="Appliance"><div class="record-title"><b>${ElectroAPI.escapeHTML(item.appliance_name)}</b><small>${ElectroAPI.escapeHTML([item.brand,item.model,item.category_name].filter(Boolean).join(' · '))}</small></div></td>
         <td data-label="Power & Usage"><b>${Number(item.power_rating_watts).toLocaleString()} W</b><div class="text-sm text-muted">Qty ${item.quantity} · ${item.avg_daily_usage_hours} hr/day</div></td>
         <td data-label="Estimated Load"><b>${Number(item.estimated_daily_kwh).toFixed(2)} kWh/day</b><div class="text-sm text-muted">${(Number(item.estimated_daily_kwh)*30).toFixed(1)} kWh/month</div></td>
         <td data-label="Origin"><div class="record-origin catalog"><i data-feather="database"></i><span><b>Approved rating</b><small>${ElectroAPI.escapeHTML(sourceLabel(item.source_of_info))}</small></span></div></td>
-        <td data-label="Status"><span class="badge verified"><span class="badge-dot"></span>In Inventory</span></td>
         <td data-label="Actions"><div class="row-actions portal-actions"><button type="button" data-edit-inventory="${item.inventory_id}" aria-label="Edit ${ElectroAPI.escapeHTML(item.appliance_name)} usage"><i data-feather="edit-2"></i></button><button type="button" class="reject" data-delete-inventory="${item.inventory_id}" aria-label="Remove ${ElectroAPI.escapeHTML(item.appliance_name)} from My Appliances"><i data-feather="trash-2"></i></button></div></td>
       </tr>`).join('')
-      : `<tr><td colspan="6"><div class="empty-table"><i data-feather="zap"></i><b>No household appliances yet</b><span>Choose an approved rating to start calculating your estimated load.</span></div></td></tr>`;
+      : `<tr><td colspan="5"><div class="empty-table"><i data-feather="zap"></i><b>No household appliances yet</b><span>Choose an approved rating to start calculating your estimated load.</span></div></td></tr>`;
   }
 
   function renderSubmissionStage() {
