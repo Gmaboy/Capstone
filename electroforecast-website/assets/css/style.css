@@ -1011,3 +1011,15 @@ tbody tr:hover{background:var(--grey-100);}
   .recently-deleted-item{grid-template-columns:auto auto minmax(0,1fr);align-items:start;}
   .recently-deleted-item > .btn{grid-column:1/-1;width:100%;justify-content:center;}
 }
+
+/* ---------- Data source badges and model cards ---------- */
+.data-badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:700;}
+.data-badge.real{background:var(--success-bg);color:#166534;}
+.data-badge.synthetic{background:var(--warning-bg);color:#92400E;}
+.model-card{border:1px solid #E8EFF7;border-radius:var(--radius);background:var(--bg);padding:12px 14px;margin-top:10px;}
+.model-card-name{font-weight:700;color:var(--dark);font-size:14px;}
+.model-card-meta{font-size:11.5px;color:var(--grey-600);margin-top:2px;}
+.model-card-metric{display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;font-size:12.5px;color:var(--grey-600);}
+.model-card-metric b{font-size:18px;color:var(--dark);}
+.model-card-note{font-size:11.5px;color:#92400E;margin-top:6px;}
+.empty-table code{background:var(--grey-100);padding:1px 6px;border-radius:5px;}

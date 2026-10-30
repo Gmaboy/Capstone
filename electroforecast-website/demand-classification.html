@@ -14,31 +14,31 @@
   <div id="shell-sidebar"></div>
   <div class="main">
     <div id="shell-topbar"></div>
-    <div class="content">
+    <div class="content" id="page-content">
 
       <div class="grid grid-3" style="margin-bottom:18px;">
         <div class="card kpi-card">
           <div class="kpi-icon amber"><i data-feather="activity"></i></div>
           <div>
-            <div class="kpi-label">Current Demand</div>
-            <div class="kpi-value">High</div>
-            <div class="kpi-delta up"><i data-feather="arrow-up"></i> 78% probability</div>
+            <div class="kpi-label">Latest Day</div>
+            <div class="kpi-value" id="kpiLevel">—</div>
+            <div class="text-sm text-muted" id="kpiLevelSub"></div>
           </div>
         </div>
         <div class="card kpi-card">
           <div class="kpi-icon blue"><i data-feather="percent"></i></div>
           <div>
             <div class="kpi-label">Average Probability</div>
-            <div class="kpi-value">72.4%</div>
-            <div class="text-sm text-muted">This week</div>
+            <div class="kpi-value" id="kpiProb">—</div>
+            <div class="text-sm text-muted">Top-class probability in range</div>
           </div>
         </div>
         <div class="card kpi-card">
           <div class="kpi-icon violet"><i data-feather="sun"></i></div>
           <div>
             <div class="kpi-label">High Demand Days</div>
-            <div class="kpi-value">4</div>
-            <div class="text-sm text-muted">This week</div>
+            <div class="kpi-value" id="kpiHigh">—</div>
+            <div class="text-sm text-muted" id="kpiHighSub"></div>
           </div>
         </div>
       </div>
@@ -46,7 +46,8 @@
       <div class="grid grid-12" style="margin-bottom:18px;">
         <div class="card span-8">
           <div class="card-head">
-            <div><h3>Demand Level Over Time</h3><div class="card-sub">Classified using forecasted consumption thresholds</div></div>
+            <div><h3>Daily Peak Demand</h3><div class="card-sub" id="demandSub">Loading…</div></div>
+            <span id="demandBadge"></span>
           </div>
           <div class="chart-box"><canvas id="chartDemand"></canvas></div>
           <div class="legend-row">
@@ -59,13 +60,10 @@
           <div class="card-head"><h3>Demand Level Distribution</h3></div>
           <div class="chart-box sm donut-wrap">
             <canvas id="chartDist"></canvas>
-            <div class="donut-center"><div class="val">7</div><div class="lbl">days tracked</div></div>
+            <div class="donut-center"><div class="val" id="donutVal">—</div><div class="lbl">days tracked</div></div>
           </div>
-          <div class="legend-row" style="flex-direction:column; align-items:stretch; gap:8px; margin-top:14px;">
-            <div class="legend-item" style="justify-content:space-between;"><span><span class="legend-swatch" style="background:#EF4444;"></span>High</span><b>43%</b></div>
-            <div class="legend-item" style="justify-content:space-between;"><span><span class="legend-swatch" style="background:#F59E0B;"></span>Medium</span><b>36%</b></div>
-            <div class="legend-item" style="justify-content:space-between;"><span><span class="legend-swatch" style="background:#16A34A;"></span>Low</span><b>21%</b></div>
-          </div>
+          <div class="legend-row" style="flex-direction:column; align-items:stretch; gap:8px; margin-top:14px;" id="distLegend"></div>
+          <div id="demandModelCard"></div>
         </div>
       </div>
 
@@ -73,17 +71,11 @@
         <div class="card span-8">
           <div class="card-head">
             <div><h3>Daily Classification</h3><div class="card-sub">Predicted demand level per day, with model probability</div></div>
-            <a href="#" class="link-more">View All <i data-feather="arrow-right"></i></a>
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Date</th><th>Demand Level</th><th>Probability (%)</th><th>Description</th><th>Recommendation</th></tr></thead>
-              <tbody>
-                <tr><td>May 27, 2026</td><td><span class="badge high"><span class="badge-dot"></span>High</span></td><td>78%</td><td>High consumption expected</td><td>Optimize usage today</td></tr>
-                <tr><td>May 26, 2026</td><td><span class="badge medium"><span class="badge-dot"></span>Medium</span></td><td>54%</td><td>Moderate consumption</td><td>Monitor peak-hour usage</td></tr>
-                <tr><td>May 25, 2026</td><td><span class="badge medium"><span class="badge-dot"></span>Medium</span></td><td>48%</td><td>Moderate consumption</td><td>No action needed</td></tr>
-                <tr><td>May 24, 2026</td><td><span class="badge low"><span class="badge-dot"></span>Low</span></td><td>32%</td><td>Low consumption</td><td>Good energy-saving day</td></tr>
-              </tbody>
+              <thead><tr><th>Date</th><th>Demand Level</th><th>Probability (%)</th><th>Recommendation</th></tr></thead>
+              <tbody id="demandRows"><tr><td colspan="4" class="text-muted">Loading…</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -93,19 +85,19 @@
           <div style="display:flex; flex-direction:column; gap:12px;">
             <div style="display:flex; gap:10px; align-items:flex-start;">
               <span class="badge low" style="flex-shrink:0;"><span class="badge-dot"></span>Low</span>
-              <div class="text-sm text-muted">0 – 60% of estimated household capacity. Consumption is within normal savings range.</div>
+              <div class="text-sm text-muted">Daily peak is in the lower range of the synthetic household-demand distribution.</div>
             </div>
             <div style="display:flex; gap:10px; align-items:flex-start;">
               <span class="badge medium" style="flex-shrink:0;"><span class="badge-dot"></span>Medium</span>
-              <div class="text-sm text-muted">61 – 80% of capacity. Consumption is moderate; monitor high-load appliances.</div>
+              <div class="text-sm text-muted">Daily peak is moderate; monitor evening usage.</div>
             </div>
             <div style="display:flex; gap:10px; align-items:flex-start;">
               <span class="badge high" style="flex-shrink:0;"><span class="badge-dot"></span>High</span>
-              <div class="text-sm text-muted">81 – 100%+ of capacity. Consumption is high; consider load-shifting actions.</div>
+              <div class="text-sm text-muted">Daily peak is high; consider load-shifting actions.</div>
             </div>
           </div>
           <div class="divider"></div>
-          <div class="text-sm text-muted">Demand levels are generated by the Hybrid BLSTM–SARIMA model output, mapped against household-specific thresholds derived from historical records.</div>
+          <div class="text-sm text-muted">Levels are predicted by the trained demand classifier from calendar and recent-peak features.</div>
         </div>
       </div>
 
@@ -113,27 +105,98 @@
   </div>
 </div>
 
+<script src="assets/js/api.js"></script>
 <script src="assets/js/shell.js"></script>
+<script src="assets/js/analytics.js"></script>
 <script>
 ElectroShell.mount('demand', 'Demand Classification', { dateRange:false });
 
-const days = ['May 21','May 22','May 23','May 24','May 25','May 26','May 27'];
-const probs = [42,55,38,32,48,54,78];
-new Chart(document.getElementById('chartDemand'), {
-  type:'bar',
-  data:{ labels:days, datasets:[{
-    data:probs,
-    backgroundColor:probs.map(p=> p>=70?'#EF4444': p>=45?'#F59E0B':'#16A34A'),
-    borderRadius:6, maxBarThickness:34
-  }]},
-  options:{ plugins:{ legend:{display:false} }, scales:{ y:{ suggestedMax:100, grid:{ color:'#F1F5F9' } }, x:{ grid:{ display:false } } }, maintainAspectRatio:false }
-});
+(function () {
+  const esc = ElectroAPI.escapeHTML;
+  const COLORS = { High:'#EF4444', Medium:'#F59E0B', Low:'#16A34A' };
+  const RECOMMENDATION = {
+    High: 'Shift heavy appliance use outside 13:00–21:00',
+    Medium: 'Monitor usage during evening hours',
+    Low: 'Normal usage'
+  };
+  const levelOf = d => d.predicted_level || d.actual_level;
+  const topProb = d => {
+    const ps = [d.p_high, d.p_medium, d.p_low].filter(Number.isFinite);
+    return ps.length ? Math.max(...ps) * 100 : null;
+  };
+  const fmtDate = iso => ElectroAPI.formatDate(iso + 'T00:00:00Z');
 
-new Chart(document.getElementById('chartDist'), {
-  type:'doughnut',
-  data:{ labels:['High','Medium','Low'], datasets:[{ data:[43,36,21], backgroundColor:['#EF4444','#F59E0B','#16A34A'], borderWidth:0 }] },
-  options:{ plugins:{ legend:{display:false} }, cutout:'68%', maintainAspectRatio:false }
-});
+  async function load() {
+    const content = document.getElementById('page-content');
+    try {
+      const [daily, active] = await Promise.all([
+        ElectroAPI.request('/api/demand/daily'),
+        ElectroAPI.request('/api/models/active')
+      ]);
+      render(daily, active);
+    } catch (error) {
+      if (error.status !== 404) ElectroAPI.notify(error.message, 'error');
+      ElectroAnalytics.emptyState(content);
+    }
+  }
+
+  function render(daily, active) {
+    const days = daily.days;
+    if (!days.length) throw Object.assign(new Error('No data'), { status: 404 });
+    const run = (active.runs || []).find(r => r.task === 'demand_class') || daily.model;
+    const metrics = run.metrics || {};
+
+    document.getElementById('demandSub').textContent = `${fmtDate(days[0].date)} – ${fmtDate(days[days.length - 1].date)} · peak MW per day`;
+    document.getElementById('demandBadge').innerHTML = ElectroAnalytics.dataBadge(daily.data_source);
+    document.getElementById('demandModelCard').innerHTML = ElectroAnalytics.modelCard(
+      run, 'Held-out test', Number.isFinite(metrics.macro_f1) ? `Macro-F1 ${metrics.macro_f1.toFixed(2)}` : 'Macro-F1 —');
+
+    const counts = { High:0, Medium:0, Low:0 };
+    days.forEach(d => { const l = levelOf(d); if (l in counts) counts[l] += 1; });
+    const probs = days.map(topProb).filter(Number.isFinite);
+    const last = days[days.length - 1];
+
+    document.getElementById('kpiLevel').textContent = levelOf(last) || '—';
+    document.getElementById('kpiLevelSub').textContent = topProb(last) === null ? fmtDate(last.date) : `${topProb(last).toFixed(1)}% probability`;
+    document.getElementById('kpiProb').textContent = probs.length ? `${(probs.reduce((a, b) => a + b, 0) / probs.length).toFixed(1)}%` : '—';
+    document.getElementById('kpiHigh').textContent = String(counts.High);
+    document.getElementById('kpiHighSub').textContent = `of ${days.length} days`;
+    document.getElementById('donutVal').textContent = String(days.length);
+
+    document.getElementById('distLegend').innerHTML = ['High', 'Medium', 'Low'].map(l =>
+      `<div class="legend-item" style="justify-content:space-between;"><span><span class="legend-swatch" style="background:${COLORS[l]};"></span>${l}</span><b>${(counts[l] / days.length * 100).toFixed(1)}%</b></div>`
+    ).join('');
+
+    new Chart(document.getElementById('chartDemand'), {
+      type:'bar',
+      data:{ labels: days.map(d => fmtDate(d.date).replace(/,? \d{4}$/, '')), datasets:[{
+        data: days.map(d => d.peak_mw),
+        backgroundColor: days.map(d => COLORS[levelOf(d)] || '#CBD5E1'),
+        borderRadius:4, maxBarThickness:22
+      }]},
+      options:{ plugins:{ legend:{display:false} }, maintainAspectRatio:false }
+    });
+
+    new Chart(document.getElementById('chartDist'), {
+      type:'doughnut',
+      data:{ labels:['High','Medium','Low'], datasets:[{ data:[counts.High, counts.Medium, counts.Low], backgroundColor:[COLORS.High, COLORS.Medium, COLORS.Low], borderWidth:0 }] },
+      options:{ plugins:{ legend:{display:false} }, cutout:'68%', maintainAspectRatio:false }
+    });
+
+    document.getElementById('demandRows').innerHTML = days.slice().reverse().map(d => {
+      const level = levelOf(d);
+      const p = topProb(d);
+      const cls = ['High', 'Medium', 'Low'].includes(level) ? level.toLowerCase() : 'neutral';
+      return `<tr><td>${esc(fmtDate(d.date))}</td>
+        <td><span class="badge ${cls}"><span class="badge-dot"></span>${esc(level || '—')}</span></td>
+        <td>${p === null ? '—' : esc(p.toFixed(1)) + '%'}</td>
+        <td>${esc(RECOMMENDATION[level] || '—')}</td></tr>`;
+    }).join('');
+    if (window.feather) feather.replace();
+  }
+
+  load();
+})();
 </script>
 </body>
 </html>

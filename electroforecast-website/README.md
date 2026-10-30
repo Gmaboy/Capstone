@@ -66,3 +66,37 @@ rejects municipality/barangay combinations that do not match.
 Database details are documented in `database/README.md`. `schema.sqlite.sql` is
 the working local schema and `schema.sql` is the MySQL/MariaDB production
 reference.
+
+## Forecasting data and models
+
+The Forecasting, Demand Classification, and Explainable AI pages read trained
+model results from the database. Install the development dependencies first:
+
+```powershell
+pip install -r requirements-dev.txt
+```
+
+Then generate the synthetic data, load it, and train the models:
+
+```powershell
+python -m tools.synth.generate --config tools/synth/config.json --out data/synthetic
+python -m tools.synth.load --db database/electroforecast.db --real data/real/guimelco_residential_2020_2025.csv --synthetic data/synthetic
+python -m tools.model.train --db database/electroforecast.db --models-dir models --reports-dir reports
+```
+
+Until `tools.model.train` has run, the three pages show "No trained model yet".
+
+- The synthetic data is anchored to GUIMELCO's `Residential.pdf`. The monthly
+  energy and annual peak forecasts use real GUIMELCO data; the demand
+  classifier is trained on synthetic data and is labelled "Synthetic" in the UI.
+- The synthetic data validation report is `data/synthetic/validation_report.md`.
+  Model reports and charts are written to `reports/`.
+- Known discrepancy: the 2023 monthly values sum to 38,689 while the printed
+  2023 total is 38,369. The monthly values are used.
+
+Open items to confirm:
+
+1. The correct 2023 total (38,689 from the months versus 38,369 printed).
+2. Whether the customer counts are year-end or average counts.
+3. Household appliance values are mostly estimates.
+
