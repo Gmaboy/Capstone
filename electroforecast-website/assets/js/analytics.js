@@ -4,6 +4,7 @@
   const esc = value => ElectroAPI.escapeHTML(value);
 
   function dataBadge(source) {
+    if (source === 'crowdsourced') return '<span class="data-badge crowdsourced">Crowdsourced, admin-approved</span>';
     const real = source === 'real';
     return `<span class="data-badge ${real ? 'real' : 'synthetic'}">${real ? 'Real GUIMELCO data' : 'Synthetic'}</span>`;
   }

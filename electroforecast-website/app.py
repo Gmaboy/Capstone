@@ -2381,6 +2381,71 @@ def api_explain():
     )
 
 
+@app.get("/api/validated-data")
+@require_auth("admin", "guimelco", "researcher")
+def api_validated_data():
+    """Real GUIMELCO records plus aggregated, admin-approved crowdsourced submissions."""
+    with get_db() as db:
+        try:
+            monthly = db.execute(
+                "SELECT year, month, energy_mwh, source FROM utility_monthly_energy ORDER BY year, month"
+            ).fetchall()
+            annual = db.execute(
+                """
+                SELECT a.year, a.total_mwh_reported, a.customers, a.coincident_peak_mw, a.notes,
+                       (SELECT ROUND(SUM(m.energy_mwh), 3) FROM utility_monthly_energy m
+                        WHERE m.year = a.year) AS monthly_sum_mwh
+                FROM utility_annual_stats a ORDER BY a.year
+                """
+            ).fetchall()
+        except sqlite3.OperationalError:
+            monthly, annual = [], []
+        bills = db.execute(
+            """
+            SELECT billing_month, COUNT(DISTINCT household_id) AS households, COUNT(*) AS bills,
+                   ROUND(SUM(consumption_kwh), 1) AS total_kwh, ROUND(AVG(consumption_kwh), 1) AS avg_kwh
+            FROM monthly_consumption
+            WHERE verification_status = 'approved' AND deleted_at IS NULL
+            GROUP BY billing_month ORDER BY billing_month
+            """
+        ).fetchall()
+        categories = db.execute(
+            """
+            SELECT c.category_name, COUNT(*) AS appliances, ROUND(AVG(a.power_rating_watts), 1) AS avg_watts
+            FROM appliances a JOIN appliance_categories c ON c.category_id = a.category_id
+            WHERE a.verification_status = 'approved'
+            GROUP BY c.category_name ORDER BY appliances DESC, c.category_name
+            """
+        ).fetchall()
+        households = db.execute(
+            """
+            SELECT COUNT(DISTINCT household_id) AS n FROM (
+              SELECT household_id FROM monthly_consumption WHERE verification_status = 'approved' AND deleted_at IS NULL
+              UNION
+              SELECT household_id FROM appliances WHERE verification_status = 'approved'
+            )
+            """
+        ).fetchone()["n"]
+    return jsonify(
+        utility={
+            "data_source": "real",
+            "source": monthly[0]["source"] if monthly else None,
+            "monthly": [{"year": r["year"], "month": r["month"], "energy_mwh": r["energy_mwh"]} for r in monthly],
+            "annual": [dict(r) for r in annual],
+        },
+        crowdsourced={
+            "data_source": "crowdsourced",
+            "monthly": [dict(r) for r in bills],
+            "categories": [dict(r) for r in categories],
+            "totals": {
+                "households": int(households),
+                "approved_bills": sum(int(r["bills"]) for r in bills),
+                "approved_appliances": sum(int(r["appliances"]) for r in categories),
+            },
+        },
+    )
+
+
 @app.get("/")
 def root():
     return redirect("/login.html")
