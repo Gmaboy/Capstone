@@ -92,6 +92,7 @@
         <div class="page-title">${title}</div>
       </div>
       <div class="topbar-right">
+        ${window.ElectroTheme ? ElectroTheme.toggleHTML('icon-btn') : ''}
         <button class="icon-btn" id="notifBtn" aria-label="Notifications" onclick="window.location.href='notifications.html'"><i data-feather="bell"></i><span class="dot" id="notifDot" hidden></span></button>
         <div class="topbar-avatar" title="${user.full_name || ""}">${initials(user.full_name || "User")}</div>
       </div>
@@ -113,6 +114,7 @@
       document.getElementById('shell-topbar').innerHTML = topbarHTML(title, opts, user);
       if (window.feather) feather.replace({ 'stroke-width': 2, width: 17, height: 17 });
       this.refreshUnread();
+      if (window.ElectroTheme) ElectroTheme.sync();
       const burger = document.getElementById('burgerBtn');
       if (burger){
         const sidebar = document.getElementById('sidebar');
