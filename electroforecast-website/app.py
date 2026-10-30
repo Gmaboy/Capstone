@@ -1831,13 +1831,15 @@ def delete_consumption(consumption_id: int):
         household_id = household_id_for(request.current_user["user_id"], db)
         row = db.execute(
             """
-            SELECT billing_month FROM monthly_consumption
+            SELECT billing_month, verification_status FROM monthly_consumption
             WHERE consumption_id=? AND household_id=? AND deleted_at IS NULL
             """,
             (consumption_id, household_id),
         ).fetchone()
         if not row:
             return jsonify(error="Consumption record not found"), 404
+        if row["verification_status"] == "approved":
+            return jsonify(error="Approved bill submissions cannot be deleted"), 409
         db.execute(
             """
             UPDATE monthly_consumption SET deleted_at=?, updated_at=?
@@ -1903,7 +1905,7 @@ def permanently_delete_consumption():
         household_id = household_id_for(request.current_user["user_id"], db)
         rows = db.execute(
             f"""
-            SELECT consumption_id, billing_month, bill_image_filename
+            SELECT consumption_id, billing_month, bill_image_filename, verification_status
             FROM monthly_consumption
             WHERE household_id=? AND deleted_at IS NOT NULL
               AND consumption_id IN ({placeholders})
@@ -1912,6 +1914,8 @@ def permanently_delete_consumption():
         ).fetchall()
         if not rows:
             return jsonify(error="No recently deleted monthly records were selected"), 404
+        if any(row["verification_status"] == "approved" for row in rows):
+            return jsonify(error="Approved bill submissions cannot be deleted; restore them instead"), 409
         eligible_ids = [int(row["consumption_id"]) for row in rows]
         eligible_placeholders = ",".join("?" for _ in eligible_ids)
         db.execute(

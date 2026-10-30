@@ -26,7 +26,7 @@
         <td data-label="Bill Amount">${item.bill_amount_php!=null?`₱${Number(item.bill_amount_php).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`:'—'}</td>
         <td data-label="Source">${ElectroAPI.escapeHTML(sourceLabel(item.source_of_info))}</td>
         <td data-label="Status"><div class="status-note-wrap">${ElectroAPI.statusBadge(item.verification_status)}${item.reviewer_notes?`<button type="button" class="reviewer-note-button ${Number(item.reviewer_notes_unread)?'unread':''}" data-view-monthly-reviewer-note="${item.consumption_id}" aria-label="${Number(item.reviewer_notes_unread)?'View unread':'View'} Reviewer Notes for ${ElectroAPI.formatMonth(item.billing_month)}"><i data-feather="message-square"></i><span class="reviewer-note-unread-dot"></span></button>`:''}</div></td>
-        <td data-label="Actions"><div class="row-actions portal-actions"><button type="button" data-edit-monthly="${item.consumption_id}" aria-label="Edit ${ElectroAPI.formatMonth(item.billing_month)}"><i data-feather="edit-2"></i></button><button type="button" class="reject" data-delete-monthly="${item.consumption_id}" aria-label="Move ${ElectroAPI.formatMonth(item.billing_month)} to Recently Deleted"><i data-feather="trash-2"></i></button></div></td>
+        <td data-label="Actions"><div class="row-actions portal-actions"><button type="button" data-edit-monthly="${item.consumption_id}" aria-label="Edit ${ElectroAPI.formatMonth(item.billing_month)}"><i data-feather="edit-2"></i></button>${item.verification_status==='approved'?`<button type="button" class="submission-delete-locked" disabled title="Approved bills cannot be deleted" aria-label="Approved ${ElectroAPI.formatMonth(item.billing_month)} bill cannot be deleted"><i data-feather="lock"></i></button>`:`<button type="button" class="reject" data-delete-monthly="${item.consumption_id}" aria-label="Move ${ElectroAPI.formatMonth(item.billing_month)} to Recently Deleted"><i data-feather="trash-2"></i></button>`}</div></td>
       </tr>`).join('')
       : `<tr><td colspan="6"><div class="empty-table"><i data-feather="bar-chart-2"></i><b>No monthly records yet</b><span>Add the consumption shown on your electricity bill.</span></div></td></tr>`;
   }
@@ -177,6 +177,7 @@
 
   async function remove(id) {
     const record = state.records.find(item=>String(item.consumption_id)===String(id));
+    if (record && record.verification_status === 'approved') { ElectroAPI.notify('Approved bills cannot be deleted.', 'error'); return; }
     if (!record || !window.confirm(`Move the ${ElectroAPI.formatMonth(record.billing_month)} consumption record to Recently Deleted?`)) return;
     try {
       await ElectroAPI.request(`/api/consumption/${id}`,{method:'DELETE'});
