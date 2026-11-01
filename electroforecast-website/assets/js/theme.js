@@ -35,6 +35,9 @@
 
   apply(preferred());
 
+  // The collapsed sidebar is also applied here, before paint, so pages don't jump when they load.
+  try { if (localStorage.getItem('electro_sidebar') === 'collapsed') root.setAttribute('data-sidebar', 'collapsed'); } catch (_) { /* default: expanded */ }
+
   if (media) {
     const follow = () => { if (!saved()) apply(preferred()); };
     if (media.addEventListener) media.addEventListener('change', follow);

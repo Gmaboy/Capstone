@@ -19,7 +19,7 @@ from werkzeug.utils import secure_filename
 ROOT = Path(__file__).resolve().parent
 DATABASE_PATH = Path(os.environ.get("ELECTROFORECAST_DB", ROOT / "database" / "electroforecast.db"))
 SCHEMA_PATH = ROOT / "database" / "schema.sqlite.sql"
-BILL_IMAGE_DIR = ROOT / "database" / "uploads" / "bills"
+BILL_IMAGE_DIR = Path(os.environ.get("ELECTROFORECAST_UPLOADS", ROOT / "database" / "uploads" / "bills"))
 BILL_IMAGE_MAX_BYTES = 5 * 1024 * 1024
 
 app = Flask(__name__, static_folder=None)
@@ -125,6 +125,8 @@ def initialize_database() -> None:
             db.execute(
                 "ALTER TABLE appliances ADD COLUMN reviewer_notes_read_at TEXT"
             )
+        if "removed_at" not in appliance_columns:
+            db.execute("ALTER TABLE appliances ADD COLUMN removed_at TEXT")
         household_appliance_columns = {
             row["name"] for row in db.execute("PRAGMA table_info(household_appliances)")
         }
@@ -174,10 +176,14 @@ def initialize_database() -> None:
                 reviewer_notes=?,
                 reviewer_notes_read_at=COALESCE(reviewer_notes_read_at, ?),
                 reviewed_at=COALESCE(reviewed_at, ?)
-            WHERE copied_from_appliance_id IS NOT NULL
+            WHERE copied_from_appliance_id IN (
+              SELECT appliance_id FROM appliances WHERE verification_status='approved'
+            )
             """,
             (CATALOG_APPROVAL_NOTE, now(), now()),
         )
+        remove_unapproved_inventory(db)
+        drop_repeated_reasons(db)
 
         roles = {
             "admin": "Full system and validation access",
@@ -1381,13 +1387,16 @@ def restore_household_appliance(inventory_id: int):
         household_id = household_id_for(request.current_user["user_id"], db)
         row = db.execute(
             """
-            SELECT appliance_name FROM household_appliances
-            WHERE inventory_id=? AND household_id=? AND deleted_at IS NOT NULL
+            SELECT ha.appliance_name, ha.source_appliance_id, a.verification_status AS source_status
+            FROM household_appliances ha LEFT JOIN appliances a ON a.appliance_id=ha.source_appliance_id
+            WHERE ha.inventory_id=? AND ha.household_id=? AND ha.deleted_at IS NOT NULL
             """,
             (inventory_id, household_id),
         ).fetchone()
         if not row:
             return jsonify(error="Recently deleted appliance not found"), 404
+        if row["source_appliance_id"] is not None and row["source_status"] != "approved":
+            return jsonify(error="An admin removed this appliance from the approved list, so it can't be restored"), 409
         db.execute(
             """
             UPDATE household_appliances
@@ -1511,7 +1520,7 @@ def update_appliance(appliance_id: int):
         household_id = household_id_for(request.current_user["user_id"], db)
         existing = db.execute(
             """
-            SELECT appliance_name, copied_from_appliance_id
+            SELECT appliance_name, copied_from_appliance_id, verification_status
             FROM appliances WHERE appliance_id=? AND household_id=?
             """,
             (appliance_id, household_id),
@@ -1565,6 +1574,8 @@ def update_appliance(appliance_id: int):
                 APPLIANCE_SELECT + " WHERE a.appliance_id = ?", (appliance_id,)
             ).fetchone()
             return jsonify(appliance=dict(row))
+        if existing["verification_status"] == "approved":
+            return jsonify(error="Approved submissions can't be changed. Send feedback to an admin if something is wrong."), 409
         try:
             fields = appliance_fields(data)
         except (ValueError, TypeError) as error:
@@ -2007,7 +2018,9 @@ def admin_submissions(db: sqlite3.Connection, status: str | None) -> list[dict[s
                printf('%.0f W · Qty %d · %.1f hr/day', a.power_rating_watts, a.quantity, a.avg_daily_usage_hours) AS details,
                a.source_of_info, a.verification_status, a.reviewer_notes,
                a.created_at, a.updated_at, u.full_name AS contributor,
-               h.barangay, h.municipality, c.category_name
+               h.barangay, h.municipality, c.category_name,
+               a.category_id, a.appliance_name, a.brand, a.model, a.power_rating_watts,
+               CASE WHEN a.removed_at IS NOT NULL THEN 1 ELSE 0 END AS removed
         FROM appliances a
         JOIN households h ON h.household_id=a.household_id
         JOIN users u ON u.user_id=h.user_id
@@ -2023,7 +2036,7 @@ def admin_submissions(db: sqlite3.Connection, status: str | None) -> list[dict[s
                printf('%.2f kWh · ₱%.2f', m.consumption_kwh, COALESCE(m.bill_amount_php,0)) AS details,
                m.source_of_info, m.verification_status, m.reviewer_notes,
                m.created_at, m.updated_at, u.full_name AS contributor,
-               h.barangay, h.municipality, 'Monthly Consumption' AS category_name,
+               h.barangay, h.municipality, 'Monthly Consumption' AS category_name, 0 AS removed,
                CASE WHEN m.bill_image_filename IS NOT NULL THEN 1 ELSE 0 END AS has_bill_image
         FROM monthly_consumption m
         JOIN households h ON h.household_id=m.household_id
@@ -2102,12 +2115,12 @@ def review_submission(submission_type: str, submission_id: int):
         return jsonify(error="Invalid submission type"), 400
     table, id_column, household_column = mapping[submission_type]
     active_clause = " AND s.deleted_at IS NULL" if submission_type == "consumption" else ""
-    evidence_column = ", s.bill_image_filename" if submission_type == "consumption" else ""
+    evidence_column = ", s.bill_image_filename" if submission_type == "consumption" else ", s.removed_at"
     notes_read_reset = ", reviewer_notes_read_at=NULL"
     with get_db() as db:
         row = db.execute(
             f"""
-            SELECT h.user_id{evidence_column}
+            SELECT h.user_id, s.verification_status{evidence_column}
             FROM {table} s JOIN households h ON h.household_id=s.{household_column}
             WHERE s.{id_column}=?{active_clause}
             """,
@@ -2115,6 +2128,11 @@ def review_submission(submission_type: str, submission_id: int):
         ).fetchone()
         if not row:
             return jsonify(error="Submission not found"), 404
+        if row["verification_status"] == "approved":
+            action = "Edit or Remove" if submission_type == "appliance" else "Delete"
+            return jsonify(error=f"Approved submissions are final. Use {action} instead."), 409
+        if submission_type == "appliance" and row["removed_at"]:
+            return jsonify(error="This appliance was removed after approval and can't be reviewed again"), 409
         if (
             submission_type == "consumption"
             and status == "approved"
@@ -2158,6 +2176,228 @@ def review_submission(submission_type: str, submission_id: int):
             {"reviewer_notes": notes},
         )
     return jsonify(ok=True, status=status)
+
+
+APPLIANCE_SPEC_FIELDS = ("appliance_name", "brand", "model", "category_id", "power_rating_watts", "source_of_info")
+SOURCE_LABELS = {
+    "nameplate_label": "Nameplate Label",
+    "user_manual": "User Manual",
+    "manual_estimate": "Manual Estimate",
+    "retailer_specs": "Retailer Specs",
+}
+
+
+def notify_users(db: sqlite3.Connection, user_ids: set[int], title: str, message: str,
+                 entity_type: str, entity_id: int) -> None:
+    for user_id in sorted(user_ids):
+        db.execute(
+            """
+            INSERT INTO notifications(user_id, title, message, type, entity_type, entity_id)
+            VALUES (?, ?, ?, 'submission_update', ?, ?)
+            """,
+            (user_id, title, message, entity_type, entity_id),
+        )
+
+
+def appliance_users(db: sqlite3.Connection, appliance_id: int) -> set[int]:
+    """The submitter plus every household that has this appliance in My Appliances."""
+    rows = db.execute(
+        """
+        SELECT h.user_id FROM appliances a JOIN households h ON h.household_id=a.household_id
+        WHERE a.appliance_id=? OR a.copied_from_appliance_id=?
+        UNION
+        SELECT h.user_id FROM household_appliances ha JOIN households h ON h.household_id=ha.household_id
+        WHERE ha.source_appliance_id=? AND ha.deleted_at IS NULL
+        """,
+        (appliance_id, appliance_id, appliance_id),
+    ).fetchall()
+    return {row["user_id"] for row in rows}
+
+
+def withdraw_inventory_copies(db: sqlite3.Connection, appliance_id: int) -> set[int]:
+    """Move every active My Appliances copy of an appliance to Recently Deleted; returns the owners."""
+    owners = {row["user_id"] for row in db.execute(
+        """
+        SELECT h.user_id FROM household_appliances ha JOIN households h ON h.household_id=ha.household_id
+        WHERE ha.source_appliance_id=? AND ha.deleted_at IS NULL
+        """,
+        (appliance_id,),
+    )}
+    stamp = now()
+    db.execute(
+        "UPDATE household_appliances SET deleted_at=?, updated_at=? WHERE source_appliance_id=? AND deleted_at IS NULL",
+        (stamp, stamp, appliance_id),
+    )
+    return owners
+
+
+def removal_message(name: str) -> str:
+    # The reason is the reviewer note, shown under the message as the administrator's note.
+    return (f"An admin removed {name} from the approved appliances, so it was taken out of My Appliances. "
+            "You can add a replacement from the approved list.")
+
+
+def drop_repeated_reasons(db: sqlite3.Connection) -> None:
+    """Older removal and bill-deletion messages repeated the reason that the administrator's note shows."""
+    rows = db.execute(
+        "SELECT notification_id, message FROM notifications "
+        "WHERE title IN ('Appliance removed', 'Bill deleted by admin') AND message LIKE '% Reason: %'"
+    ).fetchall()
+    for row in rows:
+        message = re.sub(r" Reason: .*?(?= You can add a replacement|$)", "", row["message"], flags=re.S)
+        db.execute("UPDATE notifications SET message=? WHERE notification_id=?", (message, row["notification_id"]))
+
+
+def remove_unapproved_inventory(db: sqlite3.Connection) -> int:
+    """Withdraw My Appliances copies whose source is no longer approved (left over from older re-reviews)."""
+    sources = db.execute(
+        """
+        SELECT DISTINCT a.appliance_id, a.appliance_name
+        FROM appliances a JOIN household_appliances ha ON ha.source_appliance_id=a.appliance_id
+        WHERE ha.deleted_at IS NULL AND a.verification_status<>'approved'
+        """
+    ).fetchall()
+    withdrawn = 0
+    for source in sources:
+        owners = withdraw_inventory_copies(db, source["appliance_id"])
+        withdrawn += len(owners)
+        notify_users(db, owners, "Appliance removed",
+                     removal_message(source["appliance_name"]),
+                     "appliance", source["appliance_id"])
+    return withdrawn
+
+
+def approved_appliance(db: sqlite3.Connection, appliance_id: int):
+    """(row, error response) for an appliance an admin may still edit or remove."""
+    row = db.execute("SELECT * FROM appliances WHERE appliance_id=?", (appliance_id,)).fetchone()
+    if not row:
+        return None, (jsonify(error="Appliance not found"), 404)
+    if row["verification_status"] != "approved" or row["removed_at"]:
+        return None, (jsonify(error="Only approved appliances can be edited or removed"), 409)
+    return row, None
+
+
+def spec_changes(old: sqlite3.Row, new: dict[str, Any], categories: dict[int, str]) -> list[str]:
+    def show(key: str, value: Any) -> str:
+        if key == "power_rating_watts":
+            return f"{float(value):g} W"
+        if key == "category_id":
+            return categories.get(int(value), str(value))
+        if key == "source_of_info":
+            return SOURCE_LABELS.get(value, value)
+        return value or "none"
+    labels = {"appliance_name": "name", "brand": "brand", "model": "model", "category_id": "category",
+              "power_rating_watts": "power rating", "source_of_info": "source"}
+    return [f"{labels[key]} {show(key, old[key])} \u2192 {show(key, new[key])}"
+            for key in APPLIANCE_SPEC_FIELDS if old[key] != new[key]]
+
+
+@app.patch("/api/admin/appliances/<int:appliance_id>")
+@require_auth("admin")
+def edit_approved_appliance(appliance_id: int):
+    data = json_body()
+    reason = text_value(data, "reason")
+    if not reason:
+        return jsonify(error="Explain the correction so households know why it changed"), 400
+    with get_db() as db:
+        row, error = approved_appliance(db, appliance_id)
+        if error:
+            return error
+        merged = {key: data.get(key, row[key]) for key in APPLIANCE_SPEC_FIELDS}
+        merged.update(quantity=row["quantity"], avg_daily_usage_hours=row["avg_daily_usage_hours"])
+        try:
+            fields = appliance_fields(merged)
+        except (ValueError, TypeError) as err:
+            return jsonify(error=str(err)), 400
+        categories = {r["category_id"]: r["category_name"] for r in db.execute("SELECT * FROM appliance_categories")}
+        if fields["category_id"] not in categories:
+            return jsonify(error="Selected category does not exist"), 400
+        changes = spec_changes(row, fields, categories)
+        if not changes:
+            return jsonify(error="Nothing was changed"), 400
+        spec = [fields[key] for key in APPLIANCE_SPEC_FIELDS]
+        assignments = ", ".join(f"{key}=?" for key in APPLIANCE_SPEC_FIELDS)
+        stamp = now()
+        db.execute(f"UPDATE appliances SET {assignments}, updated_at=? WHERE appliance_id=? OR copied_from_appliance_id=?",
+                   (*spec, stamp, appliance_id, appliance_id))
+        # Copies keep each household's own quantity and hours; only the shared specs change.
+        db.execute(f"UPDATE household_appliances SET {assignments}, updated_at=? WHERE source_appliance_id=?",
+                   (*spec, stamp, appliance_id))
+        users = appliance_users(db, appliance_id)
+        notify_users(db, users, "Appliance updated",
+                     f"An admin corrected {fields['appliance_name']}: {'; '.join(changes)}. Reason: {reason}",
+                     "appliance", appliance_id)
+        audit(db, request.current_user["user_id"], "edited_approved", "appliance", appliance_id,
+              {"changes": changes, "reason": reason, "households_notified": len(users)})
+    return jsonify(ok=True, changes=changes, households_notified=len(users))
+
+
+@app.post("/api/admin/appliances/<int:appliance_id>/remove")
+@require_auth("admin")
+def remove_approved_appliance(appliance_id: int):
+    reason = text_value(json_body(), "reason")
+    if not reason:
+        return jsonify(error="A reason is required to remove an approved appliance"), 400
+    with get_db() as db:
+        row, error = approved_appliance(db, appliance_id)
+        if error:
+            return error
+        users = appliance_users(db, appliance_id)
+        stamp = now()
+        # Kept as a rejected record (not deleted) so the audit trail and notifications still resolve.
+        db.execute(
+            """
+            UPDATE appliances
+            SET verification_status='rejected', reviewer_notes=?, reviewer_notes_read_at=NULL,
+                reviewed_by=?, reviewed_at=?, removed_at=?, updated_at=?
+            WHERE appliance_id=? OR copied_from_appliance_id=?
+            """,
+            (reason, request.current_user["user_id"], stamp, stamp, stamp, appliance_id, appliance_id),
+        )
+        withdraw_inventory_copies(db, appliance_id)
+        notify_users(db, users, "Appliance removed", removal_message(row["appliance_name"]),
+                     "appliance", appliance_id)
+        audit(db, request.current_user["user_id"], "removed_approved", "appliance", appliance_id,
+              {"reason": reason, "households_notified": len(users)})
+    return jsonify(ok=True, households_notified=len(users))
+
+
+@app.post("/api/admin/consumption/<int:consumption_id>/delete")
+@require_auth("admin")
+def delete_approved_consumption(consumption_id: int):
+    reason = text_value(json_body(), "reason")
+    if not reason:
+        return jsonify(error="A reason is required to delete an approved bill"), 400
+    with get_db() as db:
+        row = db.execute(
+            """
+            SELECT m.billing_month, m.verification_status, h.user_id
+            FROM monthly_consumption m JOIN households h ON h.household_id=m.household_id
+            WHERE m.consumption_id=? AND m.deleted_at IS NULL
+            """,
+            (consumption_id,),
+        ).fetchone()
+        if not row:
+            return jsonify(error="Bill not found"), 404
+        if row["verification_status"] != "approved":
+            return jsonify(error="Only approved bills are deleted here; reject pending ones instead"), 409
+        stamp = now()
+        # Also marked rejected, so restoring it from Recently Deleted can't bring back an approved bill.
+        db.execute(
+            """
+            UPDATE monthly_consumption
+            SET verification_status='rejected', reviewer_notes=?, reviewer_notes_read_at=NULL,
+                reviewed_by=?, reviewed_at=?, deleted_at=?, updated_at=?
+            WHERE consumption_id=?
+            """,
+            (reason, request.current_user["user_id"], stamp, stamp, stamp, consumption_id),
+        )
+        month = datetime.strptime(row["billing_month"], "%Y-%m").strftime("%B %Y")
+        notify_users(db, {row["user_id"]}, "Bill deleted by admin",
+                     f"An admin deleted your {month} bill.", "consumption", consumption_id)
+        audit(db, request.current_user["user_id"], "deleted_approved", "consumption", consumption_id,
+              {"reason": reason})
+    return jsonify(ok=True)
 
 
 @app.get("/api/admin/users")

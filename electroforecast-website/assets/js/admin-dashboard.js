@@ -42,7 +42,7 @@
         <td data-label="Contributor"><div class="record-title"><b>${ElectroAPI.escapeHTML(item.contributor)}</b><small>${ElectroAPI.escapeHTML([item.barangay,item.municipality].filter(Boolean).join(', '))}</small></div></td>
         <td data-label="Details"><b>${ElectroAPI.escapeHTML(item.details)}</b><div class="text-sm text-muted">${ElectroAPI.titleCase(item.source_of_info)}${item.submission_type==='consumption' ? ` · ${item.has_bill_image ? 'Bill picture attached' : 'No bill picture'}` : ''}</div></td>
         <td data-label="Updated">${ElectroAPI.formatDate(item.updated_at)}</td>
-        <td data-label="Status">${ElectroAPI.statusBadge(item.verification_status)}</td>
+        <td data-label="Status">${ElectroAPI.statusBadge(Number(item.removed) ? 'removed' : item.verification_status)}</td>
         <td data-label="Actions"><button type="button" class="btn btn-outline btn-sm" data-review="${item.submission_type}:${item.submission_id}">${state.user.role==='admin' ? 'Review' : 'View'}</button></td>
       </tr>`).join('');
     feather.replace({ 'stroke-width':2 });
@@ -107,12 +107,36 @@
       <div><small>Category</small><b>${ElectroAPI.escapeHTML(item.category_name)}</b></div>
       <div><small>Submitted Value</small><b>${ElectroAPI.escapeHTML(item.details)}</b></div>
       <div><small>Information Source</small><b>${ElectroAPI.titleCase(item.source_of_info)}</b></div>
-      <div><small>Current Status</small>${ElectroAPI.statusBadge(item.verification_status)}</div>
+      <div><small>Current Status</small>${ElectroAPI.statusBadge(Number(item.removed) ? 'removed' : item.verification_status)}</div>
       ${item.submission_type === 'consumption' ? `<div><small>Bill Evidence</small>${item.has_bill_image ? `<a class="btn btn-outline btn-sm" href="/api/consumption/${item.submission_id}/bill-image" target="_blank" rel="noopener"><i data-feather="image"></i> View Bill Picture</a>` : '<b>Not attached</b>'}</div>` : ''}`;
-    const canReview = state.user.role === 'admin';
-    $('#approve-submission').hidden = !canReview;
-    $('#reject-submission').hidden = !canReview;
-    $('#review-notes').disabled = !canReview;
+    // Approved submissions are final: appliances can be corrected or removed, bills deleted, always with a reason.
+    const isAdmin = state.user.role === 'admin';
+    const removed = Number(item.removed) === 1;
+    const approved = item.verification_status === 'approved';
+    const isAppliance = item.submission_type === 'appliance';
+    state.mode = !isAdmin || removed ? 'view' : approved ? 'final' : 'review';
+    $('#approve-submission').hidden = state.mode !== 'review';
+    $('#reject-submission').hidden = state.mode !== 'review';
+    $('#remove-submission').hidden = state.mode !== 'final';
+    $('#edit-submission').hidden = state.mode !== 'final' || !isAppliance;
+    $('#remove-submission span').textContent = isAppliance ? 'Remove' : 'Delete bill';
+    $('#edit-submission span').textContent = 'Edit specs';
+    $('#review-edit').hidden = true;
+    $('#review-final-note').hidden = !removed;
+    $('#review-final-note').textContent = removed ? 'Removed after approval. It was taken out of every household\'s My Appliances.' : '';
+    if (state.mode === 'final') {
+      $('#review-notes-label').textContent = 'Reason';
+      $('#review-notes').value = '';
+      $('#review-notes').placeholder = isAppliance ? 'Required. Sent to every household that uses this appliance.' : 'Required. Sent to the household that submitted this bill.';
+      $('#review-notes-hint').textContent = isAppliance
+        ? 'Approved appliances can\'t be rejected. Edit the specs if they are wrong, or remove a duplicate or fake entry.'
+        : 'Approved bills can\'t be rejected. Delete the bill if it is wrong; the household is told why.';
+    } else {
+      $('#review-notes-label').textContent = 'Reviewer Notes';
+      $('#review-notes').placeholder = 'Required when rejecting; optional when approving.';
+      $('#review-notes-hint').textContent = 'Explain corrections clearly so the household can update and resubmit.';
+    }
+    $('#review-notes').disabled = state.mode === 'view';
     $('#review-modal').hidden = false;
     document.body.classList.add('modal-open');
     feather.replace({ 'stroke-width':2 });
@@ -141,6 +165,81 @@
       closeReview();
       await loadAll();
       ElectroAPI.notify(`Submission ${status}.`);
+    } catch (error) {
+      ElectroAPI.notify(error.message,'error');
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  function requireReason() {
+    const reason = $('#review-notes').value.trim();
+    if (!reason) {
+      ElectroAPI.notify('Enter a reason. The affected households will see it.','error');
+      $('#review-notes').focus();
+    }
+    return reason;
+  }
+
+  async function openEdit() {
+    const item = state.selected;
+    if (!state.categories) state.categories = (await ElectroAPI.request('/api/categories')).categories;
+    $('#edit-category').innerHTML = state.categories.map(c=>`<option value="${c.category_id}">${ElectroAPI.escapeHTML(c.category_name)}</option>`).join('');
+    $('#edit-name').value = item.appliance_name || '';
+    $('#edit-watts').value = item.power_rating_watts;
+    $('#edit-brand').value = item.brand || '';
+    $('#edit-model').value = item.model || '';
+    $('#edit-category').value = item.category_id;
+    $('#edit-source').value = item.source_of_info;
+    $('#review-edit').hidden = false;
+    $('#edit-submission span').textContent = 'Save & notify';
+    $('#edit-name').focus();
+  }
+
+  async function saveEdit() {
+    const reason = requireReason();
+    if (!reason) return;
+    const button = $('#edit-submission');
+    button.disabled = true;
+    try {
+      const result = await ElectroAPI.request(`/api/admin/appliances/${state.selected.submission_id}`, {
+        method:'PATCH',
+        body:{
+          appliance_name:$('#edit-name').value, power_rating_watts:$('#edit-watts').value,
+          brand:$('#edit-brand').value, model:$('#edit-model').value,
+          category_id:$('#edit-category').value, source_of_info:$('#edit-source').value, reason
+        }
+      });
+      closeReview();
+      await loadAll();
+      ElectroAPI.notify(`Appliance corrected. ${result.households_notified} household${result.households_notified===1?'':'s'} notified.`);
+    } catch (error) {
+      ElectroAPI.notify(error.message,'error');
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function removeFinal() {
+    const item = state.selected;
+    const reason = requireReason();
+    if (!reason) return;
+    const isAppliance = item.submission_type === 'appliance';
+    const ok = await ElectroAPI.confirm(isAppliance
+      ? `Remove ${item.title} from the approved appliances? It will be taken out of every household's My Appliances, and they will be told why.`
+      : `Delete the ${item.title} bill? The household will be told why.`,
+      { title: isAppliance ? 'Remove approved appliance?' : 'Delete approved bill?' });
+    if (!ok) return;
+    const button = $('#remove-submission');
+    button.disabled = true;
+    try {
+      const url = isAppliance ? `/api/admin/appliances/${item.submission_id}/remove` : `/api/admin/consumption/${item.submission_id}/delete`;
+      const result = await ElectroAPI.request(url, { method:'POST', body:{ reason } });
+      closeReview();
+      await loadAll();
+      ElectroAPI.notify(isAppliance
+        ? `Appliance removed. ${result.households_notified} household${result.households_notified===1?'':'s'} notified.`
+        : 'Bill deleted. The household was notified.');
     } catch (error) {
       ElectroAPI.notify(error.message,'error');
     } finally {
@@ -192,6 +291,11 @@
   $('#refresh-admin').addEventListener('click',()=>loadAll().then(()=>ElectroAPI.notify('Dashboard refreshed.')).catch(error=>ElectroAPI.notify(error.message,'error')));
   $('#approve-submission').addEventListener('click',()=>review('approved'));
   $('#reject-submission').addEventListener('click',()=>review('rejected'));
+  $('#remove-submission').addEventListener('click',removeFinal);
+  $('#edit-submission').addEventListener('click',()=>{
+    const run = $('#review-edit').hidden ? openEdit() : saveEdit();
+    run.catch(error=>ElectroAPI.notify(error.message,'error'));
+  });
   document.addEventListener('keydown',event=>{ if(event.key==='Escape' && !$('#review-modal').hidden) closeReview(); });
 
   (async function init(){

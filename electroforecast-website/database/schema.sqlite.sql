@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS appliances (
   source_of_info TEXT NOT NULL DEFAULT 'nameplate_label'
     CHECK (source_of_info IN ('nameplate_label','user_manual','manual_estimate','retailer_specs')),
   copied_from_appliance_id INTEGER,
+  removed_at TEXT,
   verification_status TEXT NOT NULL DEFAULT 'pending'
     CHECK (verification_status IN ('pending','approved','rejected')),
   reviewer_notes TEXT,

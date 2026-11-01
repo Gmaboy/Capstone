@@ -98,8 +98,27 @@
       <button class="icon-btn modal-close" type="button" data-close-review aria-label="Close review"><i data-feather="x"></i></button>
     </header>
     <div class="review-summary" id="review-summary"></div>
-    <div class="field"><label for="review-notes">Reviewer Notes</label><textarea id="review-notes" rows="4" placeholder="Required when rejecting; optional when approving."></textarea><div class="hint">Explain corrections clearly so the household can update and resubmit.</div></div>
-    <div class="modal-actions review-actions"><button type="button" class="btn btn-danger-outline" id="reject-submission"><i data-feather="x"></i> Reject</button><button type="button" class="btn btn-success" id="approve-submission"><i data-feather="check"></i> Approve</button></div>
+    <div class="review-final-note" id="review-final-note" hidden></div>
+    <fieldset class="review-edit" id="review-edit" hidden>
+      <legend>Correct the approved specs</legend>
+      <div class="review-edit-grid">
+        <div class="field"><label for="edit-name">Appliance name</label><input id="edit-name" type="text" maxlength="120" required></div>
+        <div class="field"><label for="edit-watts">Power rating (W)</label><input id="edit-watts" type="number" min="1" max="50000" step="any" inputmode="decimal" required></div>
+        <div class="field"><label for="edit-brand">Brand</label><input id="edit-brand" type="text" maxlength="80"></div>
+        <div class="field"><label for="edit-model">Model</label><input id="edit-model" type="text" maxlength="80"></div>
+        <div class="field"><label for="edit-category">Category</label><select id="edit-category"></select></div>
+        <div class="field"><label for="edit-source">Information source</label><select id="edit-source">
+          <option value="nameplate_label">Nameplate Label</option><option value="user_manual">User Manual</option>
+          <option value="retailer_specs">Retailer Specs</option><option value="manual_estimate">Manual Estimate</option>
+        </select></div>
+      </div>
+      <div class="hint">Each household keeps its own quantity and hours per day.</div>
+    </fieldset>
+    <div class="field"><label for="review-notes" id="review-notes-label">Reviewer Notes</label><textarea id="review-notes" rows="4" placeholder="Required when rejecting; optional when approving."></textarea><div class="hint" id="review-notes-hint">Explain corrections clearly so the household can update and resubmit.</div></div>
+    <div class="modal-actions review-actions">
+      <button type="button" class="btn btn-danger-outline" id="reject-submission"><i data-feather="x"></i> Reject</button><button type="button" class="btn btn-success" id="approve-submission"><i data-feather="check"></i> Approve</button>
+      <button type="button" class="btn btn-danger-outline" id="remove-submission" hidden><i data-feather="trash-2"></i> <span>Remove</span></button><button type="button" class="btn btn-primary" id="edit-submission" hidden><i data-feather="edit-2"></i> <span>Edit specs</span></button>
+    </div>
   </section>
 </div>
 
