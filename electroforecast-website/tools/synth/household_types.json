@@ -1,0 +1,72 @@
+{
+  "_note": "Typical Philippine figures. Entries with source 'estimate' could not be verified against a published reference. Monthly totals are rescaled to the real utility sheet, so absolute wattages mainly set the relative shape between household types.",
+  "types": [
+    {
+      "name": "basic",
+      "mix_start": 0.35,
+      "mix_end": 0.22,
+      "peak_window": "evening",
+      "appliances": [
+        {"name": "LED lighting (bulb)", "watts": 9, "quantity": 5, "hours_per_day": 5, "source": "estimate"},
+        {"name": "Electric fan", "watts": 60, "quantity": 1, "hours_per_day": 8, "source": "estimate"},
+        {"name": "Television (LED)", "watts": 60, "quantity": 1, "hours_per_day": 4, "source": "estimate"},
+        {"name": "Phone charging", "watts": 10, "quantity": 2, "hours_per_day": 3, "source": "estimate"}
+      ]
+    },
+    {
+      "name": "standard",
+      "mix_start": 0.30,
+      "mix_end": 0.38,
+      "peak_window": "evening",
+      "appliances": [
+        {"name": "LED lighting (bulb)", "watts": 9, "quantity": 6, "hours_per_day": 5, "source": "estimate"},
+        {"name": "Electric fan", "watts": 60, "quantity": 2, "hours_per_day": 8, "source": "estimate"},
+        {"name": "Television (LED)", "watts": 70, "quantity": 1, "hours_per_day": 5, "source": "estimate"},
+        {"name": "Phone charging", "watts": 10, "quantity": 3, "hours_per_day": 3, "source": "estimate"},
+        {"name": "Refrigerator (7 cu ft inverter)", "watts": 100, "quantity": 1, "hours_per_day": 12, "source": "estimate"},
+        {"name": "Rice cooker", "watts": 700, "quantity": 1, "hours_per_day": 1, "source": "estimate"}
+      ]
+    },
+    {
+      "name": "aircon",
+      "mix_start": 0.07,
+      "mix_end": 0.17,
+      "peak_window": "afternoon_evening",
+      "appliances": [
+        {"name": "LED lighting (bulb)", "watts": 9, "quantity": 8, "hours_per_day": 5, "source": "estimate"},
+        {"name": "Electric fan", "watts": 60, "quantity": 1, "hours_per_day": 6, "source": "estimate"},
+        {"name": "Television (LED)", "watts": 80, "quantity": 1, "hours_per_day": 5, "source": "estimate"},
+        {"name": "Phone charging", "watts": 10, "quantity": 4, "hours_per_day": 3, "source": "estimate"},
+        {"name": "Refrigerator (10 cu ft)", "watts": 150, "quantity": 1, "hours_per_day": 12, "source": "estimate"},
+        {"name": "Rice cooker", "watts": 700, "quantity": 1, "hours_per_day": 1, "source": "estimate"},
+        {"name": "Air conditioner (1 hp window type)", "watts": 900, "quantity": 1, "hours_per_day": 4, "source": "estimate"}
+      ]
+    },
+    {
+      "name": "home_business",
+      "mix_start": 0.06,
+      "mix_end": 0.08,
+      "peak_window": "flat",
+      "appliances": [
+        {"name": "LED lighting (bulb)", "watts": 9, "quantity": 8, "hours_per_day": 8, "source": "estimate"},
+        {"name": "Electric fan", "watts": 60, "quantity": 2, "hours_per_day": 10, "source": "estimate"},
+        {"name": "Television (LED)", "watts": 70, "quantity": 1, "hours_per_day": 6, "source": "estimate"},
+        {"name": "Phone charging", "watts": 10, "quantity": 3, "hours_per_day": 3, "source": "estimate"},
+        {"name": "Refrigerator (7 cu ft inverter)", "watts": 100, "quantity": 1, "hours_per_day": 12, "source": "estimate"},
+        {"name": "Rice cooker", "watts": 700, "quantity": 1, "hours_per_day": 1, "source": "estimate"},
+        {"name": "Chest freezer (sari-sari store)", "watts": 100, "quantity": 1, "hours_per_day": 12, "source": "estimate"}
+      ]
+    },
+    {
+      "name": "low_occupancy",
+      "mix_start": 0.22,
+      "mix_end": 0.15,
+      "peak_window": "evening",
+      "appliances": [
+        {"name": "LED lighting (bulb)", "watts": 9, "quantity": 2, "hours_per_day": 3, "source": "estimate"},
+        {"name": "Electric fan", "watts": 60, "quantity": 1, "hours_per_day": 3, "source": "estimate"},
+        {"name": "Phone charging", "watts": 10, "quantity": 1, "hours_per_day": 3, "source": "estimate"}
+      ]
+    }
+  ]
+}

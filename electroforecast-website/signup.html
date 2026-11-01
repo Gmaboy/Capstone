@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Create Account · GUIMPOWERCORE</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" href="assets/images/electroforecast-logo-transparent.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="assets/js/theme.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
+</head>
+<body>
+<div class="login-shell signup-shell">
+  <aside class="login-aside signup-aside">
+    <div class="brand">
+      <div class="logo-mark"><img src="assets/images/electroforecast-logo-transparent.png" alt="GUIMPOWERCORE logo"></div>
+      <div><div class="brand-title">GUIMPOWERCORE</div><div class="brand-subtitle">Smart Energy Insights</div></div>
+    </div>
+    <div class="login-hero signup-hero">
+      <div class="login-hero-copy">
+        <div class="eyebrow">Join the Guimaras energy community</div>
+        <h1>Your household data can power better forecasts.</h1>
+        <p>Create an account to build your appliance inventory, estimate daily load, contribute appliance ratings, and submit monthly electricity consumption.</p>
+        <div class="signup-benefits">
+          <span><i data-feather="zap"></i> Household load estimates</span>
+          <span><i data-feather="users"></i> Community appliance ratings</span>
+          <span><i data-feather="shield"></i> Administrator-validated data</span>
+        </div>
+      </div>
+      <img class="brand-hero-art" src="assets/images/electroforecast-logo-transparent.png" alt="" aria-hidden="true">
+    </div>
+    <div class="login-credit">© 2026 GUIMPOWERCORE <span>•</span> GECAST Capstone Platform</div>
+  </aside>
+
+  <main class="login-form-side signup-form-side">
+    <span data-theme-slot="icon-btn login-theme-btn"></span>
+    <div class="login-form-card signup-form-card">
+      <a class="back-to-login" href="login.html"><i data-feather="arrow-left"></i> Back to sign in</a>
+      <div class="brand-sm signup-brand-sm">
+        <div class="logo-mark"><img src="assets/images/electroforecast-logo-transparent.png" alt="GUIMPOWERCORE logo"></div>
+        <div><div class="brand-name">GUIMPOWERCORE</div><div class="brand-tag">Household registration</div></div>
+      </div>
+
+      <h2>Create your account</h2>
+      <div class="sub">Set up your household profile for energy forecasting and crowdsourcing.</div>
+
+      <form id="signup-form" novalidate>
+        <div class="signup-section-title"><span>1</span><div><b>Account details</b><small>Your sign-in and contact information</small></div></div>
+        <div class="row-2 signup-row-fields">
+          <div class="field"><label for="full-name">Full name *</label><input type="text" id="full-name" name="full_name" autocomplete="name" maxlength="100" required placeholder="Juan Dela Cruz"></div>
+          <div class="field"><label for="email">Email address *</label><input type="email" id="email" name="email" autocomplete="email" maxlength="150" required placeholder="you@example.com"></div>
+        </div>
+        <div class="field"><label for="contact-no">Contact number <span class="optional-label">Optional</span></label><input type="tel" id="contact-no" name="contact_no" autocomplete="tel" maxlength="30" placeholder="+63 9XX XXX XXXX"></div>
+
+        <div class="signup-section-title"><span>2</span><div><b>Household location</b><small>Used to organize Guimaras demand data</small></div></div>
+        <div class="row-2 signup-row-fields">
+          <div class="field"><label for="municipality">Municipality *</label><select id="municipality" name="municipality" required disabled><option value="">Loading municipalities…</option></select></div>
+          <div class="field"><label for="barangay">Barangay *</label><select id="barangay" name="barangay" required disabled><option value="">Select municipality first</option></select><div class="field-meta" id="barangay-count">Select a municipality to load its barangays.</div></div>
+        </div>
+        <div class="signup-section-title"><span>3</span><div><b>Secure your account</b><small>Use at least 8 characters</small></div></div>
+        <div class="row-2 signup-row-fields">
+          <div class="field">
+            <label for="password">Password *</label>
+            <div class="input-icon-wrap"><input type="password" id="password" name="password" autocomplete="new-password" minlength="8" required placeholder="Create password"><button type="button" class="password-toggle" data-password-target="password" aria-label="Show password" aria-pressed="false"><i data-feather="eye"></i></button></div>
+          </div>
+          <div class="field">
+            <label for="password-confirmation">Confirm password *</label>
+            <div class="input-icon-wrap"><input type="password" id="password-confirmation" name="password_confirmation" autocomplete="new-password" minlength="8" required placeholder="Repeat password"><button type="button" class="password-toggle" data-password-target="password-confirmation" aria-label="Show password confirmation" aria-pressed="false"><i data-feather="eye"></i></button></div>
+          </div>
+        </div>
+        <div class="password-requirements" id="password-requirements"><span data-rule="length"><i data-feather="circle"></i> 8+ characters</span><span data-rule="case"><i data-feather="circle"></i> Upper & lowercase</span><span data-rule="number"><i data-feather="circle"></i> One number</span></div>
+
+        <label class="checkbox-row signup-consent"><input type="checkbox" id="terms-accepted" required> I confirm that the information is accurate and agree that approved, non-sensitive energy data may contribute to the platform's forecasting research.</label>
+        <div class="alert error" id="signup-error" hidden><i data-feather="alert-circle"></i><span></span></div>
+        <button type="submit" class="btn btn-primary btn-block signup-submit" id="signup-button"><i data-feather="user-plus"></i> Create Household Account</button>
+      </form>
+      <div class="signup-row">Already have an account? <a href="login.html">Sign in</a></div>
+    </div>
+  </main>
+</div>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/signup.js"></script>
+</body>
+</html>

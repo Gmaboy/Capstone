@@ -3,7 +3,8 @@
 
   async function request(path, options) {
     const config = { credentials: 'same-origin', ...options };
-    if (config.body && typeof config.body !== 'string') {
+    const isFormData = typeof FormData !== 'undefined' && config.body instanceof FormData;
+    if (config.body && typeof config.body !== 'string' && !isFormData) {
       config.headers = { 'Content-Type': 'application/json', ...(config.headers || {}) };
       config.body = JSON.stringify(config.body);
     }
@@ -99,6 +100,50 @@
     window.electroToastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
   }
 
+  // In-page replacement for window.confirm(): works where native dialogs are blocked and follows the theme.
+  // Resolves true when the user confirms, false on Cancel, Escape, or a click on the backdrop.
+  function confirmDialog(message, options = {}) {
+    const { title = 'Are you sure?', confirmLabel = 'Delete', cancelLabel = 'Cancel', danger = true } = options;
+    return new Promise(resolve => {
+      const previous = document.activeElement;
+      const overlay = document.createElement('div');
+      overlay.className = 'confirm-overlay';
+      overlay.innerHTML = `
+        <div class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-message">
+          <h3 id="confirm-title">${escapeHTML(title)}</h3>
+          <p id="confirm-message">${escapeHTML(message)}</p>
+          <div class="confirm-actions">
+            <button type="button" class="btn btn-secondary" data-confirm="no">${escapeHTML(cancelLabel)}</button>
+            <button type="button" class="btn ${danger ? 'btn-danger' : 'btn-primary'}" data-confirm="yes">${escapeHTML(confirmLabel)}</button>
+          </div>
+        </div>`;
+      const finish = answer => {
+        document.removeEventListener('keydown', onKey, true);
+        overlay.remove();
+        if (previous && previous.focus) previous.focus();
+        resolve(answer);
+      };
+      const onKey = event => {
+        if (event.key === 'Escape') { event.preventDefault(); finish(false); return; }
+        if (event.key === 'Tab') {
+          // Keep keyboard focus inside the dialog.
+          const buttons = [...overlay.querySelectorAll('button')];
+          const index = buttons.indexOf(document.activeElement);
+          event.preventDefault();
+          buttons[(index + (event.shiftKey ? -1 : 1) + buttons.length) % buttons.length].focus();
+        }
+      };
+      overlay.addEventListener('click', event => {
+        if (event.target === overlay) finish(false);
+        const choice = event.target.closest('[data-confirm]');
+        if (choice) finish(choice.dataset.confirm === 'yes');
+      });
+      document.addEventListener('keydown', onKey, true);
+      document.body.appendChild(overlay);
+      overlay.querySelector('[data-confirm="no"]').focus();
+    });
+  }
+
   async function logout() {
     try {
       await request('/api/auth/logout', { method: 'POST' });
@@ -118,7 +163,7 @@
     formatDate,
     formatMonth,
     notify,
+    confirm: confirmDialog,
     logout,
   };
 })();
-

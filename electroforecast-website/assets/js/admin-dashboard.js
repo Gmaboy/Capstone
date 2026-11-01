@@ -1,7 +1,8 @@
 (function () {
   'use strict';
 
-  const state = { user:null, status:'pending', submissions:[], users:[], selected:null };
+  const state = { user:null, type:'appliance', status:'pending', submissions:[], pending:[], users:[], selected:null };
+  const TYPE_LABEL = { appliance:'appliance', consumption:'monthly consumption' };
   const $ = selector => document.querySelector(selector);
 
   ElectroShell.mount('admin-dashboard', 'Administration', { dateRange:false });
@@ -11,25 +12,35 @@
     $('#admin-approved').textContent = stats.approved;
     $('#admin-households').textContent = stats.households;
     $('#admin-readiness').textContent = `${stats.data_readiness_pct}%`;
-    $('#pending-filter-count').textContent = stats.pending;
   }
 
   function typeIcon(type) {
     return type === 'appliance' ? 'zap' : 'bar-chart-2';
   }
 
+  // Pending counts per type on the type switch; the Pending tab shows the selected type's count.
+  function renderPendingCounts() {
+    const count = type => state.pending.filter(item=>item.submission_type===type).length;
+    $('#pending-appliance-count').textContent = count('appliance');
+    $('#pending-consumption-count').textContent = count('consumption');
+    $('#pending-filter-count').textContent = count(state.type);
+  }
+
   function renderSubmissions() {
     const body = $('#admin-submission-body');
-    if (!state.submissions.length) {
-      body.innerHTML = `<tr><td colspan="6"><div class="empty-table"><i data-feather="check-circle"></i><b>No ${ElectroAPI.escapeHTML(state.status)} submissions</b><span>The queue is clear for this filter.</span></div></td></tr>`;
+    const rows = state.submissions.filter(item=>item.submission_type===state.type);
+    renderPendingCounts();
+    if (!rows.length) {
+      const status = state.status === 'all' ? '' : `${state.status} `;
+      body.innerHTML = `<tr><td colspan="6"><div class="empty-table"><i data-feather="check-circle"></i><b>No ${ElectroAPI.escapeHTML(status + TYPE_LABEL[state.type])} submissions</b><span>The queue is clear for this filter.</span></div></td></tr>`;
       feather.replace({ 'stroke-width':2 });
       return;
     }
-    body.innerHTML = state.submissions.map(item=>`
+    body.innerHTML = rows.map(item=>`
       <tr>
         <td data-label="Submission"><div class="submission-title"><span class="source-icon ${item.submission_type==='appliance'?'pending':'neutral'}"><i data-feather="${typeIcon(item.submission_type)}"></i></span><span><b>${ElectroAPI.escapeHTML(item.title)}</b><small>${ElectroAPI.titleCase(item.submission_type)} · ${ElectroAPI.escapeHTML(item.category_name)}</small></span></div></td>
         <td data-label="Contributor"><div class="record-title"><b>${ElectroAPI.escapeHTML(item.contributor)}</b><small>${ElectroAPI.escapeHTML([item.barangay,item.municipality].filter(Boolean).join(', '))}</small></div></td>
-        <td data-label="Details"><b>${ElectroAPI.escapeHTML(item.details)}</b><div class="text-sm text-muted">${ElectroAPI.titleCase(item.source_of_info)}</div></td>
+        <td data-label="Details"><b>${ElectroAPI.escapeHTML(item.details)}</b><div class="text-sm text-muted">${ElectroAPI.titleCase(item.source_of_info)}${item.submission_type==='consumption' ? ` · ${item.has_bill_image ? 'Bill picture attached' : 'No bill picture'}` : ''}</div></td>
         <td data-label="Updated">${ElectroAPI.formatDate(item.updated_at)}</td>
         <td data-label="Status">${ElectroAPI.statusBadge(item.verification_status)}</td>
         <td data-label="Actions"><button type="button" class="btn btn-outline btn-sm" data-review="${item.submission_type}:${item.submission_id}">${state.user.role==='admin' ? 'Review' : 'View'}</button></td>
@@ -67,8 +78,12 @@
   }
 
   async function loadSubmissions() {
-    const payload = await ElectroAPI.request(`/api/admin/submissions?status=${state.status}`);
+    const [payload, pending] = await Promise.all([
+      ElectroAPI.request(`/api/admin/submissions?status=${state.status}`),
+      state.status === 'pending' ? null : ElectroAPI.request('/api/admin/submissions?status=pending')
+    ]);
     state.submissions = payload.submissions;
+    state.pending = pending ? pending.submissions : payload.submissions;
     renderSubmissions();
   }
 
@@ -92,7 +107,8 @@
       <div><small>Category</small><b>${ElectroAPI.escapeHTML(item.category_name)}</b></div>
       <div><small>Submitted Value</small><b>${ElectroAPI.escapeHTML(item.details)}</b></div>
       <div><small>Information Source</small><b>${ElectroAPI.titleCase(item.source_of_info)}</b></div>
-      <div><small>Current Status</small>${ElectroAPI.statusBadge(item.verification_status)}</div>`;
+      <div><small>Current Status</small>${ElectroAPI.statusBadge(item.verification_status)}</div>
+      ${item.submission_type === 'consumption' ? `<div><small>Bill Evidence</small>${item.has_bill_image ? `<a class="btn btn-outline btn-sm" href="/api/consumption/${item.submission_id}/bill-image" target="_blank" rel="noopener"><i data-feather="image"></i> View Bill Picture</a>` : '<b>Not attached</b>'}</div>` : ''}`;
     const canReview = state.user.role === 'admin';
     $('#approve-submission').hidden = !canReview;
     $('#reject-submission').hidden = !canReview;
@@ -145,6 +161,15 @@
   document.addEventListener('click',event=>{
     const button = event.target.closest('button');
     if (!button) return;
+    if (button.dataset.typeFilter) {
+      state.type = button.dataset.typeFilter;
+      document.querySelectorAll('[data-type-filter]').forEach(item=>{
+        const active = item === button;
+        item.classList.toggle('active',active);
+        item.setAttribute('aria-selected',String(active));
+      });
+      renderSubmissions();
+    }
     if (button.dataset.statusFilter) {
       state.status = button.dataset.statusFilter;
       document.querySelectorAll('[data-status-filter]').forEach(item=>{
@@ -180,4 +205,3 @@
     }
   })();
 })();
-

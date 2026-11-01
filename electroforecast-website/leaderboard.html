@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Contributor Leaderboard · ElectroForecast</title>
+<title>Contributor Leaderboard · GUIMPOWERCORE</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
+<script src="assets/js/theme.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
 </head>
 <body>
@@ -17,54 +18,69 @@
 
       <div class="card">
         <div class="card-head">
-          <div><h3>Contributor Leaderboard</h3><div class="card-sub">See who's crowdsourcing the most appliance ratings</div></div>
+          <div><h3>Contributor Leaderboard</h3><div class="card-sub">Households ranked by admin-approved submissions (appliance ratings and bills)</div></div>
+          <span class="data-badge crowdsourced">Crowdsourced</span>
         </div>
 
-        <div class="podium">
-          <div class="podium-slot">
-            <div class="p-avatar">MS</div>
-            <div class="p-name">Maria Santos</div>
-            <div class="p-score">180 ratings</div>
-            <div class="podium-bar silver">2</div>
-          </div>
-          <div class="podium-slot">
-            <div class="p-avatar" style="width:64px;height:64px;font-size:19px; border-color:#F5B93F;">JD</div>
-            <div class="p-name">Juan Dela Cruz</div>
-            <div class="p-score">256 ratings</div>
-            <div class="podium-bar gold">1</div>
-          </div>
-          <div class="podium-slot">
-            <div class="p-avatar">AM</div>
-            <div class="p-name">Alex Mendoza</div>
-            <div class="p-score">143 ratings</div>
-            <div class="podium-bar bronze">3</div>
-          </div>
-        </div>
-
-        <div class="divider"></div>
+        <div class="podium" id="podium"></div>
+        <div class="divider" id="podiumDivider" hidden></div>
 
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Rank</th><th>Contributor</th><th>Ratings Submitted</th><th>Verified</th><th>Joined</th></tr></thead>
-            <tbody>
-              <tr><td>1</td><td class="cell-user"><span class="mini-avatar">JD</span>Juan Dela Cruz</td><td>256</td><td>241</td><td>Jan 2026</td></tr>
-              <tr><td>2</td><td class="cell-user"><span class="mini-avatar">MS</span>Maria Santos</td><td>180</td><td>172</td><td>Feb 2026</td></tr>
-              <tr><td>3</td><td class="cell-user"><span class="mini-avatar">AM</span>Alex Mendoza</td><td>143</td><td>135</td><td>Jan 2026</td></tr>
-              <tr><td>4</td><td class="cell-user"><span class="mini-avatar">LG</span>Lisa Garcia</td><td>98</td><td>90</td><td>Mar 2026</td></tr>
-              <tr><td>5</td><td class="cell-user"><span class="mini-avatar">MR</span>Mark Reyes</td><td>87</td><td>80</td><td>Feb 2026</td></tr>
-              <tr><td>6</td><td class="cell-user"><span class="mini-avatar">RT</span>Rogelio Torres</td><td>76</td><td>70</td><td>Apr 2026</td></tr>
-              <tr><td>7</td><td class="cell-user"><span class="mini-avatar">AP</span>Ana Perez</td><td>65</td><td>58</td><td>Mar 2026</td></tr>
-            </tbody>
+            <thead><tr><th>Rank</th><th>Contributor</th><th>Submissions</th><th>Approved</th><th>Approval rate</th><th>Joined</th></tr></thead>
+            <tbody id="contributorRows"><tr><td colspan="6" class="text-muted">Loading…</td></tr></tbody>
           </table>
         </div>
-        <button class="btn btn-outline btn-block" style="margin-top:14px;">View Full Leaderboard</button>
+        <div class="text-sm text-muted" style="margin-top:12px;">Names are shortened to first name and initial to protect household privacy.</div>
       </div>
 
     </div>
   </div>
 </div>
 
+<script src="assets/js/api.js"></script>
 <script src="assets/js/shell.js"></script>
-<script>ElectroShell.mount('leaderboard', 'Contributor Leaderboard', { dateRange:false });</script>
+<script>
+ElectroShell.mount('leaderboard', 'Contributor Leaderboard');
+
+(function () {
+  const esc = ElectroAPI.escapeHTML;
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const joined = ym => { const [y, m] = String(ym).split('-'); return MONTHS[Number(m) - 1] ? `${MONTHS[Number(m) - 1]} ${y}` : '—'; };
+
+  function render(rows) {
+    const body = document.getElementById('contributorRows');
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="6"><div class="empty-table"><i data-feather="users"></i><b>No contributors yet</b><span>Households appear here once they submit appliance ratings or bills.</span></div></td></tr>';
+      return;
+    }
+    // Podium order: 2nd, 1st, 3rd.
+    const slots = [[rows[1], 'silver', ''], [rows[0], 'gold', ' style="width:64px;height:64px;font-size:19px; border-color:#F5B93F;"'], [rows[2], 'bronze', '']];
+    document.getElementById('podium').innerHTML = slots.filter(([r]) => r).map(([r, medal, big]) => `
+      <div class="podium-slot">
+        <div class="p-avatar"${big}>${esc(r.initials)}</div>
+        <div class="p-name">${esc(r.name)}</div>
+        <div class="p-score">${esc(r.approved)} approved</div>
+        <div class="podium-bar ${medal}">${esc(r.rank)}</div>
+      </div>`).join('');
+    document.getElementById('podiumDivider').hidden = false;
+    body.innerHTML = rows.map(r => `<tr>
+      <td>${esc(r.rank)}</td>
+      <td class="cell-user"><span class="mini-avatar">${esc(r.initials)}</span>${esc(r.name)}</td>
+      <td>${esc(r.submissions)}</td><td>${esc(r.approved)}</td>
+      <td>${esc(r.approval_rate.toFixed(1))}%</td><td>${esc(joined(r.joined))}</td></tr>`).join('');
+  }
+
+  ElectroAPI.request('/api/contributors').then(data => {
+    render(data.contributors || []);
+    if (window.feather) feather.replace();
+  }).catch(error => {
+    if (error.status === 401) { window.location.href = 'login.html'; return; }
+    const msg = error.status === 403 ? 'Only admin, GUIMELCO staff, and researcher accounts can view contributors.' : 'Contributors are unavailable right now.';
+    if (error.status !== 403) ElectroAPI.notify(error.message, 'error');
+    document.getElementById('contributorRows').innerHTML = `<tr><td colspan="6" class="text-muted">${esc(msg)}</td></tr>`;
+  });
+})();
+</script>
 </body>
 </html>

@@ -1,9 +1,11 @@
-/* Lightweight, dependency-free chart renderer for the ElectroForecast prototype. */
+/* Lightweight, dependency-free chart renderer for the GUIMPOWERCORE prototype. */
 (function () {
   'use strict';
 
   const toRadians = degrees => (degrees * Math.PI) / 180;
   const isTransparent = color => !color || color === 'transparent';
+  // Axis text, grid lines and point rings follow the light/dark theme (see --chart-* in style.css).
+  const themeColor = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 
   class ChartLite {
     constructor(canvas, config) {
@@ -26,6 +28,7 @@
         : null;
       if (this.resizeObserver) this.resizeObserver.observe(canvas.parentElement || canvas);
       window.addEventListener('resize', this.draw, { passive: true });
+      window.addEventListener('electro:themechange', this.draw);
       requestAnimationFrame(this.draw);
     }
 
@@ -71,14 +74,14 @@
       const max = Math.max(niceMax, 1);
 
       ctx.font = this.font(10);
-      ctx.fillStyle = '#718096';
+      ctx.fillStyle = themeColor('--chart-text', '#718096');
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
       for (let i = 0; i <= 4; i += 1) {
         const y = plot.top + ((plot.bottom - plot.top) * i) / 4;
         const value = Math.round(max - ((max - min) * i) / 4);
         ctx.beginPath();
-        ctx.strokeStyle = '#EAF0F7';
+        ctx.strokeStyle = themeColor('--chart-grid', '#EAF0F7');
         ctx.lineWidth = 1;
         ctx.moveTo(plot.left, y);
         ctx.lineTo(plot.right, y);
@@ -96,13 +99,23 @@
     drawLabels(labels, plot) {
       const ctx = this.context;
       ctx.font = this.font(10);
-      ctx.fillStyle = '#718096';
+      ctx.fillStyle = themeColor('--chart-text', '#718096');
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
+      // Draw left to right and skip any label that would touch the previous one, so narrow charts stay readable.
+      const gap = 8;
+      let lastRight = -Infinity;
       labels.forEach((label, index) => {
-        if (labels.length > 7 && index % 2 === 1) return;
-        ctx.textAlign = index === 0 ? 'left' : index === labels.length - 1 ? 'right' : 'center';
-        ctx.fillText(label, plot.x(index, labels.length), plot.bottom + 11);
+        const text = String(label ?? '');
+        if (!text) return;
+        const align = index === 0 ? 'left' : index === labels.length - 1 ? 'right' : 'center';
+        const x = plot.x(index, labels.length);
+        const width = ctx.measureText(text).width;
+        const left = align === 'left' ? x : align === 'right' ? x - width : x - width / 2;
+        if (left < lastRight + gap) return;
+        ctx.textAlign = align;
+        ctx.fillText(text, x, plot.bottom + 11);
+        lastRight = left + width;
       });
     }
 
@@ -186,7 +199,7 @@
             ctx.arc(plot.x(index, labels.length), plot.y(value), dataset.pointRadius, 0, Math.PI * 2);
             ctx.fillStyle = dataset.borderColor || '#087EFF';
             ctx.fill();
-            ctx.strokeStyle = '#fff';
+            ctx.strokeStyle = themeColor('--chart-ring', '#fff');
             ctx.lineWidth = 1.5;
             ctx.stroke();
           });

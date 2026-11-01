@@ -1,14 +1,98 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><title>Monthly Consumption · ElectroForecast</title><meta name="viewport" content="width=device-width, initial-scale=1"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="assets/css/style.css"><script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script></head>
-<body><div class="app-shell"><div id="shell-sidebar"></div><div class="main"><div id="shell-topbar"></div><main class="content">
-  <section class="portal-welcome"><div><div class="eyebrow">Household electricity records</div><h2>Monthly Consumption</h2><p>Manage the monthly kWh records used for historical analysis and forecasting.</p></div><button class="btn btn-primary" id="add-monthly-record"><i data-feather="plus"></i> Add Monthly Record</button></section>
-  <section class="portal-kpis row-3" aria-label="Consumption summary">
-    <article class="portal-kpi"><span class="kpi-icon blue"><i data-feather="calendar"></i></span><div><div class="kpi-label">Recorded Months</div><div class="kpi-value" id="month-count">0</div><div class="text-sm text-muted">Historical records</div></div></article>
-    <article class="portal-kpi"><span class="kpi-icon green"><i data-feather="bar-chart-2"></i></span><div><div class="kpi-label">Latest Consumption</div><div class="kpi-value" id="latest-kwh">—</div><div class="text-sm text-muted" id="latest-month">No record yet</div></div></article>
-    <article class="portal-kpi"><span class="kpi-icon amber"><i data-feather="clock"></i></span><div><div class="kpi-label">Pending Validation</div><div class="kpi-value" id="month-pending">0</div><div class="text-sm text-muted">Awaiting review</div></div></article>
+<head>
+  <meta charset="utf-8">
+  <title>Monthly Consumption · GUIMPOWERCORE</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>
+    if (window.location.protocol === 'file:') {
+      window.location.replace(
+        'http://127.0.0.1:4173/monthly-consumption.html' + window.location.search + window.location.hash
+      );
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+<script src="assets/js/theme.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
+</head>
+<body>
+<div class="app-shell">
+  <div id="shell-sidebar"></div>
+  <div class="main">
+    <div id="shell-topbar"></div>
+    <main class="content">
+      <section class="portal-welcome">
+        <div><div class="eyebrow">Household electricity records</div><h2>Monthly Consumption</h2><p>Manage the monthly kWh records used for historical analysis and forecasting.</p></div>
+        <button class="btn btn-primary" id="add-monthly-record"><i data-feather="plus"></i> Add Monthly Record</button>
+      </section>
+      <section class="portal-kpis row-3" aria-label="Consumption summary">
+        <article class="portal-kpi"><span class="kpi-icon blue"><i data-feather="calendar"></i></span><div><div class="kpi-label">Recorded Months</div><div class="kpi-value" id="month-count">0</div><div class="text-sm text-muted">Historical records</div></div></article>
+        <article class="portal-kpi"><span class="kpi-icon green"><i data-feather="bar-chart-2"></i></span><div><div class="kpi-label">Latest Consumption</div><div class="kpi-value" id="latest-kwh">—</div><div class="text-sm text-muted" id="latest-month">No record yet</div></div></article>
+        <article class="portal-kpi"><span class="kpi-icon amber"><i data-feather="clock"></i></span><div><div class="kpi-label">Pending Validation</div><div class="kpi-value" id="month-pending">0</div><div class="text-sm text-muted">Awaiting review</div></div></article>
+      </section>
+      <section class="card portal-table-card">
+        <div class="card-head">
+          <div><h3>Monthly Electricity Records</h3><div class="card-sub">Consumption, bill amount, meter reading, evidence source, and validation status.</div></div>
+          <div class="card-actions">
+            <button class="btn btn-secondary btn-sm" id="open-recently-deleted-monthly"><i data-feather="rotate-ccw"></i> Recently Deleted <span class="button-count" id="recently-deleted-monthly-count">0</span></button>
+            <button class="btn btn-primary btn-sm" id="add-monthly-record-secondary"><i data-feather="plus"></i> Add Record</button>
+          </div>
+        </div>
+        <div class="table-wrap portal-table"><table><thead><tr><th>Billing Month</th><th>Consumption</th><th>Bill Amount</th><th>Source</th><th>Status</th><th>Actions</th></tr></thead><tbody id="monthly-body"><tr><td colspan="6"><div class="table-loading">Loading monthly records…</div></td></tr></tbody></table></div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<div class="record-modal" id="monthly-modal" hidden>
+  <button class="modal-scrim" type="button" data-close-monthly aria-label="Close monthly record form"></button>
+  <section class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="monthly-modal-title">
+    <header class="modal-header"><div><div class="eyebrow">Electricity consumption contribution</div><h3 id="monthly-modal-title">Add Monthly Record</h3></div><button class="icon-btn modal-close" type="button" data-close-monthly aria-label="Close monthly record form"><i data-feather="x"></i></button></header>
+    <form id="monthly-form" class="record-form">
+      <input type="hidden" id="monthly-id">
+      <div class="row-2"><div class="field"><label for="monthly-billing-month">Billing Month *</label><input type="month" id="monthly-billing-month" name="billing_month" required></div><div class="field"><label for="monthly-kwh">Consumption (kWh) *</label><input type="number" id="monthly-kwh" name="consumption_kwh" min="0.01" max="100000" step="0.01" required></div></div>
+      <div class="row-2"><div class="field"><label for="monthly-amount">Bill Amount (PHP)</label><input type="number" id="monthly-amount" name="bill_amount_php" min="0" step="0.01"></div><div class="field"><label for="monthly-meter">Meter Reading</label><input type="number" id="monthly-meter" name="meter_reading" min="0" step="0.01"></div></div>
+      <div class="field"><label for="monthly-source">Source *</label><select id="monthly-source" name="source_of_info" required><option value="electric_bill">Electric bill</option><option value="meter_reading">Meter reading</option><option value="utility_portal">Utility portal</option><option value="manual_entry">Manual entry</option></select></div>
+      <div class="current-bill-evidence" id="current-bill-evidence" hidden></div>
+      <div class="field bill-upload-field">
+        <label for="monthly-bill-image">Electricity Bill Picture *</label>
+        <label class="bill-upload-drop" for="monthly-bill-image"><i data-feather="upload-cloud"></i><span><b>Choose a clear bill picture</b><small>JPG, PNG, or WebP · Maximum 5 MB</small></span></label>
+        <input type="file" id="monthly-bill-image" name="bill_image" accept="image/jpeg,image/png,image/webp" required>
+        <div class="bill-upload-preview" id="bill-upload-preview" hidden><img id="bill-preview-image" alt="Selected electricity bill preview"><span id="bill-preview-name"></span><button type="button" class="icon-btn" id="clear-bill-image" aria-label="Remove selected bill picture"><i data-feather="x"></i></button></div>
+      </div>
+      <label class="checkbox-row form-confirmation"><input type="checkbox" id="monthly-confirm" required> I confirm this record matches my household electricity record.</label>
+      <div class="modal-actions"><button class="btn btn-secondary" type="button" data-close-monthly>Cancel</button><button class="btn btn-primary" type="submit" id="save-monthly"><i data-feather="send"></i> Submit for Validation</button></div>
+    </form>
   </section>
-  <section class="card portal-table-card"><div class="card-head"><div><h3>Monthly Electricity Records</h3><div class="card-sub">Consumption, bill amount, meter reading, evidence source, and validation status.</div></div><button class="btn btn-primary btn-sm" id="add-monthly-record-secondary"><i data-feather="plus"></i> Add Record</button></div><div class="table-wrap portal-table"><table><thead><tr><th>Billing Month</th><th>Consumption</th><th>Bill Amount</th><th>Source</th><th>Status</th><th>Actions</th></tr></thead><tbody id="monthly-body"><tr><td colspan="6"><div class="table-loading">Loading monthly records…</div></td></tr></tbody></table></div></section>
-</main></div></div>
-<div class="record-modal" id="monthly-modal" hidden><button class="modal-scrim" type="button" data-close-monthly aria-label="Close monthly record form"></button><section class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="monthly-modal-title"><header class="modal-header"><div><div class="eyebrow">Electricity consumption contribution</div><h3 id="monthly-modal-title">Add Monthly Record</h3></div><button class="icon-btn modal-close" type="button" data-close-monthly aria-label="Close monthly record form"><i data-feather="x"></i></button></header><form id="monthly-form" class="record-form"><input type="hidden" id="monthly-id"><div class="row-2"><div class="field"><label for="monthly-billing-month">Billing Month *</label><input type="month" id="monthly-billing-month" name="billing_month" required></div><div class="field"><label for="monthly-kwh">Consumption (kWh) *</label><input type="number" id="monthly-kwh" name="consumption_kwh" min="0.01" max="100000" step="0.01" required></div></div><div class="row-2"><div class="field"><label for="monthly-amount">Bill Amount (PHP)</label><input type="number" id="monthly-amount" name="bill_amount_php" min="0" step="0.01"></div><div class="field"><label for="monthly-meter">Meter Reading</label><input type="number" id="monthly-meter" name="meter_reading" min="0" step="0.01"></div></div><div class="field"><label for="monthly-source">Source *</label><select id="monthly-source" name="source_of_info" required><option value="electric_bill">Electric bill</option><option value="meter_reading">Meter reading</option><option value="utility_portal">Utility portal</option><option value="manual_entry">Manual entry</option></select></div><label class="checkbox-row form-confirmation"><input type="checkbox" id="monthly-confirm" required> I confirm this record matches my household electricity record.</label><div class="modal-actions"><button class="btn btn-secondary" type="button" data-close-monthly>Cancel</button><button class="btn btn-primary" type="submit" id="save-monthly"><i data-feather="send"></i> Submit for Validation</button></div></form></section></div>
-<script src="assets/js/api.js"></script><script src="assets/js/shell.js"></script><script src="assets/js/monthly-consumption.js"></script></body></html>
+</div>
+
+<div class="record-modal" id="recently-deleted-monthly-modal" hidden>
+  <button class="modal-scrim" type="button" data-close-recently-deleted-monthly aria-label="Close recently deleted monthly records"></button>
+  <section class="modal-dialog modal-dialog-wide" role="dialog" aria-modal="true" aria-labelledby="recently-deleted-monthly-title">
+    <header class="modal-header"><div><div class="eyebrow">Monthly electricity records</div><h3 id="recently-deleted-monthly-title">Recently Deleted Records</h3></div><button class="icon-btn modal-close" type="button" data-close-recently-deleted-monthly aria-label="Close recently deleted monthly records"><i data-feather="x"></i></button></header>
+    <p class="modal-description">Deleted records do not count toward your consumption history. Restore one, or select one or more records to delete permanently.</p>
+    <div class="recently-deleted-toolbar">
+      <label class="recently-deleted-select-all"><input type="checkbox" id="select-all-deleted-monthly"> Select all</label>
+      <button type="button" class="btn btn-danger-outline btn-sm" id="delete-selected-monthly" disabled><i data-feather="trash-2"></i> Delete Permanently <span class="button-count" id="selected-monthly-count">0</span></button>
+    </div>
+    <div class="recently-deleted-list" id="recently-deleted-monthly-list"></div>
+    <div class="modal-actions"><button type="button" class="btn btn-secondary" data-close-recently-deleted-monthly>Close</button></div>
+  </section>
+</div>
+
+<div class="record-modal" id="monthly-reviewer-notes-modal" hidden>
+  <button class="modal-scrim" type="button" data-close-monthly-reviewer-notes aria-label="Close Reviewer Notes"></button>
+  <section class="modal-dialog reviewer-notes-dialog" role="dialog" aria-modal="true" aria-labelledby="monthly-reviewer-notes-title">
+    <header class="modal-header"><div><div class="eyebrow">Administrator feedback</div><h3 id="monthly-reviewer-notes-title">Reviewer Notes</h3></div><button class="icon-btn modal-close" type="button" data-close-monthly-reviewer-notes aria-label="Close Reviewer Notes"><i data-feather="x"></i></button></header>
+    <div class="reviewer-notes-appliance" id="monthly-reviewer-notes-record"></div>
+    <div class="reviewer-notes-message" id="monthly-reviewer-notes-message"></div>
+    <div class="modal-actions"><button class="btn btn-primary" type="button" data-close-monthly-reviewer-notes>Done</button></div>
+  </section>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script src="assets/js/shell.js"></script>
+<script src="assets/js/monthly-consumption.js"></script>
+</body>
+</html>

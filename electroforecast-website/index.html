@@ -2,10 +2,252 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="refresh" content="0; url=login.html">
-<title>GUIMPOWERCORE</title>
+<title>GUIMPOWERCORE · Smart Energy Insights for Guimaras</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="GUIMPOWERCORE forecasts residential electricity demand in Guimaras from GUIMELCO records and crowdsourced household data.">
+<link rel="icon" type="image/png" href="assets/images/electroforecast-logo-transparent.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="assets/js/theme.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
 </head>
-<body>
-<p>Redirecting to <a href="login.html">login.html</a>…</p>
+<body class="landing">
+
+<header class="lp-nav" id="lpNav">
+  <div class="lp-container lp-nav-inner">
+    <a class="lp-brand" href="#home" aria-label="GUIMPOWERCORE home">
+      <img src="assets/images/electroforecast-logo-transparent.png" alt="GUIMPOWERCORE logo">
+      <span><b>GUIMPOWERCORE</b><small>Smart Energy Insights</small></span>
+    </a>
+    <nav class="lp-links" id="lpLinks" aria-label="Main">
+      <a href="#home">Home</a>
+      <a href="#about">About</a>
+      <a href="#how">How to Use</a>
+      <a href="#team">Team</a>
+      <a href="#contact">Contact</a>
+      <a class="btn btn-primary btn-sm lp-signin" href="login.html">Sign In</a>
+    </nav>
+    <div class="lp-nav-actions">
+      <span data-theme-slot="lp-theme-btn"></span>
+      <button class="lp-menu-btn" id="lpMenuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="lpLinks"><i data-feather="menu"></i></button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="lp-hero" id="home">
+    <div class="lp-container lp-hero-inner">
+      <div class="lp-hero-copy">
+        <div class="eyebrow">Electricity demand forecasting for Guimaras</div>
+        <h1>Smarter forecasts.<br>Better energy decisions.</h1>
+        <p>GUIMPOWERCORE forecasts residential electricity demand from GUIMELCO's real monthly records, classifies daily demand levels, and lets households contribute verified appliance and bill data.</p>
+        <div class="lp-hero-actions">
+          <a class="btn btn-primary" href="signup.html"><i data-feather="user-plus"></i> Create a household account</a>
+          <a class="btn lp-btn-ghost" href="login.html"><i data-feather="log-in"></i> Sign in</a>
+        </div>
+        <ul class="lp-hero-facts">
+          <li><b>2020–2025</b><span>Real GUIMELCO residential records</span></li>
+          <li><b>Low · Medium · High</b><span>Daily demand levels</span></li>
+          <li><b>Admin-verified</b><span>Crowdsourced household data</span></li>
+        </ul>
+      </div>
+      <img class="lp-hero-art" src="assets/images/electroforecast-logo-transparent.png" alt="" aria-hidden="true">
+    </div>
+  </section>
+
+  <section class="lp-section" id="about">
+    <div class="lp-container">
+      <div class="lp-section-head">
+        <div class="eyebrow">About</div>
+        <h2>What GUIMPOWERCORE does</h2>
+        <p>A capstone research platform built with the Guimaras Electric Cooperative (GUIMELCO) to help the utility, researchers, and households understand where residential electricity demand is heading.</p>
+      </div>
+      <div class="lp-features">
+        <article class="lp-feature">
+          <div class="kpi-icon blue"><i data-feather="trending-up"></i></div>
+          <h3>Demand forecasting</h3>
+          <p>Monthly energy and annual peak forecasts trained on GUIMELCO's real residential records. Several models are tested on past years and the most accurate one is used.</p>
+        </article>
+        <article class="lp-feature">
+          <div class="kpi-icon amber"><i data-feather="activity"></i></div>
+          <h3>Demand level classification</h3>
+          <p>Each day is classified as Low, Medium, or High demand so staff can plan ahead and households can shift heavy appliance use away from peak hours.</p>
+        </article>
+        <article class="lp-feature">
+          <div class="kpi-icon green"><i data-feather="users"></i></div>
+          <h3>Crowdsourced household data</h3>
+          <p>Households submit appliance ratings and monthly bills. An administrator reviews every submission before it is used in the dataset.</p>
+        </article>
+        <article class="lp-feature">
+          <div class="kpi-icon violet"><i data-feather="cpu"></i></div>
+          <h3>Explainable results</h3>
+          <p>The platform shows which factors drive each prediction and labels every chart as real GUIMELCO data, crowdsourced, or synthetic.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="lp-section lp-section-alt" id="how">
+    <div class="lp-container">
+      <div class="lp-section-head">
+        <div class="eyebrow">How to Use</div>
+        <h2>Get started in five steps</h2>
+        <p>For households in Guimaras who want to track their usage and contribute to the study.</p>
+      </div>
+      <ol class="lp-steps">
+        <li>
+          <span class="lp-step-num">1</span>
+          <div><h3>Create a household account</h3><p>Sign up with your name, email, municipality, and barangay. It takes about a minute.</p></div>
+        </li>
+        <li>
+          <span class="lp-step-num">2</span>
+          <div><h3>Add your appliances</h3><p>Pick appliances from the approved catalog or add your own with the power rating from the nameplate label, plus how many hours a day you use them.</p></div>
+        </li>
+        <li>
+          <span class="lp-step-num">3</span>
+          <div><h3>Submit your monthly bill</h3><p>Enter the kWh from your GUIMELCO bill and attach a photo of it so it can be checked.</p></div>
+        </li>
+        <li>
+          <span class="lp-step-num">4</span>
+          <div><h3>Wait for validation</h3><p>An administrator reviews each submission. You get a notification when it is approved, or a note explaining what to fix.</p></div>
+        </li>
+        <li>
+          <span class="lp-step-num">5</span>
+          <div><h3>View forecasts and insights</h3><p>See your estimated daily load, your monthly usage history, the demand forecast for Guimaras, and which days are expected to be High demand.</p></div>
+        </li>
+      </ol>
+      <div class="lp-note"><i data-feather="info"></i><span>GUIMELCO staff and researchers sign in with accounts created by an administrator to access the forecast dashboard, validated data, and reports.</span></div>
+    </div>
+  </section>
+
+  <section class="lp-section" id="team">
+    <div class="lp-container">
+      <div class="lp-section-head">
+        <div class="eyebrow">The Researchers</div>
+        <h2>Meet the team</h2>
+        <p>The capstone team behind GUIMPOWERCORE.</p>
+      </div>
+      <div class="lp-team">
+        <article class="lp-member">
+          <img class="lp-member-photo" src="assets/images/team/krystel.png" alt="Photo of Krystel Ann F. Galabo" width="710" height="560" loading="lazy">
+          <div class="lp-member-info"><h3>Krystel Ann F. Galabo</h3><p>Project Manager</p></div>
+        </article>
+        <article class="lp-member">
+          <img class="lp-member-photo" src="assets/images/team/greence.png" alt="Photo of Greence Mark P. Fontillas" width="710" height="560" loading="lazy">
+          <div class="lp-member-info"><h3>Greence Mark P. Fontillas</h3><p>Developer</p></div>
+        </article>
+        <article class="lp-member">
+          <img class="lp-member-photo" src="assets/images/team/carmela.png" alt="Photo of Carmela D. Tingson" width="710" height="560" loading="lazy">
+          <div class="lp-member-info"><h3>Carmela D. Tingson</h3><p>Researcher</p></div>
+        </article>
+        <article class="lp-member">
+          <img class="lp-member-photo" src="assets/images/team/john-robert.png" alt="Photo of John Robert G. Bernardo" width="710" height="560" loading="lazy">
+          <div class="lp-member-info"><h3>John Robert G. Bernardo</h3><p>Researcher</p></div>
+        </article>
+        <article class="lp-member">
+          <img class="lp-member-photo" src="assets/images/team/julius.png" alt="Photo of Julius E. Pardillo" width="710" height="560" loading="lazy">
+          <div class="lp-member-info"><h3>Julius E. Pardillo</h3><p>Researcher</p></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="lp-section lp-section-alt" id="contact">
+    <div class="lp-container">
+      <div class="lp-contact">
+        <div>
+          <div class="eyebrow">Contact</div>
+          <h2>Questions or feedback?</h2>
+          <p>Reach the GUIMPOWERCORE team by email. We welcome questions from households, GUIMELCO staff, and fellow researchers.</p>
+        </div>
+        <div class="lp-contact-card">
+          <div class="lp-contact-id">
+            <span class="kpi-icon blue"><i data-feather="mail"></i></span>
+            <span><small>Email us</small><b id="contactEmail">guimpowercore@gmail.com</b></span>
+          </div>
+          <div class="lp-contact-actions">
+            <a class="btn btn-primary" href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=guimpowercore@gmail.com&amp;su=GUIMPOWERCORE%20inquiry" target="_blank" rel="noopener"><i data-feather="send"></i> Open in Gmail</a>
+            <button type="button" class="btn btn-secondary" id="copyEmailBtn"><i data-feather="copy"></i> <span>Copy email</span></button>
+          </div>
+          <a class="lp-contact-alt" href="mailto:guimpowercore@gmail.com?subject=GUIMPOWERCORE%20inquiry">Use another email app</a>
+          <span class="lp-sr-only" id="copyStatus" role="status" aria-live="polite"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="lp-footer">
+  <div class="lp-container lp-footer-inner">
+    <div class="lp-brand">
+      <img src="assets/images/electroforecast-logo-transparent.png" alt="">
+      <span><b>GUIMPOWERCORE</b><small>Smart Energy Insights</small></span>
+    </div>
+    <div class="lp-footer-copy">© 2026 GUIMPOWERCORE <span>•</span> GECAST Capstone Platform</div>
+  </div>
+</footer>
+
+<script>
+if (window.feather) feather.replace();
+(function () {
+  const btn = document.getElementById('lpMenuBtn');
+  const links = document.getElementById('lpLinks');
+  const setOpen = open => {
+    links.classList.toggle('open', open);
+    btn.setAttribute('aria-expanded', String(open));
+    btn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  };
+  btn.addEventListener('click', () => setOpen(!links.classList.contains('open')));
+  links.querySelectorAll('a').forEach(a => a.addEventListener('click', () => setOpen(false)));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') setOpen(false); });
+
+  // Highlight the nav link for the section currently on screen.
+  const navLinks = [...links.querySelectorAll('a[href^="#"]')];
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + entry.target.id));
+    });
+  }, { rootMargin: '-45% 0px -50% 0px' });
+  document.querySelectorAll('main section[id]').forEach(s => observer.observe(s));
+
+  const copyBtn = document.getElementById('copyEmailBtn');
+  const copyStatus = document.getElementById('copyStatus');
+  copyBtn.addEventListener('click', async () => {
+    const email = document.getElementById('contactEmail').textContent.trim();
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText(email);
+      ok = true;
+    } catch (_) {
+      // Clipboard API needs a secure context; fall back to a temporary text field.
+      const field = Object.assign(document.createElement('textarea'), { value: email });
+      field.style.cssText = 'position:fixed;opacity:0;';
+      document.body.appendChild(field);
+      field.select();
+      try { ok = document.execCommand('copy'); } catch (__) { ok = false; }
+      field.remove();
+    }
+    const label = copyBtn.querySelector('span');
+    label.textContent = ok ? 'Copied!' : 'Copy failed';
+    copyStatus.textContent = ok ? 'Email address copied to clipboard.' : 'Could not copy. Select the address and copy it manually.';
+    copyBtn.classList.toggle('copied', ok);
+    clearTimeout(copyBtn._reset);
+    copyBtn._reset = setTimeout(() => { label.textContent = 'Copy email'; copyBtn.classList.remove('copied'); }, 2000);
+  });
+
+  const nav = document.getElementById('lpNav');
+  const onScroll = () => {
+    nav.classList.toggle('scrolled', window.scrollY > 8);
+    // The last section is too short to reach the middle of the screen, so mark it active at the bottom.
+    if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) {
+      navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#contact'));
+    }
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+})();
+</script>
 </body>
 </html>

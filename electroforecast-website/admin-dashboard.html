@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Administration · ElectroForecast</title>
+<title>Administration · GUIMPOWERCORE</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
+<script src="assets/js/theme.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
 </head>
 <body>
@@ -47,6 +48,10 @@
           <div class="card-head admin-card-head">
             <div><h3>Submission Review Queue</h3><div class="card-sub">Validate appliance and monthly electricity consumption records.</div></div>
             <button class="btn btn-outline btn-sm" id="refresh-admin"><i data-feather="refresh-cw"></i> Refresh</button>
+          </div>
+          <div class="review-type-switch" role="tablist" aria-label="Submission type">
+            <button type="button" class="active" data-type-filter="appliance" role="tab" aria-selected="true"><i data-feather="zap"></i> Appliances <span id="pending-appliance-count" title="Pending appliance submissions">0</span></button>
+            <button type="button" data-type-filter="consumption" role="tab" aria-selected="false"><i data-feather="bar-chart-2"></i> Monthly Consumption <span id="pending-consumption-count" title="Pending consumption submissions">0</span></button>
           </div>
           <div class="review-filters" role="tablist" aria-label="Submission status">
             <button class="active" type="button" data-status-filter="pending" role="tab" aria-selected="true">Pending <span id="pending-filter-count">0</span></button>

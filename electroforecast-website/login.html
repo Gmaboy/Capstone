@@ -2,41 +2,51 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Sign In · ElectroForecast</title>
+<title>Sign In · GUIMPOWERCORE</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="icon" type="image/png" href="assets/images/electroforecast-logo.png">
+<script>
+  if (window.location.protocol === 'file:') {
+    window.location.replace(
+      'http://127.0.0.1:4173/login.html' + window.location.search + window.location.hash
+    );
+  }
+</script>
+<link rel="icon" type="image/png" href="assets/images/electroforecast-logo-transparent.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
+<script src="assets/js/theme.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
 </head>
 <body>
 <div class="login-shell">
   <div class="login-aside">
     <div class="brand">
-      <div class="logo-mark"><img src="assets/images/electroforecast-logo.png" alt="ElectroForecast logo"></div>
+      <div class="logo-mark"><img src="assets/images/electroforecast-logo-transparent.png" alt="GUIMPOWERCORE logo"></div>
       <div>
         <div style="font-weight:800;font-size:15px;">GUIMPOWERCORE</div>
-        <div style="font-size:10.5px;color:#AEC2F5;">Smart Energy Insights</div>
+        <div style="font-size:12px;color:#AEC2F5;">Smart Energy Insights</div>
       </div>
     </div>
     <div class="login-hero">
       <div class="login-hero-copy">
         <div class="eyebrow">AI-powered energy intelligence</div>
         <h1>Smarter forecasts.<br>Better energy decisions.</h1>
-        <p>A hybrid BLSTM–SARIMA forecasting platform built with GUIMELCO to predict electricity demand and guide sustainable energy choices across Guimaras.</p>
+        <p>A forecasting platform built on GUIMELCO's residential records to predict electricity demand and guide sustainable energy choices across Guimaras.</p>
       </div>
-      <img class="brand-hero-art" src="assets/images/electroforecast-logo.png" alt="" aria-hidden="true">
+      <img class="brand-hero-art" src="assets/images/electroforecast-logo-transparent.png" alt="" aria-hidden="true">
     </div>
-    <div class="login-credit">© 2026 ElectroForecast <span>•</span> GECAST Capstone Platform</div>
+    <div class="login-credit">© 2026 GUIMPOWERCORE <span>•</span> GECAST Capstone Platform</div>
   </div>
 
   <div class="login-form-side">
+    <span data-theme-slot="icon-btn login-theme-btn"></span>
     <div class="login-form-card">
+      <a class="back-to-login" href="index.html" style="margin-bottom:22px;"><i data-feather="arrow-left"></i> Back to home</a>
       <div class="brand-sm">
-        <div class="logo-mark"><img src="assets/images/electroforecast-logo.png" alt="ElectroForecast logo"></div>
+        <div class="logo-mark"><img src="assets/images/electroforecast-logo-transparent.png" alt="GUIMPOWERCORE logo"></div>
         <div>
-          <div class="brand-name">ElectroForecast</div>
+          <div class="brand-name">GUIMPOWERCORE</div>
           <div class="brand-tag">Smart Energy Insights</div>
         </div>
       </div>
@@ -65,6 +75,8 @@
         <div class="alert error" id="login-error" style="display:none;margin-bottom:14px;"><i data-feather="alert-circle"></i><span></span></div>
         <button type="submit" class="btn btn-primary btn-block" id="login-button">Sign In</button>
       </form>
+
+      <div class="signup-row">New to GUIMPOWERCORE? <a href="signup.html">Create a household account</a></div>
 
       <div class="divider"></div>
       <div class="demo-login">

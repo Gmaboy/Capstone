@@ -1,0 +1,79 @@
+{
+  "seed": 42,
+  "dataset_version": "synth-v1-seed42",
+  "customer_count_convention": "year_end",
+  "household_sample_size": 2000,
+  "years": null,
+  "municipality_populations": {
+    "Buenavista": 52899,
+    "Jordan": 39566,
+    "Nueva Valencia": 42771,
+    "San Lorenzo": 29444,
+    "Sibunag": 23162
+  },
+  "municipality_shares": {
+    "Buenavista": 0.2816143354521353,
+    "Jordan": 0.21063446939449113,
+    "Nueva Valencia": 0.22769668125339382,
+    "San Lorenzo": 0.15674875693401902,
+    "Sibunag": 0.12330575696596076
+  },
+  "municipality_shares_source": "PSA 2020 Census of Population and Housing (2020 CPH), Guimaras municipal populations as tabulated by PhilAtlas (https://www.philatlas.com/visayas/r06/guimaras.html); sum 187,842 matches the PSA 2020 CPH Guimaras provincial total; San Lorenzo 29,444 also confirmed on https://rsso06.psa.gov.ph (PSA Region VI)",
+  "barangay_weighting": "equal",
+  "feeders": {
+    "Buenavista": 3,
+    "Jordan": 3,
+    "Nueva Valencia": 2,
+    "San Lorenzo": 2,
+    "Sibunag": 2
+  },
+  "transformers_total": 100,
+  "transformer_sizes_kva": [
+    10,
+    15,
+    25,
+    37.5,
+    50,
+    75,
+    100,
+    167,
+    250,
+    333,
+    500
+  ],
+  "power_factor": 0.9,
+  "transformer_util_normal": [
+    0.5,
+    0.9
+  ],
+  "transformer_util_stressed": [
+    0.9,
+    1.1
+  ],
+  "transformer_stressed_share": 0.05,
+  "weekend_factor": 1.05,
+  "holiday_factor": 1.08,
+  "daily_noise_sigma": 0.04,
+  "daily_noise_clip": 0.1,
+  "household_noise_sigma": 0.15,
+  "demand_thresholds": {
+    "high": 0.9,
+    "medium": 0.75
+  },
+  "fixed_holidays": [
+    "01-01",
+    "04-09",
+    "05-01",
+    "06-12",
+    "08-21",
+    "11-01",
+    "11-02",
+    "11-30",
+    "12-08",
+    "12-24",
+    "12-25",
+    "12-30",
+    "12-31"
+  ],
+  "holy_week": true
+}

@@ -2,32 +2,39 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import secrets
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from functools import wraps
 from pathlib import Path
 from typing import Any, Iterator
 
 from flask import Flask, jsonify, redirect, request, send_from_directory, session
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.utils import secure_filename
 
 
 ROOT = Path(__file__).resolve().parent
-DATABASE_PATH = ROOT / "database" / "electroforecast.db"
+DATABASE_PATH = Path(os.environ.get("ELECTROFORECAST_DB", ROOT / "database" / "electroforecast.db"))
 SCHEMA_PATH = ROOT / "database" / "schema.sqlite.sql"
+BILL_IMAGE_DIR = ROOT / "database" / "uploads" / "bills"
+BILL_IMAGE_MAX_BYTES = 5 * 1024 * 1024
 
 app = Flask(__name__, static_folder=None)
 app.config.update(
     SECRET_KEY=os.environ.get("ELECTROFORECAST_SECRET", "electroforecast-local-development-key"),
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
-    MAX_CONTENT_LENGTH=2 * 1024 * 1024,
+    MAX_CONTENT_LENGTH=6 * 1024 * 1024,
 )
 
 CATALOG_APPROVAL_NOTE = (
     "Automatically accepted from an administrator-approved appliance rating."
 )
+
+from tools.common.locations import BARANGAYS as GUIMARAS_BARANGAYS
 
 
 @contextmanager
@@ -53,6 +60,56 @@ def row_dict(row: sqlite3.Row | None) -> dict[str, Any] | None:
     return dict(row) if row else None
 
 
+def link_review_notifications(db: sqlite3.Connection) -> None:
+    """Link older 'Submission reviewed' notifications to their submission.
+
+    Each review wrote an audit row in the same transaction, so the decision, submission type
+    and timestamp identify the submission; only notifications whose owner matches are linked.
+    """
+    pending = db.execute(
+        """
+        SELECT notification_id, user_id, message, created_at FROM notifications
+        WHERE type='submission_update' AND entity_id IS NULL AND title='Submission reviewed'
+        """
+    ).fetchall()
+    owners = {
+        "appliance": "SELECT h.user_id FROM appliances s JOIN households h ON h.household_id=s.household_id WHERE s.appliance_id=?",
+        "consumption": "SELECT h.user_id FROM monthly_consumption s JOIN households h ON h.household_id=s.household_id WHERE s.consumption_id=?",
+    }
+    for note in pending:
+        match = re.fullmatch(r"Your (appliance|consumption) submission was (approved|rejected)\.", note["message"])
+        if not match:
+            continue
+        kind, decision = match.groups()
+        candidates = db.execute(
+            """
+            SELECT entity_id FROM audit_logs
+            WHERE action=? AND entity_type=? AND entity_id IS NOT NULL
+              AND ABS(strftime('%s', created_at) - strftime('%s', ?)) <= 2
+            ORDER BY audit_id
+            """,
+            (decision, kind, note["created_at"]),
+        ).fetchall()
+        for candidate in candidates:
+            owner = db.execute(owners[kind], (candidate["entity_id"],)).fetchone()
+            if not owner:
+                # Submission since deleted: its creator is recorded in the 'created' audit row.
+                owner = db.execute(
+                    """
+                    SELECT actor_user_id AS user_id FROM audit_logs
+                    WHERE action='created' AND entity_type=? AND entity_id=?
+                    ORDER BY audit_id LIMIT 1
+                    """,
+                    ("appliance" if kind == "appliance" else "monthly_consumption", candidate["entity_id"]),
+                ).fetchone()
+            if owner and owner["user_id"] == note["user_id"]:
+                db.execute(
+                    "UPDATE notifications SET entity_type=?, entity_id=? WHERE notification_id=?",
+                    (kind, candidate["entity_id"], note["notification_id"]),
+                )
+                break
+
+
 def initialize_database() -> None:
     DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
     with get_db() as db:
@@ -64,15 +121,62 @@ def initialize_database() -> None:
             db.execute(
                 "ALTER TABLE appliances ADD COLUMN copied_from_appliance_id INTEGER"
             )
+        if "reviewer_notes_read_at" not in appliance_columns:
+            db.execute(
+                "ALTER TABLE appliances ADD COLUMN reviewer_notes_read_at TEXT"
+            )
+        household_appliance_columns = {
+            row["name"] for row in db.execute("PRAGMA table_info(household_appliances)")
+        }
+        if "deleted_at" not in household_appliance_columns:
+            db.execute(
+                "ALTER TABLE household_appliances ADD COLUMN deleted_at TEXT"
+            )
+        db.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_household_appliances_deleted
+            ON household_appliances(household_id, deleted_at)
+            """
+        )
+        consumption_columns = {
+            row["name"] for row in db.execute("PRAGMA table_info(monthly_consumption)")
+        }
+        if "deleted_at" not in consumption_columns:
+            db.execute("ALTER TABLE monthly_consumption ADD COLUMN deleted_at TEXT")
+        for column_name, column_type in (
+            ("reviewer_notes_read_at", "TEXT"),
+            ("bill_image_filename", "TEXT"),
+            ("bill_image_original_name", "TEXT"),
+            ("bill_image_mime", "TEXT"),
+            ("bill_image_size_bytes", "INTEGER"),
+        ):
+            if column_name not in consumption_columns:
+                db.execute(
+                    f"ALTER TABLE monthly_consumption ADD COLUMN {column_name} {column_type}"
+                )
+        db.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_consumption_deleted
+            ON monthly_consumption(household_id, deleted_at)
+            """
+        )
+        notification_columns = {
+            row["name"] for row in db.execute("PRAGMA table_info(notifications)")
+        }
+        for column_name, column_type in (("entity_type", "TEXT"), ("entity_id", "INTEGER")):
+            if column_name not in notification_columns:
+                db.execute(f"ALTER TABLE notifications ADD COLUMN {column_name} {column_type}")
+        link_review_notifications(db)
         db.execute(
             """
             UPDATE appliances
             SET verification_status='approved',
                 reviewer_notes=?,
+                reviewer_notes_read_at=COALESCE(reviewer_notes_read_at, ?),
                 reviewed_at=COALESCE(reviewed_at, ?)
             WHERE copied_from_appliance_id IS NOT NULL
             """,
-            (CATALOG_APPROVAL_NOTE, now()),
+            (CATALOG_APPROVAL_NOTE, now(), now()),
         )
 
         roles = {
@@ -373,11 +477,52 @@ def json_body() -> dict[str, Any]:
     return request.get_json(silent=True) or {}
 
 
+def form_or_json_body() -> dict[str, Any]:
+    return request.form.to_dict() if request.form else json_body()
+
+
 def text_value(data: dict[str, Any], key: str, required: bool = False) -> str | None:
     value = str(data.get(key, "")).strip()
     if required and not value:
         raise ValueError(f"{key.replace('_', ' ').title()} is required")
     return value or None
+
+
+def boolean_value(data: dict[str, Any], key: str) -> bool:
+    value = data.get(key)
+    if not isinstance(value, bool):
+        raise ValueError(f"{key.replace('_', ' ').title()} must be true or false")
+    return value
+
+
+def load_user_settings(db: sqlite3.Connection, user_id: int) -> dict[str, Any]:
+    db.execute("INSERT OR IGNORE INTO user_settings(user_id) VALUES (?)", (user_id,))
+    row = db.execute("SELECT * FROM user_settings WHERE user_id = ?", (user_id,)).fetchone()
+    settings = dict(row)
+    for key in (
+        "notify_high_demand",
+        "notify_rating_updates",
+        "notify_weekly_summary",
+        "show_confidence_intervals",
+        "show_demand_gauge",
+        "compact_table_view",
+    ):
+        settings[key] = bool(settings[key])
+    return settings
+
+
+def login_destination(user_id: int, role: str) -> str:
+    default_page = (
+        "admin-dashboard.html"
+        if role in ("admin", "guimelco", "researcher")
+        else "user-portal.html"
+    )
+    with get_db() as db:
+        landing_page = load_user_settings(db, user_id)["landing_page"]
+    return {
+        "forecasting": "forecasting.html",
+        "demand_classification": "demand-classification.html",
+    }.get(landing_page, default_page)
 
 
 def number_value(
@@ -400,6 +545,59 @@ def number_value(
             f"{key.replace('_', ' ').title()} must be between {minimum:g} and {maximum:g}"
         )
     return value
+
+
+def id_list(data: dict[str, Any], key: str, maximum: int = 100) -> list[int]:
+    raw_ids = data.get(key)
+    if not isinstance(raw_ids, list) or not raw_ids:
+        raise ValueError("Select at least one item")
+    if len(raw_ids) > maximum:
+        raise ValueError(f"You can permanently delete up to {maximum} items at once")
+    try:
+        values = list(dict.fromkeys(int(value) for value in raw_ids))
+    except (TypeError, ValueError):
+        raise ValueError("Selected items are invalid")
+    if any(value <= 0 for value in values):
+        raise ValueError("Selected items are invalid")
+    return values
+
+
+def bill_image_upload(required: bool = True) -> dict[str, Any] | None:
+    uploaded = request.files.get("bill_image")
+    if not uploaded or not uploaded.filename:
+        if required:
+            raise ValueError("A clear picture of the electricity bill is required")
+        return None
+    contents = uploaded.read(BILL_IMAGE_MAX_BYTES + 1)
+    if len(contents) > BILL_IMAGE_MAX_BYTES:
+        raise ValueError("Bill picture must be 5 MB or smaller")
+    if contents.startswith(b"\xff\xd8\xff"):
+        extension, mime_type = "jpg", "image/jpeg"
+    elif contents.startswith(b"\x89PNG\r\n\x1a\n"):
+        extension, mime_type = "png", "image/png"
+    elif len(contents) >= 12 and contents[:4] == b"RIFF" and contents[8:12] == b"WEBP":
+        extension, mime_type = "webp", "image/webp"
+    else:
+        raise ValueError("Bill picture must be a valid JPG, PNG, or WebP image")
+    original_name = secure_filename(uploaded.filename)[:255] or f"bill.{extension}"
+    return {
+        "filename": f"{secrets.token_hex(20)}.{extension}",
+        "original_name": original_name,
+        "mime_type": mime_type,
+        "size_bytes": len(contents),
+        "contents": contents,
+    }
+
+
+def save_bill_image(image: dict[str, Any]) -> None:
+    BILL_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+    (BILL_IMAGE_DIR / image["filename"]).write_bytes(image["contents"])
+
+
+def delete_bill_image(filename: str | None) -> None:
+    if not filename or Path(filename).name != filename:
+        return
+    (BILL_IMAGE_DIR / filename).unlink(missing_ok=True)
 
 
 def audit(
@@ -437,6 +635,112 @@ def health():
     return jsonify(status="ok", database=str(DATABASE_PATH.name))
 
 
+@app.get("/api/locations/guimaras")
+def guimaras_locations():
+    return jsonify(
+        province="Guimaras",
+        municipality_count=len(GUIMARAS_BARANGAYS),
+        barangay_count=sum(len(items) for items in GUIMARAS_BARANGAYS.values()),
+        psgc_reference_date="2025-07-31",
+        municipalities=[
+            {"name": municipality, "barangays": list(barangays)}
+            for municipality, barangays in GUIMARAS_BARANGAYS.items()
+        ],
+    )
+
+
+@app.post("/api/auth/register")
+def register():
+    data = json_body()
+    try:
+        full_name = text_value(data, "full_name", True)
+        email = text_value(data, "email", True).lower()
+        barangay = text_value(data, "barangay", True)
+        municipality = text_value(data, "municipality", True)
+        contact_no = text_value(data, "contact_no")
+        password = str(data.get("password", ""))
+        password_confirmation = str(data.get("password_confirmation", ""))
+
+        if not 2 <= len(full_name) <= 100:
+            raise ValueError("Full name must be between 2 and 100 characters")
+        if len(email) > 150 or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
+            raise ValueError("Enter a valid email address")
+        if len(barangay) > 100:
+            raise ValueError("Barangay must be 100 characters or fewer")
+        if municipality not in GUIMARAS_BARANGAYS:
+            raise ValueError("Select a valid Guimaras municipality")
+        if barangay not in GUIMARAS_BARANGAYS[municipality]:
+            raise ValueError(f"Select a valid barangay in {municipality}")
+        if contact_no and len(contact_no) > 30:
+            raise ValueError("Contact number must be 30 characters or fewer")
+        if (
+            len(password) < 8
+            or not re.search(r"[a-z]", password)
+            or not re.search(r"[A-Z]", password)
+            or not re.search(r"\d", password)
+        ):
+            raise ValueError(
+                "Password must be at least 8 characters and include uppercase, lowercase, and a number"
+            )
+        if password != password_confirmation:
+            raise ValueError("Passwords do not match")
+        if data.get("terms_accepted") is not True:
+            raise ValueError("You must confirm the data contribution agreement")
+
+    except (ValueError, TypeError) as error:
+        return jsonify(error=str(error)), 400
+
+    with get_db() as db:
+        if db.execute(
+            "SELECT 1 FROM users WHERE email=? COLLATE NOCASE", (email,)
+        ).fetchone():
+            return jsonify(error="An account with this email already exists"), 409
+        household_role = db.execute(
+            "SELECT role_id FROM roles WHERE role_name='household'"
+        ).fetchone()
+        if not household_role:
+            return jsonify(error="Household registration is temporarily unavailable"), 503
+        cursor = db.execute(
+            """
+            INSERT INTO users
+              (role_id, full_name, email, password_hash, contact_no)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                household_role["role_id"],
+                full_name,
+                email,
+                generate_password_hash(password),
+                contact_no,
+            ),
+        )
+        user_id = int(cursor.lastrowid)
+        household_cursor = db.execute(
+            """
+            INSERT INTO households
+              (user_id, barangay, municipality, province)
+            VALUES (?, ?, ?, 'Guimaras')
+            """,
+            (user_id, barangay, municipality),
+        )
+        audit(
+            db,
+            user_id,
+            "registered",
+            "user",
+            user_id,
+            {
+                "household_id": int(household_cursor.lastrowid),
+                "municipality": municipality,
+                "province": "Guimaras",
+            },
+        )
+
+    session.clear()
+    session["user_id"] = user_id
+    return jsonify(user=user_payload(user_id), redirect="user-portal.html"), 201
+
+
 @app.post("/api/auth/login")
 def login():
     data = json_body()
@@ -457,11 +761,7 @@ def login():
     session.clear()
     session["user_id"] = int(user["user_id"])
     payload = user_payload(int(user["user_id"]))
-    destination = (
-        "admin-dashboard.html"
-        if payload["role"] in ("admin", "guimelco", "researcher")
-        else "user-portal.html"
-    )
+    destination = login_destination(int(user["user_id"]), payload["role"])
     return jsonify(user=payload, redirect=destination)
 
 
@@ -475,6 +775,205 @@ def logout():
 @require_auth()
 def me():
     return jsonify(user=request.current_user)
+
+
+@app.get("/api/settings")
+@require_auth()
+def get_settings():
+    user = request.current_user
+    with get_db() as db:
+        stored = load_user_settings(db, user["user_id"])
+    return jsonify(
+        profile={
+            "full_name": user["full_name"],
+            "email": user["email"],
+            "contact_no": user["contact_no"] or "",
+            "role": user["role"],
+        },
+        preferences={
+            key: stored[key]
+            for key in (
+                "notify_high_demand",
+                "notify_rating_updates",
+                "notify_weekly_summary",
+                "forecast_horizon",
+                "forecast_granularity",
+                "measurement_unit",
+                "landing_page",
+                "show_confidence_intervals",
+                "show_demand_gauge",
+                "compact_table_view",
+            )
+        },
+        data_source={
+            "data_refresh_frequency": stored["data_refresh_frequency"],
+            "default_file_format": stored["default_file_format"],
+        },
+    )
+
+
+@app.patch("/api/settings")
+@require_auth()
+def update_settings():
+    data = json_body()
+    section = text_value(data, "section", True)
+    user_id = request.current_user["user_id"]
+
+    try:
+        if section == "profile":
+            full_name = text_value(data, "full_name", True)
+            email = text_value(data, "email", True).lower()
+            contact_no = text_value(data, "contact_no")
+            if not 2 <= len(full_name) <= 100:
+                raise ValueError("Full name must be between 2 and 100 characters")
+            if len(email) > 150 or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
+                raise ValueError("Enter a valid email address")
+            if contact_no and len(contact_no) > 30:
+                raise ValueError("Contact number must be 30 characters or fewer")
+            with get_db() as db:
+                duplicate = db.execute(
+                    "SELECT 1 FROM users WHERE email=? COLLATE NOCASE AND user_id<>?",
+                    (email, user_id),
+                ).fetchone()
+                if duplicate:
+                    return jsonify(error="An account with this email already exists"), 409
+                db.execute(
+                    """
+                    UPDATE users
+                    SET full_name=?, email=?, contact_no=?, updated_at=?
+                    WHERE user_id=?
+                    """,
+                    (full_name, email, contact_no, now(), user_id),
+                )
+                audit(
+                    db,
+                    user_id,
+                    "updated",
+                    "user_profile",
+                    user_id,
+                    {"full_name": full_name, "email": email, "contact_no": contact_no},
+                )
+            return jsonify(ok=True, user=user_payload(user_id))
+
+        if section == "preferences":
+            values = {
+                "notify_high_demand": boolean_value(data, "notify_high_demand"),
+                "notify_rating_updates": boolean_value(data, "notify_rating_updates"),
+                "notify_weekly_summary": boolean_value(data, "notify_weekly_summary"),
+                "forecast_horizon": text_value(data, "forecast_horizon", True),
+                "forecast_granularity": text_value(data, "forecast_granularity", True),
+                "measurement_unit": text_value(data, "measurement_unit", True),
+                "landing_page": text_value(data, "landing_page", True),
+                "show_confidence_intervals": boolean_value(data, "show_confidence_intervals"),
+                "show_demand_gauge": boolean_value(data, "show_demand_gauge"),
+                "compact_table_view": boolean_value(data, "compact_table_view"),
+            }
+            allowed = {
+                "forecast_horizon": {"7_days", "14_days", "30_days"},
+                "forecast_granularity": {"daily", "weekly", "monthly"},
+                "measurement_unit": {"kwh", "mwh"},
+                "landing_page": {"role_default", "forecasting", "demand_classification"},
+            }
+            for key, choices in allowed.items():
+                if values[key] not in choices:
+                    raise ValueError(f"Select a valid {key.replace('_', ' ')}")
+            with get_db() as db:
+                load_user_settings(db, user_id)
+                db.execute(
+                    """
+                    UPDATE user_settings SET
+                      notify_high_demand=?, notify_rating_updates=?, notify_weekly_summary=?,
+                      forecast_horizon=?, forecast_granularity=?, measurement_unit=?, landing_page=?,
+                      show_confidence_intervals=?, show_demand_gauge=?, compact_table_view=?, updated_at=?
+                    WHERE user_id=?
+                    """,
+                    (
+                        int(values["notify_high_demand"]),
+                        int(values["notify_rating_updates"]),
+                        int(values["notify_weekly_summary"]),
+                        values["forecast_horizon"],
+                        values["forecast_granularity"],
+                        values["measurement_unit"],
+                        values["landing_page"],
+                        int(values["show_confidence_intervals"]),
+                        int(values["show_demand_gauge"]),
+                        int(values["compact_table_view"]),
+                        now(),
+                        user_id,
+                    ),
+                )
+                audit(db, user_id, "updated", "user_settings", user_id, values)
+            return jsonify(ok=True)
+
+        if section == "data_source":
+            refresh = text_value(data, "data_refresh_frequency", True)
+            file_format = text_value(data, "default_file_format", True)
+            if refresh not in {"daily", "weekly", "manual"}:
+                raise ValueError("Select a valid data refresh frequency")
+            if file_format not in {"csv", "xlsx", "json"}:
+                raise ValueError("Select a valid default file format")
+            with get_db() as db:
+                load_user_settings(db, user_id)
+                db.execute(
+                    """
+                    UPDATE user_settings
+                    SET data_refresh_frequency=?, default_file_format=?, updated_at=?
+                    WHERE user_id=?
+                    """,
+                    (refresh, file_format, now(), user_id),
+                )
+                audit(
+                    db,
+                    user_id,
+                    "updated",
+                    "user_settings",
+                    user_id,
+                    {"data_refresh_frequency": refresh, "default_file_format": file_format},
+                )
+            return jsonify(ok=True)
+
+        raise ValueError("Select a valid settings section")
+    except (ValueError, TypeError) as error:
+        return jsonify(error=str(error)), 400
+
+
+@app.patch("/api/settings/password")
+@require_auth()
+def update_settings_password():
+    data = json_body()
+    current_password = str(data.get("current_password", ""))
+    new_password = str(data.get("new_password", ""))
+    confirmation = str(data.get("password_confirmation", ""))
+    try:
+        if not current_password:
+            raise ValueError("Current password is required")
+        if (
+            len(new_password) < 8
+            or not re.search(r"[a-z]", new_password)
+            or not re.search(r"[A-Z]", new_password)
+            or not re.search(r"\d", new_password)
+        ):
+            raise ValueError(
+                "New password must be at least 8 characters and include uppercase, lowercase, and a number"
+            )
+        if new_password != confirmation:
+            raise ValueError("Passwords do not match")
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+
+    user_id = request.current_user["user_id"]
+    with get_db() as db:
+        account = db.execute(
+            "SELECT password_hash FROM users WHERE user_id=?", (user_id,)
+        ).fetchone()
+        if not account or not check_password_hash(account["password_hash"], current_password):
+            return jsonify(error="Current password is incorrect"), 400
+        db.execute(
+            "UPDATE users SET password_hash=?, updated_at=? WHERE user_id=?",
+            (generate_password_hash(new_password), now(), user_id),
+        )
+        audit(db, user_id, "changed_password", "user", user_id)
+    return jsonify(ok=True)
 
 
 @app.get("/api/categories")
@@ -497,7 +996,8 @@ def portal_summary():
             """
             SELECT COUNT(*) AS count,
                    COALESCE(SUM(power_rating_watts * quantity * avg_daily_usage_hours / 1000.0), 0) AS daily_kwh
-            FROM household_appliances WHERE household_id = ?
+            FROM household_appliances
+            WHERE household_id = ? AND deleted_at IS NULL
             """,
             (household_id,),
         ).fetchone()
@@ -513,14 +1013,14 @@ def portal_summary():
             """
             SELECT COUNT(*) AS count,
                    SUM(CASE WHEN verification_status='pending' THEN 1 ELSE 0 END) AS pending
-            FROM monthly_consumption WHERE household_id = ?
+            FROM monthly_consumption WHERE household_id = ? AND deleted_at IS NULL
             """,
             (household_id,),
         ).fetchone()
         latest = db.execute(
             """
             SELECT billing_month, consumption_kwh, verification_status
-            FROM monthly_consumption WHERE household_id = ?
+            FROM monthly_consumption WHERE household_id = ? AND deleted_at IS NULL
             ORDER BY billing_month DESC LIMIT 1
             """,
             (household_id,),
@@ -529,7 +1029,7 @@ def portal_summary():
             """
             SELECT
               (SELECT COUNT(*) FROM appliances WHERE household_id=? AND verification_status='approved') +
-              (SELECT COUNT(*) FROM monthly_consumption WHERE household_id=? AND verification_status='approved')
+              (SELECT COUNT(*) FROM monthly_consumption WHERE household_id=? AND verification_status='approved' AND deleted_at IS NULL)
               AS approved_count
             """,
             (household_id, household_id),
@@ -553,13 +1053,26 @@ APPLIANCE_SELECT = """
 SELECT a.appliance_id, a.appliance_name, a.brand, a.model,
        a.power_rating_watts, a.quantity, a.avg_daily_usage_hours,
        a.source_of_info, a.verification_status, a.reviewer_notes,
+       a.reviewer_notes_read_at,
+       CASE
+         WHEN a.reviewer_notes IS NOT NULL
+          AND TRIM(a.reviewer_notes) <> ''
+          AND a.reviewer_notes_read_at IS NULL THEN 1 ELSE 0
+       END AS reviewer_notes_unread,
        a.copied_from_appliance_id, a.created_at, a.updated_at,
        c.category_id, c.category_name,
        EXISTS(
          SELECT 1 FROM household_appliances ha
          WHERE ha.household_id=a.household_id
            AND ha.source_appliance_id=a.appliance_id
+           AND ha.deleted_at IS NULL
        ) AS in_inventory,
+       EXISTS(
+         SELECT 1 FROM household_appliances ha
+         WHERE ha.household_id=a.household_id
+           AND ha.source_appliance_id=a.appliance_id
+           AND ha.deleted_at IS NOT NULL
+       ) AS recently_deleted,
        ROUND(a.power_rating_watts * a.quantity * a.avg_daily_usage_hours / 1000.0, 3)
          AS estimated_daily_kwh
 FROM appliances a
@@ -579,11 +1092,46 @@ def list_appliances():
     return jsonify(appliances=[dict(row) for row in rows])
 
 
+@app.post("/api/appliances/<int:appliance_id>/reviewer-notes/read")
+@require_auth("household")
+def mark_appliance_reviewer_notes_read(appliance_id: int):
+    with get_db() as db:
+        household_id = household_id_for(request.current_user["user_id"], db)
+        row = db.execute(
+            """
+            SELECT reviewer_notes, reviewer_notes_read_at
+            FROM appliances
+            WHERE appliance_id=? AND household_id=?
+            """,
+            (appliance_id, household_id),
+        ).fetchone()
+        if not row or not row["reviewer_notes"]:
+            return jsonify(error="Reviewer Notes not found"), 404
+        read_at = row["reviewer_notes_read_at"] or now()
+        if not row["reviewer_notes_read_at"]:
+            db.execute(
+                """
+                UPDATE appliances SET reviewer_notes_read_at=?
+                WHERE appliance_id=? AND household_id=?
+                """,
+                (read_at, appliance_id, household_id),
+            )
+            audit(
+                db,
+                request.current_user["user_id"],
+                "reviewer_notes_read",
+                "appliance",
+                appliance_id,
+            )
+    return jsonify(ok=True, reviewer_notes_read_at=read_at)
+
+
 HOUSEHOLD_APPLIANCE_SELECT = """
 SELECT ha.inventory_id, ha.source_appliance_id, ha.appliance_name,
        ha.brand, ha.model, ha.power_rating_watts, ha.quantity,
        ha.avg_daily_usage_hours, ha.source_of_info,
-       ha.created_at, ha.updated_at, c.category_id, c.category_name,
+       ha.deleted_at, ha.created_at, ha.updated_at,
+       c.category_id, c.category_name,
        ROUND(ha.power_rating_watts * ha.quantity * ha.avg_daily_usage_hours / 1000.0, 3)
          AS estimated_daily_kwh
 FROM household_appliances ha
@@ -598,7 +1146,20 @@ def list_household_appliances():
         household_id = household_id_for(request.current_user["user_id"], db)
         rows = db.execute(
             HOUSEHOLD_APPLIANCE_SELECT
-            + " WHERE ha.household_id=? ORDER BY ha.updated_at DESC",
+            + " WHERE ha.household_id=? AND ha.deleted_at IS NULL ORDER BY ha.updated_at DESC",
+            (household_id,),
+        ).fetchall()
+    return jsonify(appliances=[dict(row) for row in rows])
+
+
+@app.get("/api/my-appliances/recently-deleted")
+@require_auth("household")
+def list_recently_deleted_household_appliances():
+    with get_db() as db:
+        household_id = household_id_for(request.current_user["user_id"], db)
+        rows = db.execute(
+            HOUSEHOLD_APPLIANCE_SELECT
+            + " WHERE ha.household_id=? AND ha.deleted_at IS NOT NULL ORDER BY ha.deleted_at DESC",
             (household_id,),
         ).fetchall()
     return jsonify(appliances=[dict(row) for row in rows])
@@ -683,12 +1244,14 @@ def create_household_appliance_from_submission(catalog_id: int):
         household_id = household_id_for(request.current_user["user_id"], db)
         existing = db.execute(
             """
-            SELECT inventory_id FROM household_appliances
+            SELECT inventory_id, deleted_at FROM household_appliances
             WHERE household_id=? AND source_appliance_id=?
             """,
             (household_id, source["appliance_id"]),
         ).fetchone()
         if existing:
+            if existing["deleted_at"]:
+                return jsonify(error="This appliance is in Recently Deleted. Restore it there."), 409
             return jsonify(error="This appliance is already in My Appliances"), 409
         cursor = db.execute(
             """
@@ -749,7 +1312,7 @@ def update_household_appliance(inventory_id: int):
         existing = db.execute(
             """
             SELECT appliance_name FROM household_appliances
-            WHERE inventory_id=? AND household_id=?
+            WHERE inventory_id=? AND household_id=? AND deleted_at IS NULL
             """,
             (inventory_id, household_id),
         ).fetchone()
@@ -786,7 +1349,7 @@ def delete_household_appliance(inventory_id: int):
         row = db.execute(
             """
             SELECT appliance_name FROM household_appliances
-            WHERE inventory_id=? AND household_id=?
+            WHERE inventory_id=? AND household_id=? AND deleted_at IS NULL
             """,
             (inventory_id, household_id),
         ).fetchone()
@@ -794,20 +1357,101 @@ def delete_household_appliance(inventory_id: int):
             return jsonify(error="Household appliance not found"), 404
         db.execute(
             """
-            DELETE FROM household_appliances
-            WHERE inventory_id=? AND household_id=?
+            UPDATE household_appliances
+            SET deleted_at=?, updated_at=?
+            WHERE inventory_id=? AND household_id=? AND deleted_at IS NULL
             """,
-            (inventory_id, household_id),
+            (now(), now(), inventory_id, household_id),
         )
         audit(
             db,
             request.current_user["user_id"],
-            "removed",
+            "moved_to_recently_deleted",
             "household_appliance",
             inventory_id,
             {"appliance_name": row["appliance_name"]},
         )
     return jsonify(ok=True)
+
+
+@app.post("/api/my-appliances/<int:inventory_id>/restore")
+@require_auth("household")
+def restore_household_appliance(inventory_id: int):
+    with get_db() as db:
+        household_id = household_id_for(request.current_user["user_id"], db)
+        row = db.execute(
+            """
+            SELECT appliance_name FROM household_appliances
+            WHERE inventory_id=? AND household_id=? AND deleted_at IS NOT NULL
+            """,
+            (inventory_id, household_id),
+        ).fetchone()
+        if not row:
+            return jsonify(error="Recently deleted appliance not found"), 404
+        db.execute(
+            """
+            UPDATE household_appliances
+            SET deleted_at=NULL, updated_at=?
+            WHERE inventory_id=? AND household_id=?
+            """,
+            (now(), inventory_id, household_id),
+        )
+        audit(
+            db,
+            request.current_user["user_id"],
+            "restored",
+            "household_appliance",
+            inventory_id,
+            {"appliance_name": row["appliance_name"]},
+        )
+        restored = db.execute(
+            HOUSEHOLD_APPLIANCE_SELECT + " WHERE ha.inventory_id=?",
+            (inventory_id,),
+        ).fetchone()
+    return jsonify(appliance=dict(restored))
+
+
+@app.delete("/api/my-appliances/permanent")
+@require_auth("household")
+def permanently_delete_household_appliances():
+    try:
+        inventory_ids = id_list(json_body(), "inventory_ids")
+    except (ValueError, TypeError) as error:
+        return jsonify(error=str(error)), 400
+    placeholders = ",".join("?" for _ in inventory_ids)
+    with get_db() as db:
+        household_id = household_id_for(request.current_user["user_id"], db)
+        rows = db.execute(
+            f"""
+            SELECT inventory_id, appliance_name
+            FROM household_appliances
+            WHERE household_id=? AND deleted_at IS NOT NULL
+              AND inventory_id IN ({placeholders})
+            """,
+            (household_id, *inventory_ids),
+        ).fetchall()
+        if not rows:
+            return jsonify(error="No recently deleted appliances were selected"), 404
+        eligible_ids = [int(row["inventory_id"]) for row in rows]
+        eligible_placeholders = ",".join("?" for _ in eligible_ids)
+        db.execute(
+            f"""
+            DELETE FROM household_appliances
+            WHERE household_id=? AND deleted_at IS NOT NULL
+              AND inventory_id IN ({eligible_placeholders})
+            """,
+            (household_id, *eligible_ids),
+        )
+        for row in rows:
+            audit(
+                db,
+                request.current_user["user_id"],
+                "permanently_deleted",
+                "household_appliance",
+                int(row["inventory_id"]),
+                {"appliance_name": row["appliance_name"]},
+            )
+    return jsonify(ok=True, deleted_count=len(eligible_ids))
 
 
 def appliance_fields(data: dict[str, Any]) -> dict[str, Any]:
@@ -889,6 +1533,7 @@ def update_appliance(appliance_id: int):
                 UPDATE appliances
                 SET quantity=?, avg_daily_usage_hours=?,
                     verification_status='approved', reviewer_notes=?,
+                    reviewer_notes_read_at=?,
                     updated_at=?
                 WHERE appliance_id=? AND household_id=?
                 """,
@@ -896,6 +1541,7 @@ def update_appliance(appliance_id: int):
                     quantity,
                     avg_hours,
                     CATALOG_APPROVAL_NOTE,
+                    now(),
                     now(),
                     appliance_id,
                     household_id,
@@ -929,7 +1575,8 @@ def update_appliance(appliance_id: int):
             SET appliance_name=?, brand=?, model=?, category_id=?,
                 power_rating_watts=?, quantity=?, avg_daily_usage_hours=?,
                 source_of_info=?, verification_status='pending',
-                reviewer_notes=NULL, reviewed_by=NULL, reviewed_at=NULL, updated_at=?
+                reviewer_notes=NULL, reviewer_notes_read_at=NULL,
+                reviewed_by=NULL, reviewed_at=NULL, updated_at=?
             WHERE appliance_id=? AND household_id=?
             """,
             (*fields.values(), now(), appliance_id, household_id),
@@ -947,11 +1594,19 @@ def delete_appliance(appliance_id: int):
     with get_db() as db:
         household_id = household_id_for(request.current_user["user_id"], db)
         row = db.execute(
-            "SELECT appliance_name FROM appliances WHERE appliance_id=? AND household_id=?",
+            """
+            SELECT appliance_name, verification_status
+            FROM appliances
+            WHERE appliance_id=? AND household_id=?
+            """,
             (appliance_id, household_id),
         ).fetchone()
         if not row:
             return jsonify(error="Appliance not found"), 404
+        if row["verification_status"] == "approved":
+            return jsonify(
+                error="Approved appliance submissions cannot be deleted"
+            ), 409
         db.execute(
             "DELETE FROM appliances WHERE appliance_id=? AND household_id=?",
             (appliance_id, household_id),
@@ -962,7 +1617,10 @@ def delete_appliance(appliance_id: int):
             "deleted",
             "appliance",
             appliance_id,
-            {"appliance_name": row["appliance_name"]},
+            {
+                "appliance_name": row["appliance_name"],
+                "verification_status": row["verification_status"],
+            },
         )
     return jsonify(ok=True)
 
@@ -970,7 +1628,14 @@ def delete_appliance(appliance_id: int):
 CONSUMPTION_SELECT = """
 SELECT consumption_id, billing_month, consumption_kwh, bill_amount_php,
        meter_reading, source_of_info, verification_status, reviewer_notes,
-       created_at, updated_at
+       reviewer_notes_read_at,
+       CASE
+         WHEN reviewer_notes IS NOT NULL
+          AND TRIM(reviewer_notes) <> ''
+          AND reviewer_notes_read_at IS NULL THEN 1 ELSE 0
+       END AS reviewer_notes_unread,
+       deleted_at, created_at, updated_at,
+       CASE WHEN bill_image_filename IS NOT NULL THEN 1 ELSE 0 END AS has_bill_image
 FROM monthly_consumption
 """
 
@@ -981,10 +1646,89 @@ def list_consumption():
     with get_db() as db:
         household_id = household_id_for(request.current_user["user_id"], db)
         rows = db.execute(
-            CONSUMPTION_SELECT + " WHERE household_id=? ORDER BY billing_month DESC",
+            CONSUMPTION_SELECT
+            + " WHERE household_id=? AND deleted_at IS NULL ORDER BY billing_month DESC",
             (household_id,),
         ).fetchall()
     return jsonify(records=[dict(row) for row in rows])
+
+
+@app.get("/api/consumption/recently-deleted")
+@require_auth("household")
+def list_recently_deleted_consumption():
+    with get_db() as db:
+        household_id = household_id_for(request.current_user["user_id"], db)
+        rows = db.execute(
+            CONSUMPTION_SELECT
+            + " WHERE household_id=? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC",
+            (household_id,),
+        ).fetchall()
+    return jsonify(records=[dict(row) for row in rows])
+
+
+@app.post("/api/consumption/<int:consumption_id>/reviewer-notes/read")
+@require_auth("household")
+def mark_consumption_reviewer_notes_read(consumption_id: int):
+    with get_db() as db:
+        household_id = household_id_for(request.current_user["user_id"], db)
+        row = db.execute(
+            """
+            SELECT reviewer_notes, reviewer_notes_read_at
+            FROM monthly_consumption
+            WHERE consumption_id=? AND household_id=? AND deleted_at IS NULL
+            """,
+            (consumption_id, household_id),
+        ).fetchone()
+        if not row or not row["reviewer_notes"]:
+            return jsonify(error="Reviewer Notes not found"), 404
+        read_at = row["reviewer_notes_read_at"] or now()
+        if not row["reviewer_notes_read_at"]:
+            db.execute(
+                """
+                UPDATE monthly_consumption SET reviewer_notes_read_at=?
+                WHERE consumption_id=? AND household_id=? AND deleted_at IS NULL
+                """,
+                (read_at, consumption_id, household_id),
+            )
+            audit(
+                db,
+                request.current_user["user_id"],
+                "reviewer_notes_read",
+                "monthly_consumption",
+                consumption_id,
+            )
+    return jsonify(ok=True, reviewer_notes_read_at=read_at)
+
+
+@app.get("/api/consumption/<int:consumption_id>/bill-image")
+@require_auth("household", "admin", "guimelco", "researcher")
+def get_consumption_bill_image(consumption_id: int):
+    with get_db() as db:
+        row = db.execute(
+            """
+            SELECT household_id, bill_image_filename, bill_image_original_name,
+                   bill_image_mime
+            FROM monthly_consumption WHERE consumption_id=?
+            """,
+            (consumption_id,),
+        ).fetchone()
+        if not row or not row["bill_image_filename"]:
+            return jsonify(error="Bill picture not found"), 404
+        if request.current_user["role"] == "household":
+            household_id = household_id_for(request.current_user["user_id"], db)
+            if int(row["household_id"]) != household_id:
+                return jsonify(error="Bill picture not found"), 404
+        filename = row["bill_image_filename"]
+        original_name = row["bill_image_original_name"] or filename
+        mime_type = row["bill_image_mime"] or "application/octet-stream"
+    return send_from_directory(
+        BILL_IMAGE_DIR,
+        filename,
+        mimetype=mime_type,
+        as_attachment=False,
+        download_name=original_name,
+        max_age=0,
+    )
 
 
 def consumption_fields(data: dict[str, Any]) -> dict[str, Any]:
@@ -1011,22 +1755,63 @@ def consumption_fields(data: dict[str, Any]) -> dict[str, Any]:
 @require_auth("household")
 def create_consumption():
     try:
-        fields = consumption_fields(json_body())
+        fields = consumption_fields(form_or_json_body())
+        image = bill_image_upload(required=True)
     except (ValueError, TypeError) as error:
         return jsonify(error=str(error)), 400
     with get_db() as db:
         household_id = household_id_for(request.current_user["user_id"], db)
-        cursor = db.execute(
+        deleted = db.execute(
             """
-            INSERT INTO monthly_consumption
-              (household_id, billing_month, consumption_kwh, bill_amount_php,
-               meter_reading, source_of_info)
-            VALUES (?, ?, ?, ?, ?, ?)
+            SELECT 1 FROM monthly_consumption
+            WHERE household_id=? AND billing_month=? AND deleted_at IS NOT NULL
             """,
-            (household_id, *fields.values()),
-        )
+            (household_id, fields["billing_month"]),
+        ).fetchone()
+        if deleted:
+            return jsonify(
+                error="That billing month is in Recently Deleted. Restore it there."
+            ), 409
+        existing = db.execute(
+            """
+            SELECT 1 FROM monthly_consumption
+            WHERE household_id=? AND billing_month=?
+            """,
+            (household_id, fields["billing_month"]),
+        ).fetchone()
+        if existing:
+            return jsonify(error="A consumption record for that billing month already exists"), 409
+        save_bill_image(image)
+        try:
+            cursor = db.execute(
+                """
+                INSERT INTO monthly_consumption
+                  (household_id, billing_month, consumption_kwh, bill_amount_php,
+                   meter_reading, source_of_info, bill_image_filename,
+                   bill_image_original_name, bill_image_mime, bill_image_size_bytes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    household_id,
+                    *fields.values(),
+                    image["filename"],
+                    image["original_name"],
+                    image["mime_type"],
+                    image["size_bytes"],
+                ),
+            )
+        except Exception:
+            delete_bill_image(image["filename"])
+            raise
         consumption_id = int(cursor.lastrowid)
-        audit(db, request.current_user["user_id"], "created", "monthly_consumption", consumption_id, fields)
+        audit(
+            db,
+            request.current_user["user_id"],
+            "created",
+            "monthly_consumption",
+            consumption_id,
+            {**fields, "bill_image_attached": True},
+        )
         row = db.execute(
             CONSUMPTION_SELECT + " WHERE consumption_id=?", (consumption_id,)
         ).fetchone()
@@ -1037,31 +1822,62 @@ def create_consumption():
 @require_auth("household")
 def update_consumption(consumption_id: int):
     try:
-        fields = consumption_fields(json_body())
+        fields = consumption_fields(form_or_json_body())
+        image = bill_image_upload(required=True)
     except (ValueError, TypeError) as error:
         return jsonify(error=str(error)), 400
+    old_filename = None
     with get_db() as db:
         household_id = household_id_for(request.current_user["user_id"], db)
         existing = db.execute(
-            "SELECT 1 FROM monthly_consumption WHERE consumption_id=? AND household_id=?",
+            """
+            SELECT bill_image_filename FROM monthly_consumption
+            WHERE consumption_id=? AND household_id=? AND deleted_at IS NULL
+            """,
             (consumption_id, household_id),
         ).fetchone()
         if not existing:
             return jsonify(error="Consumption record not found"), 404
-        db.execute(
-            """
-            UPDATE monthly_consumption
-            SET billing_month=?, consumption_kwh=?, bill_amount_php=?, meter_reading=?,
-                source_of_info=?, verification_status='pending', reviewer_notes=NULL,
-                reviewed_by=NULL, reviewed_at=NULL, updated_at=?
-            WHERE consumption_id=? AND household_id=?
-            """,
-            (*fields.values(), now(), consumption_id, household_id),
+        old_filename = existing["bill_image_filename"]
+        save_bill_image(image)
+        try:
+            db.execute(
+                """
+                UPDATE monthly_consumption
+                SET billing_month=?, consumption_kwh=?, bill_amount_php=?, meter_reading=?,
+                    source_of_info=?, bill_image_filename=?, bill_image_original_name=?,
+                    bill_image_mime=?, bill_image_size_bytes=?,
+                    verification_status='pending', reviewer_notes=NULL,
+                    reviewer_notes_read_at=NULL,
+                    reviewed_by=NULL, reviewed_at=NULL, updated_at=?
+                WHERE consumption_id=? AND household_id=?
+                """,
+                (
+                    *fields.values(),
+                    image["filename"],
+                    image["original_name"],
+                    image["mime_type"],
+                    image["size_bytes"],
+                    now(),
+                    consumption_id,
+                    household_id,
+                ),
+            )
+        except Exception:
+            delete_bill_image(image["filename"])
+            raise
+        audit(
+            db,
+            request.current_user["user_id"],
+            "updated",
+            "monthly_consumption",
+            consumption_id,
+            {**fields, "bill_image_replaced": True},
         )
-        audit(db, request.current_user["user_id"], "updated", "monthly_consumption", consumption_id, fields)
         row = db.execute(
             CONSUMPTION_SELECT + " WHERE consumption_id=?", (consumption_id,)
         ).fetchone()
+    delete_bill_image(old_filename)
     return jsonify(record=dict(row))
 
 
@@ -1071,24 +1887,114 @@ def delete_consumption(consumption_id: int):
     with get_db() as db:
         household_id = household_id_for(request.current_user["user_id"], db)
         row = db.execute(
-            "SELECT billing_month FROM monthly_consumption WHERE consumption_id=? AND household_id=?",
+            """
+            SELECT billing_month, verification_status FROM monthly_consumption
+            WHERE consumption_id=? AND household_id=? AND deleted_at IS NULL
+            """,
             (consumption_id, household_id),
         ).fetchone()
         if not row:
             return jsonify(error="Consumption record not found"), 404
+        if row["verification_status"] == "approved":
+            return jsonify(error="Approved bill submissions cannot be deleted"), 409
         db.execute(
-            "DELETE FROM monthly_consumption WHERE consumption_id=? AND household_id=?",
-            (consumption_id, household_id),
+            """
+            UPDATE monthly_consumption SET deleted_at=?, updated_at=?
+            WHERE consumption_id=? AND household_id=? AND deleted_at IS NULL
+            """,
+            (now(), now(), consumption_id, household_id),
         )
         audit(
             db,
             request.current_user["user_id"],
-            "deleted",
+            "moved_to_recently_deleted",
             "monthly_consumption",
             consumption_id,
             {"billing_month": row["billing_month"]},
         )
     return jsonify(ok=True)
+
+
+@app.post("/api/consumption/<int:consumption_id>/restore")
+@require_auth("household")
+def restore_consumption(consumption_id: int):
+    with get_db() as db:
+        household_id = household_id_for(request.current_user["user_id"], db)
+        row = db.execute(
+            """
+            SELECT billing_month FROM monthly_consumption
+            WHERE consumption_id=? AND household_id=? AND deleted_at IS NOT NULL
+            """,
+            (consumption_id, household_id),
+        ).fetchone()
+        if not row:
+            return jsonify(error="Recently deleted consumption record not found"), 404
+        db.execute(
+            """
+            UPDATE monthly_consumption SET deleted_at=NULL, updated_at=?
+            WHERE consumption_id=? AND household_id=?
+            """,
+            (now(), consumption_id, household_id),
+        )
+        audit(
+            db,
+            request.current_user["user_id"],
+            "restored",
+            "monthly_consumption",
+            consumption_id,
+            {"billing_month": row["billing_month"]},
+        )
+        restored = db.execute(
+            CONSUMPTION_SELECT + " WHERE consumption_id=?", (consumption_id,)
+        ).fetchone()
+    return jsonify(record=dict(restored))
+
+
+@app.delete("/api/consumption/permanent")
+@require_auth("household")
+def permanently_delete_consumption():
+    try:
+        consumption_ids = id_list(json_body(), "consumption_ids")
+    except (ValueError, TypeError) as error:
+        return jsonify(error=str(error)), 400
+    placeholders = ",".join("?" for _ in consumption_ids)
+    with get_db() as db:
+        household_id = household_id_for(request.current_user["user_id"], db)
+        rows = db.execute(
+            f"""
+            SELECT consumption_id, billing_month, bill_image_filename, verification_status
+            FROM monthly_consumption
+            WHERE household_id=? AND deleted_at IS NOT NULL
+              AND consumption_id IN ({placeholders})
+            """,
+            (household_id, *consumption_ids),
+        ).fetchall()
+        if not rows:
+            return jsonify(error="No recently deleted monthly records were selected"), 404
+        if any(row["verification_status"] == "approved" for row in rows):
+            return jsonify(error="Approved bill submissions cannot be deleted; restore them instead"), 409
+        eligible_ids = [int(row["consumption_id"]) for row in rows]
+        eligible_placeholders = ",".join("?" for _ in eligible_ids)
+        db.execute(
+            f"""
+            DELETE FROM monthly_consumption
+            WHERE household_id=? AND deleted_at IS NOT NULL
+              AND consumption_id IN ({eligible_placeholders})
+            """,
+            (household_id, *eligible_ids),
+        )
+        for row in rows:
+            audit(
+                db,
+                request.current_user["user_id"],
+                "permanently_deleted",
+                "monthly_consumption",
+                int(row["consumption_id"]),
+                {"billing_month": row["billing_month"]},
+            )
+    for row in rows:
+        delete_bill_image(row["bill_image_filename"])
+    return jsonify(ok=True, deleted_count=len(eligible_ids))
 
 
 def admin_submissions(db: sqlite3.Connection, status: str | None) -> list[dict[str, Any]]:
@@ -1117,11 +2023,12 @@ def admin_submissions(db: sqlite3.Connection, status: str | None) -> list[dict[s
                printf('%.2f kWh · ₱%.2f', m.consumption_kwh, COALESCE(m.bill_amount_php,0)) AS details,
                m.source_of_info, m.verification_status, m.reviewer_notes,
                m.created_at, m.updated_at, u.full_name AS contributor,
-               h.barangay, h.municipality, 'Monthly Consumption' AS category_name
+               h.barangay, h.municipality, 'Monthly Consumption' AS category_name,
+               CASE WHEN m.bill_image_filename IS NOT NULL THEN 1 ELSE 0 END AS has_bill_image
         FROM monthly_consumption m
         JOIN households h ON h.household_id=m.household_id
         JOIN users u ON u.user_id=h.user_id
-        WHERE 1=1 {status_clause.format(alias='m')}
+        WHERE m.deleted_at IS NULL {status_clause.format(alias='m')}
         """,
         params,
     ).fetchall()
@@ -1137,8 +2044,9 @@ def admin_stats():
         role = request.current_user["role"]
         counts = {"pending": 0, "approved": 0, "rejected": 0}
         for table in ("appliances", "monthly_consumption"):
+            active_clause = " WHERE deleted_at IS NULL" if table == "monthly_consumption" else ""
             for row in db.execute(
-                f"SELECT verification_status, COUNT(*) AS count FROM {table} GROUP BY verification_status"
+                f"SELECT verification_status, COUNT(*) AS count FROM {table}{active_clause} GROUP BY verification_status"
             ):
                 counts[row["verification_status"]] += int(row["count"])
         households = db.execute("SELECT COUNT(*) AS count FROM households").fetchone()["count"]
@@ -1193,22 +2101,31 @@ def review_submission(submission_type: str, submission_id: int):
     if submission_type not in mapping:
         return jsonify(error="Invalid submission type"), 400
     table, id_column, household_column = mapping[submission_type]
+    active_clause = " AND s.deleted_at IS NULL" if submission_type == "consumption" else ""
+    evidence_column = ", s.bill_image_filename" if submission_type == "consumption" else ""
+    notes_read_reset = ", reviewer_notes_read_at=NULL"
     with get_db() as db:
         row = db.execute(
             f"""
-            SELECT h.user_id
+            SELECT h.user_id{evidence_column}
             FROM {table} s JOIN households h ON h.household_id=s.{household_column}
-            WHERE s.{id_column}=?
+            WHERE s.{id_column}=?{active_clause}
             """,
             (submission_id,),
         ).fetchone()
         if not row:
             return jsonify(error="Submission not found"), 404
+        if (
+            submission_type == "consumption"
+            and status == "approved"
+            and not row["bill_image_filename"]
+        ):
+            return jsonify(error="A bill picture is required before approval"), 400
         db.execute(
             f"""
             UPDATE {table}
-            SET verification_status=?, reviewer_notes=?, reviewed_by=?, reviewed_at=?, updated_at=?
-            WHERE {id_column}=?
+            SET verification_status=?, reviewer_notes=?, reviewed_by=?, reviewed_at=?, updated_at=?{notes_read_reset}
+            WHERE {id_column}=?{active_clause.replace('s.', '')}
             """,
             (
                 status,
@@ -1221,13 +2138,15 @@ def review_submission(submission_type: str, submission_id: int):
         )
         db.execute(
             """
-            INSERT INTO notifications(user_id, title, message, type)
-            VALUES (?, ?, ?, 'submission_update')
+            INSERT INTO notifications(user_id, title, message, type, entity_type, entity_id)
+            VALUES (?, ?, ?, 'submission_update', ?, ?)
             """,
             (
                 row["user_id"],
                 "Submission reviewed",
                 f"Your {submission_type} submission was {status}.",
+                submission_type,
+                submission_id,
             ),
         )
         audit(
@@ -1255,7 +2174,7 @@ def list_users():
             JOIN roles r ON r.role_id=u.role_id
             LEFT JOIN households h ON h.user_id=u.user_id
             LEFT JOIN appliances a ON a.household_id=h.household_id
-            LEFT JOIN monthly_consumption m ON m.household_id=h.household_id
+            LEFT JOIN monthly_consumption m ON m.household_id=h.household_id AND m.deleted_at IS NULL
             GROUP BY u.user_id
             ORDER BY u.created_at DESC
             """
@@ -1288,18 +2207,497 @@ def list_notifications():
     with get_db() as db:
         rows = db.execute(
             """
-            SELECT notification_id, title, message, type, is_read, created_at
+            SELECT notification_id, title, message, type, is_read, created_at, entity_type, entity_id
             FROM notifications WHERE user_id=?
-            ORDER BY created_at DESC LIMIT 30
+            ORDER BY created_at DESC, notification_id DESC LIMIT 30
             """,
             (request.current_user["user_id"],),
         ).fetchall()
     return jsonify(notifications=[dict(row) for row in rows])
 
 
+def submission_snapshot(db: sqlite3.Connection, kind: str | None, entity_id: int | None) -> dict[str, Any] | None:
+    """Current state of the submission a notification refers to; None if unlinked, deleted=True if gone."""
+    if kind == "appliance" and entity_id:
+        row = db.execute(
+            """
+            SELECT a.appliance_name AS title, c.category_name, a.brand, a.power_rating_watts,
+                   a.quantity, a.avg_daily_usage_hours, a.source_of_info,
+                   a.verification_status, a.reviewer_notes, a.reviewed_at, NULL AS deleted_at
+            FROM appliances a JOIN appliance_categories c ON c.category_id=a.category_id
+            WHERE a.appliance_id=?
+            """,
+            (entity_id,),
+        ).fetchone()
+    elif kind == "consumption" and entity_id:
+        row = db.execute(
+            """
+            SELECT billing_month AS title, consumption_kwh, bill_amount_php, source_of_info,
+                   verification_status, reviewer_notes, reviewed_at, deleted_at
+            FROM monthly_consumption WHERE consumption_id=?
+            """,
+            (entity_id,),
+        ).fetchone()
+    else:
+        return None
+    if not row:
+        return {"type": kind, "id": entity_id, "deleted": True}
+    return {"type": kind, "id": entity_id, **dict(row), "deleted": bool(row["deleted_at"])}
+
+
+def owned_notification(db: sqlite3.Connection, notification_id: int) -> sqlite3.Row | None:
+    return db.execute(
+        "SELECT * FROM notifications WHERE notification_id=? AND user_id=?",
+        (notification_id, request.current_user["user_id"]),
+    ).fetchone()
+
+
+@app.get("/api/notifications/<int:notification_id>")
+@require_auth()
+def notification_detail(notification_id: int):
+    with get_db() as db:
+        note = owned_notification(db, notification_id)
+        if not note:
+            return jsonify(error="Notification not found"), 404
+        payload = dict(note)
+        payload["feedback"] = []
+        payload["can_send_feedback"] = False
+        if note["entity_type"] == "feedback":
+            # Admin view of feedback a household sent about a reviewed submission.
+            feedback = db.execute(
+                """
+                SELECT f.feedback_id, f.message, f.created_at, u.full_name AS sender,
+                       n.entity_type, n.entity_id
+                FROM notification_feedback f
+                JOIN users u ON u.user_id=f.user_id
+                JOIN notifications n ON n.notification_id=f.notification_id
+                WHERE f.feedback_id=?
+                """,
+                (note["entity_id"],),
+            ).fetchone()
+            payload["feedback_received"] = dict(feedback) if feedback else None
+            payload["submission"] = (
+                submission_snapshot(db, feedback["entity_type"], feedback["entity_id"]) if feedback else None
+            )
+        else:
+            payload["submission"] = submission_snapshot(db, note["entity_type"], note["entity_id"])
+            payload["feedback"] = [dict(r) for r in db.execute(
+                """
+                SELECT feedback_id, message, created_at FROM notification_feedback
+                WHERE notification_id=? ORDER BY feedback_id
+                """,
+                (notification_id,),
+            )]
+            payload["can_send_feedback"] = note["type"] == "submission_update"
+    return jsonify(notification=payload)
+
+
+@app.patch("/api/notifications/<int:notification_id>")
+@require_auth()
+def update_notification(notification_id: int):
+    is_read = json_body().get("is_read")
+    if not isinstance(is_read, bool):
+        return jsonify(error="is_read must be true or false"), 400
+    with get_db() as db:
+        if not owned_notification(db, notification_id):
+            return jsonify(error="Notification not found"), 404
+        db.execute(
+            "UPDATE notifications SET is_read=? WHERE notification_id=?",
+            (1 if is_read else 0, notification_id),
+        )
+    return jsonify(ok=True, is_read=is_read)
+
+
+@app.post("/api/notifications/read-all")
+@require_auth()
+def read_all_notifications():
+    with get_db() as db:
+        updated = db.execute(
+            "UPDATE notifications SET is_read=1 WHERE user_id=? AND is_read=0",
+            (request.current_user["user_id"],),
+        ).rowcount
+    return jsonify(ok=True, updated=updated)
+
+
+@app.post("/api/notifications/<int:notification_id>/feedback")
+@require_auth()
+def send_notification_feedback(notification_id: int):
+    message = text_value(json_body(), "message") or ""
+    if not message:
+        return jsonify(error="Feedback message is required"), 400
+    if len(message) > 1000:
+        return jsonify(error="Feedback must be 1000 characters or fewer"), 400
+    sender = request.current_user
+    with get_db() as db:
+        note = owned_notification(db, notification_id)
+        if not note:
+            return jsonify(error="Notification not found"), 404
+        if note["type"] != "submission_update" or note["entity_type"] == "feedback":
+            return jsonify(error="Feedback can only be sent about a reviewed submission"), 400
+        feedback_id = db.execute(
+            "INSERT INTO notification_feedback(notification_id, user_id, message) VALUES (?, ?, ?)",
+            (notification_id, sender["user_id"], message),
+        ).lastrowid
+        kind = note["entity_type"] or "submission"
+        preview = message if len(message) <= 160 else message[:157] + "..."
+        admins = db.execute(
+            """
+            SELECT u.user_id FROM users u JOIN roles r ON r.role_id=u.role_id
+            WHERE r.role_name='admin' AND u.status='active'
+            """
+        ).fetchall()
+        for admin in admins:
+            db.execute(
+                """
+                INSERT INTO notifications(user_id, title, message, type, entity_type, entity_id)
+                VALUES (?, ?, ?, 'submission_update', 'feedback', ?)
+                """,
+                (admin["user_id"], f"Feedback from {sender['full_name']}", f"About their {kind} review: {preview}", feedback_id),
+            )
+        audit(db, sender["user_id"], "feedback_sent", "notification", notification_id, {"feedback_id": feedback_id})
+    return jsonify(ok=True, feedback_id=feedback_id), 201
+
+
+NO_MODEL = "No trained model yet"
+DATA_SOURCES = {"monthly_energy": "real", "annual_peak": "real", "demand_class": "synthetic"}
+MAX_DAILY_RANGE_DAYS = 400
+
+
+def active_run(db: sqlite3.Connection, task: str) -> dict[str, Any] | None:
+    """Latest active model run for a task, with parsed metrics; None if absent."""
+    try:
+        row = db.execute(
+            """
+            SELECT run_id, task, model_name, dataset_version, trained_at, metrics
+            FROM model_runs WHERE task = ? AND is_active = 1
+            ORDER BY run_id DESC LIMIT 1
+            """,
+            (task,),
+        ).fetchone()
+    except sqlite3.OperationalError:
+        return None
+    if not row:
+        return None
+    try:
+        metrics = json.loads(row["metrics"]) if row["metrics"] else {}
+    except (TypeError, ValueError):
+        metrics = {}
+    return {
+        "task": row["task"],
+        "run_id": row["run_id"],
+        "model_name": row["model_name"],
+        "dataset_version": row["dataset_version"],
+        "trained_at": row["trained_at"],
+        "metrics": metrics if isinstance(metrics, dict) else {},
+        "data_source": DATA_SOURCES.get(row["task"], "real"),
+    }
+
+
+def no_model_response():
+    return jsonify(error=NO_MODEL), 404
+
+
+@app.get("/api/models/active")
+@require_auth()
+def api_models_active():
+    with get_db() as db:
+        runs = [r for r in (active_run(db, t) for t in DATA_SOURCES) if r]
+    return jsonify(runs=runs)
+
+
+@app.get("/api/forecast/monthly")
+@require_auth()
+def api_forecast_monthly():
+    try:
+        with get_db() as db:
+            run = active_run(db, "monthly_energy")
+            if not run:
+                return no_model_response()
+            history = db.execute(
+                "SELECT year, month, energy_mwh FROM utility_monthly_energy ORDER BY year, month"
+            ).fetchall()
+            forecast = db.execute(
+                """
+                SELECT year, month, forecast_mwh, lo80, hi80, lo95, hi95
+                FROM forecast_monthly WHERE run_id = ? ORDER BY year, month
+                """,
+                (run["run_id"],),
+            ).fetchall()
+    except sqlite3.OperationalError:
+        return no_model_response()
+    return jsonify(
+        data_source="real",
+        dataset_version=run["dataset_version"],
+        model=run,
+        history=[dict(r) for r in history],
+        forecast=[dict(r) for r in forecast],
+    )
+
+
+@app.get("/api/forecast/peak")
+@require_auth()
+def api_forecast_peak():
+    try:
+        with get_db() as db:
+            run = active_run(db, "annual_peak")
+            if not run:
+                return no_model_response()
+            history = db.execute(
+                """
+                SELECT year, coincident_peak_mw AS peak_mw FROM utility_annual_stats
+                WHERE coincident_peak_mw IS NOT NULL ORDER BY year
+                """
+            ).fetchall()
+            forecast = db.execute(
+                "SELECT year, peak_mw, lo, hi FROM forecast_annual_peak WHERE run_id = ? ORDER BY year",
+                (run["run_id"],),
+            ).fetchall()
+    except sqlite3.OperationalError:
+        return no_model_response()
+    return jsonify(
+        data_source="real",
+        dataset_version=run["dataset_version"],
+        model=run,
+        history=[dict(r) for r in history],
+        forecast=[dict(r) for r in forecast],
+    )
+
+
+def parse_iso_date(value: str) -> date | None:
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+@app.get("/api/demand/daily")
+@require_auth()
+def api_demand_daily():
+    raw_from = request.args.get("from")
+    raw_to = request.args.get("to")
+    start = end = None
+    if raw_from is not None:
+        start = parse_iso_date(raw_from)
+        if start is None:
+            return jsonify(error="'from' must be a date in YYYY-MM-DD format"), 400
+    if raw_to is not None:
+        end = parse_iso_date(raw_to)
+        if end is None:
+            return jsonify(error="'to' must be a date in YYYY-MM-DD format"), 400
+    if start and end and start > end:
+        return jsonify(error="'from' must not be after 'to'"), 400
+    try:
+        with get_db() as db:
+            run = active_run(db, "demand_class")
+            if not run:
+                return no_model_response()
+            version = run["dataset_version"]
+            bounds = db.execute(
+                "SELECT MIN(date) AS lo, MAX(date) AS hi FROM synth_daily_peaks WHERE dataset_version = ?",
+                (version,),
+            ).fetchone()
+            if not bounds["lo"]:
+                return no_model_response()
+            data_min = date.fromisoformat(bounds["lo"])
+            data_max = date.fromisoformat(bounds["hi"])
+            if start is None and end is None:
+                end = data_max
+                start = max(data_min, end - timedelta(days=29))
+            else:
+                start = start or data_min
+                end = end or data_max
+            if start > end:
+                return jsonify(error="'from' must not be after 'to'"), 400
+            if (end - start).days + 1 > MAX_DAILY_RANGE_DAYS:
+                return jsonify(error=f"Date range is limited to {MAX_DAILY_RANGE_DAYS} days"), 400
+            rows = db.execute(
+                """
+                SELECT s.date AS date, s.peak_mw AS peak_mw, s.demand_level AS actual_level,
+                       p.predicted_level AS predicted_level,
+                       p.p_high AS p_high, p.p_medium AS p_medium, p.p_low AS p_low
+                FROM synth_daily_peaks s
+                LEFT JOIN demand_predictions p ON p.date = s.date AND p.run_id = ?
+                WHERE s.dataset_version = ? AND s.date >= ? AND s.date <= ?
+                ORDER BY s.date
+                """,
+                (run["run_id"], version, start.isoformat(), end.isoformat()),
+            ).fetchall()
+    except sqlite3.OperationalError:
+        return no_model_response()
+    return jsonify(
+        data_source="synthetic",
+        dataset_version=version,
+        model=run,
+        days=[dict(r) for r in rows],
+    )
+
+
+@app.get("/api/explain")
+@require_auth()
+def api_explain():
+    try:
+        with get_db() as db:
+            clf = active_run(db, "demand_class")
+            fc = active_run(db, "monthly_energy")
+            if not clf or not fc:
+                return no_model_response()
+            importance = db.execute(
+                """
+                SELECT feature, importance FROM feature_importance
+                WHERE run_id = ? AND kind = 'permutation'
+                ORDER BY importance DESC, feature
+                """,
+                (clf["run_id"],),
+            ).fetchall()
+            parts = db.execute(
+                """
+                SELECT year, month, feature, importance FROM feature_importance
+                WHERE run_id = ? AND kind = 'breakdown' ORDER BY year, month
+                """,
+                (fc["run_id"],),
+            ).fetchall()
+    except sqlite3.OperationalError:
+        return no_model_response()
+    pivot: dict[tuple[int, int], dict[str, Any]] = {}
+    for r in parts:
+        if r["year"] is None or r["month"] is None:
+            continue
+        row = pivot.setdefault(
+            (r["year"], r["month"]),
+            {"year": r["year"], "month": r["month"], "trend": None, "seasonality": None, "customer_growth": None},
+        )
+        if r["feature"] in ("trend", "seasonality", "customer_growth"):
+            row[r["feature"]] = r["importance"]
+    return jsonify(
+        classifier={
+            "data_source": "synthetic",
+            "dataset_version": clf["dataset_version"],
+            "model": clf,
+            "importance": [dict(r) for r in importance],
+        },
+        forecast={
+            "data_source": "real",
+            "dataset_version": fc["dataset_version"],
+            "model": fc,
+            "breakdown": [pivot[k] for k in sorted(pivot)],
+        },
+    )
+
+
+@app.get("/api/validated-data")
+@require_auth("admin", "guimelco", "researcher")
+def api_validated_data():
+    """Real GUIMELCO records plus aggregated, admin-approved crowdsourced submissions."""
+    with get_db() as db:
+        try:
+            monthly = db.execute(
+                "SELECT year, month, energy_mwh, source FROM utility_monthly_energy ORDER BY year, month"
+            ).fetchall()
+            annual = db.execute(
+                """
+                SELECT a.year, a.total_mwh_reported, a.customers, a.coincident_peak_mw, a.notes,
+                       (SELECT ROUND(SUM(m.energy_mwh), 3) FROM utility_monthly_energy m
+                        WHERE m.year = a.year) AS monthly_sum_mwh
+                FROM utility_annual_stats a ORDER BY a.year
+                """
+            ).fetchall()
+        except sqlite3.OperationalError:
+            monthly, annual = [], []
+        bills = db.execute(
+            """
+            SELECT billing_month, COUNT(DISTINCT household_id) AS households, COUNT(*) AS bills,
+                   ROUND(SUM(consumption_kwh), 1) AS total_kwh, ROUND(AVG(consumption_kwh), 1) AS avg_kwh
+            FROM monthly_consumption
+            WHERE verification_status = 'approved' AND deleted_at IS NULL
+            GROUP BY billing_month ORDER BY billing_month
+            """
+        ).fetchall()
+        categories = db.execute(
+            """
+            SELECT c.category_name, COUNT(*) AS appliances, ROUND(AVG(a.power_rating_watts), 1) AS avg_watts
+            FROM appliances a JOIN appliance_categories c ON c.category_id = a.category_id
+            WHERE a.verification_status = 'approved'
+            GROUP BY c.category_name ORDER BY appliances DESC, c.category_name
+            """
+        ).fetchall()
+        households = db.execute(
+            """
+            SELECT COUNT(DISTINCT household_id) AS n FROM (
+              SELECT household_id FROM monthly_consumption WHERE verification_status = 'approved' AND deleted_at IS NULL
+              UNION
+              SELECT household_id FROM appliances WHERE verification_status = 'approved'
+            )
+            """
+        ).fetchone()["n"]
+    return jsonify(
+        utility={
+            "data_source": "real",
+            "source": monthly[0]["source"] if monthly else None,
+            "monthly": [{"year": r["year"], "month": r["month"], "energy_mwh": r["energy_mwh"]} for r in monthly],
+            "annual": [dict(r) for r in annual],
+        },
+        crowdsourced={
+            "data_source": "crowdsourced",
+            "monthly": [dict(r) for r in bills],
+            "categories": [dict(r) for r in categories],
+            "totals": {
+                "households": int(households),
+                "approved_bills": sum(int(r["bills"]) for r in bills),
+                "approved_appliances": sum(int(r["appliances"]) for r in categories),
+            },
+        },
+    )
+
+
+def short_name(full_name: str) -> str:
+    """'Juan Dela Cruz' -> 'Juan D.' so staff views don't expose full household names."""
+    parts = str(full_name or "").split()
+    if not parts:
+        return "Household"
+    return parts[0] if len(parts) == 1 else f"{parts[0]} {parts[1][0]}."
+
+
+@app.get("/api/contributors")
+@require_auth("admin", "guimelco", "researcher")
+def api_contributors():
+    with get_db() as db:
+        rows = db.execute(
+            """
+            WITH subs AS (
+              SELECT household_id, verification_status FROM appliances
+              UNION ALL
+              SELECT household_id, verification_status FROM monthly_consumption WHERE deleted_at IS NULL
+            )
+            SELECT u.full_name, u.created_at, COUNT(*) AS submissions,
+                   SUM(s.verification_status = 'approved') AS approved
+            FROM subs s
+            JOIN households h ON h.household_id = s.household_id
+            JOIN users u ON u.user_id = h.user_id
+            WHERE u.status = 'active'
+            GROUP BY h.household_id
+            ORDER BY approved DESC, submissions DESC, u.created_at
+            """
+        ).fetchall()
+    contributors = []
+    for rank, r in enumerate(rows, start=1):
+        name = short_name(r["full_name"])
+        contributors.append({
+            "rank": rank,
+            "name": name,
+            "initials": "".join(p[0] for p in name.replace(".", "").split()[:2]).upper(),
+            "submissions": int(r["submissions"]),
+            "approved": int(r["approved"]),
+            "approval_rate": round(int(r["approved"]) / int(r["submissions"]) * 100, 1),
+            "joined": str(r["created_at"])[:7],
+        })
+    return jsonify(contributors=contributors)
+
+
 @app.get("/")
 def root():
-    return redirect("/login.html")
+    return redirect("/index.html")
 
 
 @app.get("/<path:asset_path>")
@@ -1314,5 +2712,5 @@ def static_files(asset_path: str):
 initialize_database()
 
 if __name__ == "__main__":
-    print("ElectroForecast running at http://127.0.0.1:4173")
+    print("GUIMPOWERCORE running at http://127.0.0.1:4173")
     app.run(host="127.0.0.1", port=4173, debug=False)

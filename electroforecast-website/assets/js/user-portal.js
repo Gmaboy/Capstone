@@ -182,7 +182,7 @@
 
   async function deleteRecord(type,id) {
     const label = type === 'appliance' ? 'appliance' : 'monthly consumption record';
-    if (!window.confirm(`Delete this ${label}? This action cannot be undone.`)) return;
+    if (!(await ElectroAPI.confirm(`Delete this ${label}? This action cannot be undone.`, { title: 'Delete record?' }))) return;
     try {
       await ElectroAPI.request(type === 'appliance' ? `/api/my-appliances/${id}` : `/api/consumption/${id}`, { method:'DELETE' });
       await loadData();

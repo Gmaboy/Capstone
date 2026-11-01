@@ -35,6 +35,24 @@ CREATE TABLE users (
   FOREIGN KEY (role_id) REFERENCES roles(role_id)
 );
 
+CREATE TABLE user_settings (
+  user_id INT PRIMARY KEY,
+  notify_high_demand TINYINT(1) NOT NULL DEFAULT 1,
+  notify_rating_updates TINYINT(1) NOT NULL DEFAULT 1,
+  notify_weekly_summary TINYINT(1) NOT NULL DEFAULT 0,
+  forecast_horizon ENUM('7_days','14_days','30_days') NOT NULL DEFAULT '7_days',
+  forecast_granularity ENUM('daily','weekly','monthly') NOT NULL DEFAULT 'daily',
+  measurement_unit ENUM('kwh','mwh') NOT NULL DEFAULT 'kwh',
+  landing_page ENUM('role_default','forecasting','demand_classification') NOT NULL DEFAULT 'role_default',
+  show_confidence_intervals TINYINT(1) NOT NULL DEFAULT 1,
+  show_demand_gauge TINYINT(1) NOT NULL DEFAULT 1,
+  compact_table_view TINYINT(1) NOT NULL DEFAULT 0,
+  data_refresh_frequency ENUM('daily','weekly','manual') NOT NULL DEFAULT 'daily',
+  default_file_format ENUM('csv','xlsx','json') NOT NULL DEFAULT 'csv',
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
 -- ---------------------------------------------------------------
 -- Households (Crowdsourcing Platform participants)
 -- ---------------------------------------------------------------
@@ -71,6 +89,7 @@ CREATE TABLE appliances (
   copied_from_appliance_id INT NULL,
   verification_status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
   reviewer_notes VARCHAR(500),
+  reviewer_notes_read_at DATETIME NULL,
   reviewed_by   INT NULL,
   reviewed_at   DATETIME NULL,
   image_path    VARCHAR(255),
@@ -94,6 +113,7 @@ CREATE TABLE household_appliances (
   quantity INT NOT NULL DEFAULT 1,
   avg_daily_usage_hours DECIMAL(5,2) NOT NULL DEFAULT 0,
   source_of_info ENUM('nameplate_label','user_manual','manual_estimate','retailer_specs') NOT NULL,
+  deleted_at DATETIME NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (household_id) REFERENCES households(household_id) ON DELETE CASCADE,
@@ -101,6 +121,9 @@ CREATE TABLE household_appliances (
   FOREIGN KEY (category_id) REFERENCES appliance_categories(category_id),
   UNIQUE KEY uq_household_source_appliance (household_id, source_appliance_id)
 );
+
+CREATE INDEX idx_household_appliances_deleted
+  ON household_appliances(household_id, deleted_at);
 
 -- ---------------------------------------------------------------
 -- Crowdsourced Appliance Ratings (power-rating submissions)
@@ -153,8 +176,14 @@ CREATE TABLE monthly_consumption (
   source_of_info ENUM('electric_bill','meter_reading','utility_portal','manual_entry') NOT NULL DEFAULT 'electric_bill',
   verification_status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
   reviewer_notes VARCHAR(500),
+  reviewer_notes_read_at DATETIME NULL,
   reviewed_by   INT NULL,
   reviewed_at   DATETIME NULL,
+  deleted_at    DATETIME NULL,
+  bill_image_filename VARCHAR(100),
+  bill_image_original_name VARCHAR(255),
+  bill_image_mime VARCHAR(50),
+  bill_image_size_bytes INT,
   created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (household_id) REFERENCES households(household_id),
@@ -249,6 +278,18 @@ CREATE TABLE notifications (
   type          ENUM('demand_alert','rating_update','forecast_update','report_ready','system') NOT NULL,
   is_read       TINYINT(1) NOT NULL DEFAULT 0,
   created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+  entity_type   VARCHAR(30) NULL,
+  entity_id     INT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE notification_feedback (
+  feedback_id     INT AUTO_INCREMENT PRIMARY KEY,
+  notification_id INT NOT NULL,
+  user_id         INT NOT NULL,
+  message         VARCHAR(1000) NOT NULL,
+  created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (notification_id) REFERENCES notifications(notification_id) ON DELETE CASCADE,
   FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
 
@@ -263,3 +304,184 @@ INSERT INTO roles (role_name, description) VALUES
 
 INSERT INTO appliance_categories (category_name) VALUES
   ('Cooling'),('Kitchen Appliances'),('Laundry'),('Entertainment'),('Lighting'),('Other');
+
+-- ---------------------------------------------------------------
+-- Real GUIMELCO utility data and synthetic dataset (offline tools/)
+-- ---------------------------------------------------------------
+CREATE TABLE utility_monthly_energy (
+  year        INT NOT NULL,
+  month       INT NOT NULL,
+  energy_mwh  DOUBLE NOT NULL,
+  source      VARCHAR(255) NOT NULL,
+  PRIMARY KEY (year, month)
+);
+
+CREATE TABLE utility_annual_stats (
+  year               INT PRIMARY KEY,
+  total_mwh_reported DOUBLE NOT NULL,
+  customers          INT NOT NULL,
+  coincident_peak_mw DOUBLE NOT NULL,
+  notes              TEXT
+);
+
+CREATE TABLE synth_feeders (
+  feeder_id        INT NOT NULL,
+  feeder_code      VARCHAR(40) NOT NULL,
+  substation_zone  VARCHAR(80) NOT NULL,
+  barangays        TEXT NOT NULL,
+  dataset_version  VARCHAR(60) NOT NULL,
+  PRIMARY KEY (dataset_version, feeder_id)
+);
+
+CREATE TABLE synth_transformers (
+  transformer_id    INT NOT NULL,
+  transformer_code  VARCHAR(40) NOT NULL,
+  feeder_id         INT NOT NULL,
+  barangays         TEXT NOT NULL,
+  rating_kva        DOUBLE NOT NULL,
+  dataset_version   VARCHAR(60) NOT NULL,
+  PRIMARY KEY (dataset_version, transformer_id)
+);
+
+CREATE TABLE synth_households (
+  synth_household_id VARCHAR(40) NOT NULL,
+  municipality       VARCHAR(80) NOT NULL,
+  barangay           VARCHAR(80) NOT NULL,
+  household_type     VARCHAR(60) NOT NULL,
+  household_size     INT NOT NULL,
+  feeder_id          INT NOT NULL,
+  transformer_id     INT NOT NULL,
+  dataset_version    VARCHAR(60) NOT NULL,
+  PRIMARY KEY (dataset_version, synth_household_id)
+);
+
+CREATE TABLE synth_household_monthly (
+  synth_household_id VARCHAR(40) NOT NULL,
+  year               INT NOT NULL,
+  month              INT NOT NULL,
+  kwh                DOUBLE NOT NULL,
+  weight             DOUBLE NOT NULL,
+  dataset_version    VARCHAR(60) NOT NULL,
+  PRIMARY KEY (dataset_version, synth_household_id, year, month)
+);
+
+CREATE TABLE synth_customer_counts (
+  year            INT NOT NULL,
+  month           INT NOT NULL,
+  municipality    VARCHAR(80) NOT NULL,
+  barangay        VARCHAR(80) NOT NULL,
+  customers       INT NOT NULL,
+  dataset_version VARCHAR(60) NOT NULL,
+  PRIMARY KEY (dataset_version, year, month, municipality, barangay)
+);
+
+CREATE TABLE synth_load_profiles (
+  household_type  VARCHAR(60) NOT NULL,
+  month           INT NOT NULL,
+  daytype         VARCHAR(10) NOT NULL,
+  hour            INT NOT NULL,
+  share           DOUBLE NOT NULL,
+  dataset_version VARCHAR(60) NOT NULL,
+  PRIMARY KEY (dataset_version, household_type, month, daytype, hour)
+);
+
+CREATE TABLE synth_system_hourly (
+  ts              VARCHAR(19) NOT NULL,
+  year            INT NOT NULL,
+  month           INT NOT NULL,
+  load_mw         DOUBLE NOT NULL,
+  dataset_version VARCHAR(60) NOT NULL,
+  PRIMARY KEY (dataset_version, ts),
+  INDEX idx_synth_system_hourly_ts (ts)
+);
+
+CREATE TABLE synth_feeder_hourly (
+  ts              VARCHAR(19) NOT NULL,
+  feeder_id       INT NOT NULL,
+  load_mw         DOUBLE NOT NULL,
+  dataset_version VARCHAR(60) NOT NULL,
+  PRIMARY KEY (dataset_version, feeder_id, ts),
+  INDEX idx_synth_feeder_hourly_feeder_ts (feeder_id, ts)
+);
+
+CREATE TABLE synth_transformer_monthly_peak (
+  transformer_id  INT NOT NULL,
+  year            INT NOT NULL,
+  month           INT NOT NULL,
+  peak_kva        DOUBLE NOT NULL,
+  utilization     DOUBLE NOT NULL,
+  dataset_version VARCHAR(60) NOT NULL,
+  PRIMARY KEY (dataset_version, transformer_id, year, month)
+);
+
+CREATE TABLE synth_daily_peaks (
+  date               VARCHAR(10) NOT NULL,
+  year               INT NOT NULL,
+  peak_mw            DOUBLE NOT NULL,
+  pct_of_annual_peak DOUBLE NOT NULL,
+  demand_level       ENUM('High','Medium','Low') NOT NULL,
+  dataset_version    VARCHAR(60) NOT NULL,
+  PRIMARY KEY (dataset_version, date),
+  INDEX idx_synth_daily_peaks_date (date)
+);
+
+-- ---------------------------------------------------------------
+-- Trained model runs and their outputs (written by tools/model/train.py)
+-- ---------------------------------------------------------------
+CREATE TABLE model_runs (
+  run_id          INT AUTO_INCREMENT PRIMARY KEY,
+  task            ENUM('monthly_energy','annual_peak','demand_class') NOT NULL,
+  model_name      VARCHAR(60) NOT NULL,
+  dataset_version VARCHAR(60) NOT NULL,
+  trained_at      VARCHAR(40) NOT NULL,
+  metrics         TEXT NOT NULL,
+  is_active       TINYINT NOT NULL DEFAULT 0,
+  INDEX idx_model_runs_task_active (task, is_active)
+);
+
+CREATE TABLE forecast_monthly (
+  run_id       INT NOT NULL,
+  year         INT NOT NULL,
+  month        INT NOT NULL,
+  forecast_mwh DOUBLE NOT NULL,
+  lo80         DOUBLE NOT NULL,
+  hi80         DOUBLE NOT NULL,
+  lo95         DOUBLE NOT NULL,
+  hi95         DOUBLE NOT NULL,
+  PRIMARY KEY (run_id, year, month),
+  FOREIGN KEY (run_id) REFERENCES model_runs(run_id)
+);
+
+CREATE TABLE forecast_annual_peak (
+  run_id  INT NOT NULL,
+  year    INT NOT NULL,
+  peak_mw DOUBLE NOT NULL,
+  lo      DOUBLE NOT NULL,
+  hi      DOUBLE NOT NULL,
+  PRIMARY KEY (run_id, year),
+  FOREIGN KEY (run_id) REFERENCES model_runs(run_id)
+);
+
+CREATE TABLE demand_predictions (
+  run_id          INT NOT NULL,
+  date            DATE NOT NULL,
+  predicted_level ENUM('High','Medium','Low') NOT NULL,
+  p_high          DOUBLE NOT NULL,
+  p_medium        DOUBLE NOT NULL,
+  p_low           DOUBLE NOT NULL,
+  actual_level    ENUM('High','Medium','Low') NOT NULL,
+  PRIMARY KEY (run_id, date),
+  FOREIGN KEY (run_id) REFERENCES model_runs(run_id)
+);
+
+CREATE TABLE feature_importance (
+  id         INT AUTO_INCREMENT PRIMARY KEY,
+  run_id     INT NOT NULL,
+  kind       ENUM('permutation','breakdown') NOT NULL,
+  feature    VARCHAR(60) NOT NULL,
+  importance DOUBLE NOT NULL,
+  year       INT NULL,
+  month      INT NULL,
+  INDEX idx_feature_importance_run (run_id, kind),
+  FOREIGN KEY (run_id) REFERENCES model_runs(run_id)
+);

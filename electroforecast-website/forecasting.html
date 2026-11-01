@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Forecasting · ElectroForecast</title>
+<title>Forecasting · GUIMPOWERCORE</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
+<script src="assets/js/theme.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
 <script src="assets/js/chart-lite.js"></script>
 </head>
@@ -14,80 +15,39 @@
   <div id="shell-sidebar"></div>
   <div class="main">
     <div id="shell-topbar"></div>
-    <div class="content">
+    <div class="content" id="page-content">
 
       <div class="grid grid-12">
         <div class="card span-4">
-          <div class="card-head"><h3>Forecast Horizon</h3></div>
-          <div class="field">
-            <label>Granularity</label>
-            <select>
-              <option>Daily</option><option>Weekly</option><option>Monthly</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Horizon</label>
-            <select><option>7 Days</option><option selected>14 Days</option><option>30 Days</option></select>
-          </div>
-          <div class="field">
-            <label>Model</label>
-            <select><option>Hybrid BLSTM–SARIMA</option><option>BLSTM only</option><option>SARIMA only</option></select>
-          </div>
-          <div class="field">
-            <label>Include External Features</label>
-            <label class="checkbox-row" style="margin-bottom:6px;"><input type="checkbox" checked> Temperature (°C)</label>
-            <label class="checkbox-row" style="margin-bottom:6px;"><input type="checkbox" checked> Day of Week</label>
-            <label class="checkbox-row"><input type="checkbox" checked> Holiday Indicator</label>
-          </div>
-          <button class="btn btn-primary btn-block" style="margin-top:6px;">Generate Forecast</button>
+          <div class="card-head"><h3>Model</h3><span id="forecastBadge"></span></div>
+          <div id="forecastModelCard" class="text-sm text-muted">Loading…</div>
+          <div class="divider"></div>
+          <div class="card-head" style="margin-bottom:0;"><h3>Annual Peak Demand</h3></div>
+          <div id="peakCard" class="text-sm text-muted">Loading…</div>
         </div>
 
         <div class="card span-8">
           <div class="card-head">
-            <div><h3>Forecast Result</h3><div class="card-sub">May 25 – Jun 20, 2026 · Hybrid BLSTM–SARIMA</div></div>
-            <button class="btn btn-outline btn-sm"><i data-feather="download"></i> Export</button>
+            <div><h3>Monthly Energy Forecast</h3><div class="card-sub" id="forecastSub">Loading…</div></div>
           </div>
           <div class="chart-box"><canvas id="chartForecast"></canvas></div>
           <div class="legend-row">
             <div class="legend-item"><span class="legend-swatch" style="background:#2563EB;"></span>Actual</div>
             <div class="legend-item"><span class="legend-swatch" style="background:#16A34A;"></span>Forecast</div>
-            <div class="legend-item"><span class="legend-swatch" style="background:#CBD5E1;"></span>Upper / Lower Bound</div>
+            <div class="legend-item"><span class="legend-swatch" style="background:#CBD5E1;"></span>Upper / Lower 80%</div>
           </div>
         </div>
       </div>
 
       <div class="grid grid-12" style="margin-top:18px;">
-        <div class="card span-6">
-          <div class="card-head"><h3>Forecast Summary</h3></div>
+        <div class="card span-12">
+          <div class="card-head"><h3>Forecast Summary</h3><div class="card-sub">First 12 forecast months</div></div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Date</th><th>Actual (kWh)</th><th>Forecast (kWh)</th><th>Lower</th><th>Upper</th></tr></thead>
-              <tbody>
-                <tr><td>May 26, 2026</td><td>226.4</td><td>230.1</td><td>209.2</td><td>251.0</td></tr>
-                <tr><td>May 27, 2026</td><td>260.1</td><td>259.6</td><td>236.0</td><td>283.2</td></tr>
-                <tr><td>May 28, 2026</td><td>216.2</td><td>218.3</td><td>197.0</td><td>239.6</td></tr>
-                <tr><td>May 29, 2026</td><td>—</td><td>240.2</td><td>216.9</td><td>263.5</td></tr>
-                <tr><td>May 30, 2026</td><td>—</td><td>246.5</td><td>222.4</td><td>270.6</td></tr>
-              </tbody>
+              <thead><tr><th>Month</th><th>Forecast (MWh)</th><th>Lower 80%</th><th>Upper 80%</th></tr></thead>
+              <tbody id="forecastRows"><tr><td colspan="4" class="text-muted">Loading…</td></tr></tbody>
             </table>
           </div>
-          <a href="#" class="link-more" style="margin-top:12px;">View Full Table <i data-feather="arrow-right"></i></a>
-        </div>
-
-        <div class="card span-6">
-          <div class="card-head"><h3>Forecast Insights</h3></div>
-          <div style="display:flex; flex-direction:column; gap:12px;">
-            <div class="alert info"><i data-feather="info"></i>The model predicts an increase in consumption over the coming days.</div>
-            <div class="alert warning"><i data-feather="alert-triangle"></i>High probability of High demand classification on May 27–28 due to elevated temperatures.</div>
-            <div class="alert success"><i data-feather="check-circle"></i>Weekend effect accounted for; forecast confidence remains stable.</div>
-          </div>
-          <div class="divider"></div>
-          <div class="grid grid-3">
-            <div><div class="text-sm text-muted">Model MAPE</div><div class="h3">4.18%</div></div>
-            <div><div class="text-sm text-muted">RMSE</div><div class="h3">10.72 kWh</div></div>
-            <div><div class="text-sm text-muted">MAE</div><div class="h3">8.09 kWh</div></div>
-          </div>
-          <div class="text-sm text-muted" style="margin-top:6px;">Last model update: 3 hours ago</div>
         </div>
       </div>
 
@@ -95,22 +55,93 @@
   </div>
 </div>
 
+<script src="assets/js/api.js"></script>
 <script src="assets/js/shell.js"></script>
+<script src="assets/js/analytics.js"></script>
 <script>
 ElectroShell.mount('forecasting', 'Forecasting', { dateRange:false });
 
-const labels = ['May 25','May 27','May 29','Jun 1','Jun 4','Jun 8','Jun 12','Jun 16','Jun 20'];
-new Chart(document.getElementById('chartForecast'), {
-  type:'line',
-  data:{ labels,
-    datasets:[
-      { label:'Actual', data:[226,260,216,null,null,null,null,null,null], borderColor:'#2563EB', pointRadius:3, tension:.35 },
-      { label:'Forecast', data:[228,258,219,240,246,252,260,268,275], borderColor:'#16A34A', borderDash:[5,4], pointRadius:0, tension:.35 },
-      { label:'Upper', data:[248,282,240,264,271,279,289,299,308], borderColor:'rgba(203,213,225,.7)', pointRadius:0, fill:'+1', backgroundColor:'rgba(203,213,225,.35)', tension:.35 },
-      { label:'Lower', data:[207,236,198,217,222,228,234,240,247], borderColor:'rgba(203,213,225,.7)', pointRadius:0, tension:.35 },
-    ]},
-  options:{ plugins:{ legend:{ display:false } }, scales:{ y:{ grid:{ color:'#F1F5F9' } }, x:{ grid:{ display:false } } }, maintainAspectRatio:false }
-});
+(function () {
+  const esc = ElectroAPI.escapeHTML;
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const label = r => `${MONTHS[r.month - 1]} ${String(r.year).slice(2)}`;
+  const longLabel = r => `${MONTHS[r.month - 1]} ${r.year}`;
+  const fixed = (v, d) => (v == null || !Number.isFinite(Number(v))) ? '—' : Number(v).toFixed(d);
+  const mwh = v => fixed(v, 1);
+  const mw = v => fixed(v, 2);
+  const sparse = (rows) => { const step = Math.max(2, Math.ceil(rows.length / 12 / 2) * 2); return rows.map((r, i) => i % step === 0 ? label(r) : ''); };
+
+  async function load() {
+    const content = document.getElementById('page-content');
+    const peakRequest = ElectroAPI.request('/api/forecast/peak').catch(error => ({ error }));
+    try {
+      const monthly = await ElectroAPI.request('/api/forecast/monthly');
+      render(monthly);
+    } catch (error) {
+      if (error.status !== 404) ElectroAPI.notify(error.message, 'error');
+      ElectroAnalytics.emptyState(content);
+      return;
+    }
+    const peak = await peakRequest;
+    if (peak.error) {
+      if (peak.error.status !== 404) ElectroAPI.notify(peak.error.message, 'error');
+      const msg = peak.error.status === 404 ? 'No trained model yet. Run python -m tools.model.train.' : 'Peak forecast unavailable.';
+      document.getElementById('peakCard').innerHTML = `<div class="empty-mini">${esc(msg)}</div>`;
+    } else {
+      renderPeak(peak);
+    }
+    if (window.feather) feather.replace();
+  }
+
+  function renderPeak(peak) {
+    document.getElementById('peakCard').innerHTML = peak.forecast.length
+      ? peak.forecast.map(r => `<div style="margin-top:10px;">
+          <div class="text-sm text-muted">${esc(r.year)} peak</div>
+          <div class="h3">${esc(mw(r.peak_mw))} MW</div>
+          <div class="text-sm text-muted">Load-factor range ${esc(mw(r.lo))} – ${esc(mw(r.hi))} MW</div>
+        </div>`).join('') + `<div style="margin-top:10px;">${ElectroAnalytics.dataBadge(peak.data_source)}</div>`
+      : '<div class="empty-mini">No peak forecast available.</div>';
+  }
+
+  function render(monthly) {
+    const history = monthly.history.slice(-24);
+    const forecast = monthly.forecast.slice(0, 24);
+    if (!forecast.length) throw Object.assign(new Error('No forecast'), { status: 404 });
+    const metrics = (monthly.model && monthly.model.metrics) || {};
+    const labels = sparse([...history, ...forecast]);
+    const pad = n => Array(n).fill(null);
+
+    document.getElementById('forecastSub').textContent =
+      `${longLabel(forecast[0])} – ${longLabel(forecast[forecast.length - 1])} · ${ElectroAPI.titleCase(monthly.model.model_name)}`;
+    document.getElementById('forecastBadge').innerHTML = ElectroAnalytics.dataBadge(monthly.data_source);
+
+    const mape = Number.isFinite(metrics.mean_mape) ? `MAPE ${metrics.mean_mape.toFixed(1)}%` : 'MAPE —';
+    let card = ElectroAnalytics.modelCard(monthly.model, 'Mean backtest', mape);
+    if (metrics.beats_baseline === false) {
+      card += '<div class="model-card-note">This model does not beat the seasonal-naive baseline.</div>';
+    }
+    document.getElementById('forecastModelCard').innerHTML = card;
+
+    new Chart(document.getElementById('chartForecast'), {
+      type:'line',
+      data:{ labels,
+        datasets:[
+          { label:'Actual', data:[...history.map(r => r.energy_mwh), ...pad(forecast.length)], borderColor:'#2563EB', pointRadius:2, tension:.35 },
+          { label:'Forecast', data:[...pad(history.length), ...forecast.map(r => r.forecast_mwh)], borderColor:'#16A34A', borderDash:[5,4], pointRadius:0, tension:.35 },
+          { label:'Upper', data:[...pad(history.length), ...forecast.map(r => r.hi80)], borderColor:'rgba(203,213,225,.7)', pointRadius:0, fill:'+1', backgroundColor:'rgba(203,213,225,.35)', tension:.35 },
+          { label:'Lower', data:[...pad(history.length), ...forecast.map(r => r.lo80)], borderColor:'rgba(203,213,225,.7)', pointRadius:0, tension:.35 }
+        ]},
+      options:{ plugins:{ legend:{ display:false } }, maintainAspectRatio:false }
+    });
+
+    document.getElementById('forecastRows').innerHTML = monthly.forecast.slice(0, 12).map(r =>
+      `<tr><td>${esc(longLabel(r))}</td><td>${esc(mwh(r.forecast_mwh))}</td><td>${esc(mwh(r.lo80))}</td><td>${esc(mwh(r.hi80))}</td></tr>`
+    ).join('');
+    if (window.feather) feather.replace();
+  }
+
+  load();
+})();
 </script>
 </body>
 </html>

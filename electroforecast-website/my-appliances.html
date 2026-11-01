@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>My Appliances · ElectroForecast</title>
+<title>My Appliances · GUIMPOWERCORE</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
+<script src="assets/js/theme.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
 </head>
 <body>
@@ -43,14 +44,17 @@
 
       <section class="card portal-table-card">
         <div class="card-head">
-          <div><h3>Household Appliance List</h3><div class="card-sub">Only appliances in this list count toward your household load.</div></div>
-          <button class="btn btn-primary btn-sm" id="open-add-appliance-secondary"><i data-feather="plus"></i> Add Appliance</button>
+          <div><div class="card-title-row"><h3>Household Appliance List</h3><span class="badge verified" id="inventory-badge"><span class="badge-dot"></span><span id="inventory-count">0</span>&nbsp;In Inventory</span></div><div class="card-sub">Only appliances in this list count toward your household load.</div></div>
+          <div class="card-actions">
+            <button class="btn btn-secondary btn-sm" id="open-recently-deleted"><i data-feather="rotate-ccw"></i> Recently Deleted <span class="button-count" id="recently-deleted-count">0</span></button>
+            <button class="btn btn-primary btn-sm" id="open-add-appliance-secondary"><i data-feather="plus"></i> Add Appliance</button>
+          </div>
         </div>
         <div class="table-note"><i data-feather="info"></i> Removing an appliance here does not delete your original contribution from My Submissions.</div>
         <div class="table-wrap portal-table">
           <table>
-            <thead><tr><th>Appliance</th><th>Power & Usage</th><th>Estimated Load</th><th>Origin</th><th>Status</th><th>Actions</th></tr></thead>
-            <tbody id="my-appliance-body"><tr><td colspan="6"><div class="table-loading">Loading appliances…</div></td></tr></tbody>
+            <thead><tr><th>Appliance</th><th>Power & Usage</th><th>Estimated Load</th><th>Actions</th></tr></thead>
+            <tbody id="my-appliance-body"><tr><td colspan="4"><div class="table-loading">Loading appliances…</div></td></tr></tbody>
           </table>
         </div>
       </section>
@@ -92,8 +96,14 @@
       <form id="catalog-customize-form" class="record-form catalog-customize" hidden>
         <input type="hidden" id="selected-catalog-id">
         <button class="back-to-results" id="back-to-catalog" type="button"><i data-feather="arrow-left"></i> Choose a different appliance</button>
-        <div class="selected-appliance-summary" id="selected-appliance-summary"></div>
-        <div class="customize-callout"><i data-feather="sliders"></i><div><b>Personalize it for your household</b><span>The approved technical details stay locked. Quantity and usage hours can be changed without another admin review.</span></div></div>
+        <div class="customize-callout"><i data-feather="lock"></i><div><b>Approved technical rating locked</b><span>Only household quantity and average hours per day can be set. The approved rating is not modified and needs no new admin review.</span></div></div>
+        <div class="edit-summary">
+          <div class="edit-summary-head"><b class="name-verified" id="catalog-summary-name"></b><small id="catalog-summary-meta"></small></div>
+          <dl class="edit-summary-facts">
+            <div><dt>Power rating</dt><dd id="catalog-summary-watts"></dd></div>
+            <div><dt>Source</dt><dd id="catalog-summary-source"></dd></div>
+          </dl>
+        </div>
         <div class="row-2">
           <div class="field"><label for="catalog-quantity">Quantity *</label><input type="number" id="catalog-quantity" min="1" max="50" value="1" required></div>
           <div class="field"><label for="catalog-hours">Average Hours / Day *</label><input type="number" id="catalog-hours" min="0" max="24" step="0.1" required></div>
@@ -107,23 +117,48 @@
     <form id="manual-appliance-form" class="record-form" hidden>
       <input type="hidden" id="manual-appliance-id">
       <div class="customize-callout" id="manual-lock-note" hidden><i data-feather="lock"></i><div><b>Approved technical rating locked</b><span>You can update quantity and average hours per day. The appliance remains approved and does not return to the Review Queue.</span></div></div>
-      <div class="row-2">
+      <div class="edit-summary" id="edit-summary">
+        <div class="edit-summary-head"><b class="name-verified" id="edit-summary-name"></b><small id="edit-summary-meta"></small></div>
+        <dl class="edit-summary-facts">
+          <div><dt>Power rating</dt><dd id="edit-summary-watts"></dd></div>
+          <div><dt>Source</dt><dd id="edit-summary-source"></dd></div>
+        </dl>
+      </div>
+      <div class="row-2 technical-field">
         <div class="field"><label for="manual-name">Appliance Name *</label><input id="manual-name" name="appliance_name" required maxlength="120"></div>
         <div class="field"><label for="manual-category">Category *</label><select id="manual-category" name="category_id" required></select></div>
       </div>
-      <div class="row-2">
+      <div class="row-2 technical-field">
         <div class="field"><label for="manual-brand">Brand</label><input id="manual-brand" name="brand" maxlength="100"></div>
         <div class="field"><label for="manual-model">Model</label><input id="manual-model" name="model" maxlength="100"></div>
       </div>
       <div class="row-3">
-        <div class="field"><label for="manual-watts">Power Rating (W) *</label><input type="number" id="manual-watts" name="power_rating_watts" min="1" max="50000" step="0.01" required></div>
+        <div class="field technical-field"><label for="manual-watts">Power Rating (W) *</label><input type="number" id="manual-watts" name="power_rating_watts" min="1" max="50000" step="0.01" required></div>
         <div class="field"><label for="manual-quantity">Quantity *</label><input type="number" id="manual-quantity" name="quantity" min="1" max="50" value="1" required></div>
         <div class="field"><label for="manual-hours">Average Hours / Day *</label><input type="number" id="manual-hours" name="avg_daily_usage_hours" min="0" max="24" step="0.1" required></div>
       </div>
-      <div class="field"><label for="manual-source">Source of Information *</label><select id="manual-source" name="source_of_info" required><option value="nameplate_label">Nameplate label</option><option value="user_manual">User manual</option><option value="retailer_specs">Retailer specifications</option><option value="manual_estimate">Manual estimate</option></select></div>
-      <label class="checkbox-row form-confirmation"><input type="checkbox" id="manual-confirm" required> I confirm that this information is accurate to the best of my knowledge.</label>
+      <div class="load-preview edit-only"><span>Estimated household load</span><b id="edit-load-preview">0.00 kWh/day</b></div>
+      <div class="field technical-field"><label for="manual-source">Source of Information *</label><select id="manual-source" name="source_of_info" required><option value="nameplate_label">Nameplate label</option><option value="user_manual">User manual</option><option value="retailer_specs">Retailer specifications</option><option value="manual_estimate">Manual estimate</option></select></div>
+      <label class="checkbox-row form-confirmation"><input type="checkbox" id="manual-confirm" required> <span id="manual-confirm-text">I confirm that this information is accurate to the best of my knowledge.</span></label>
       <div class="modal-actions"><button type="button" class="btn btn-secondary" data-close-library>Cancel</button><button type="submit" class="btn btn-primary" id="save-manual-appliance"><i data-feather="send"></i> Submit for Validation</button></div>
     </form>
+  </section>
+</div>
+
+<div class="record-modal" id="recently-deleted-modal" hidden>
+  <button class="modal-scrim" type="button" data-close-recently-deleted aria-label="Close recently deleted appliances"></button>
+  <section class="modal-dialog modal-dialog-wide" role="dialog" aria-modal="true" aria-labelledby="recently-deleted-title">
+    <header class="modal-header">
+      <div><div class="eyebrow">Household inventory</div><h3 id="recently-deleted-title">Recently Deleted Appliances</h3></div>
+      <button class="icon-btn modal-close" type="button" data-close-recently-deleted aria-label="Close recently deleted appliances"><i data-feather="x"></i></button>
+    </header>
+    <p class="modal-description">Removed appliances stay here and do not return to Submitted Appliances. Restore one, or select one or more items to delete permanently.</p>
+    <div class="recently-deleted-toolbar">
+      <label class="recently-deleted-select-all"><input type="checkbox" id="select-all-deleted-appliances"> Select all</label>
+      <button type="button" class="btn btn-danger-outline btn-sm" id="delete-selected-appliances" disabled><i data-feather="trash-2"></i> Delete Permanently <span class="button-count" id="selected-appliance-count">0</span></button>
+    </div>
+    <div class="recently-deleted-list" id="recently-deleted-list"></div>
+    <div class="modal-actions"><button type="button" class="btn btn-secondary" data-close-recently-deleted>Close</button></div>
   </section>
 </div>
 

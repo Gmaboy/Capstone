@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Data Explorer · ElectroForecast</title>
+<title>Validated Data · GUIMPOWERCORE</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
+<script src="assets/js/theme.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
 <script src="assets/js/chart-lite.js"></script>
 </head>
@@ -14,47 +15,73 @@
   <div id="shell-sidebar"></div>
   <div class="main">
     <div id="shell-topbar"></div>
-    <div class="content">
+    <div class="content" id="page-content">
 
       <div class="card" style="margin-bottom:18px;">
-        <div class="card-head"><div><h3>Data Explorer</h3><div class="card-sub">Explore historical electricity consumption records</div></div></div>
-        <div class="grid grid-4">
-          <div class="field" style="margin-bottom:0;"><label>Date Range</label><input type="text" value="May 1 – May 25, 2026"></div>
-          <div class="field" style="margin-bottom:0;"><label>Granularity</label><select><option>Daily</option><option>Weekly</option><option>Monthly</option></select></div>
-          <div class="field" style="margin-bottom:0;"><label>Data Type</label><select><option>Consumption (kWh)</option><option>Temperature (°C)</option><option>Demand Level</option></select></div>
-          <div class="field" style="margin-bottom:0;">
-            <label>&nbsp;</label>
-            <div style="display:flex; gap:8px;">
-              <button class="btn btn-primary" style="flex:1;"><i data-feather="filter"></i> Apply Filters</button>
-              <button class="btn btn-outline"><i data-feather="download"></i> Export CSV</button>
-            </div>
+        <div class="card-head">
+          <div><h3>GUIMELCO Residential Records</h3><div class="card-sub" id="utilitySub">Loading…</div></div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span id="utilityBadge"></span>
+            <select id="yearSelect" aria-label="Year" style="width:auto; padding:6px 10px;"><option value="all">All years</option></select>
+            <button class="btn btn-secondary btn-sm" id="utilityExport" disabled><i data-feather="download"></i> Export CSV</button>
           </div>
         </div>
-      </div>
-
-      <div class="card" style="margin-bottom:18px;">
-        <div class="card-head"><h3>Consumption Over Time</h3></div>
-        <div class="chart-box"><canvas id="chartExplorer"></canvas></div>
-      </div>
-
-      <div class="card">
-        <div class="card-head"><h3>Historical Records</h3></div>
+        <div class="chart-box"><canvas id="chartUtility"></canvas></div>
+        <div class="legend-row">
+          <div class="legend-item"><span class="legend-swatch" style="background:#2563EB;"></span>Residential energy (MWh per month)</div>
+        </div>
+        <div class="divider"></div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Date</th><th>Consumption (kWh)</th><th>Avg. Temperature (°C)</th><th>Day of Week</th></tr></thead>
-            <tbody>
-              <tr><td>May 25, 2026</td><td>260.1</td><td>32.0</td><td>Monday</td></tr>
-              <tr><td>May 24, 2026</td><td>216.2</td><td>30.2</td><td>Sunday</td></tr>
-              <tr><td>May 23, 2026</td><td>240.5</td><td>31.4</td><td>Saturday</td></tr>
-              <tr><td>May 22, 2026</td><td>198.9</td><td>29.6</td><td>Friday</td></tr>
-              <tr><td>May 21, 2026</td><td>205.4</td><td>29.9</td><td>Thursday</td></tr>
-            </tbody>
+            <thead><tr><th>Year</th><th>Sum of months (MWh)</th><th>Printed total (MWh)</th><th>Customers</th><th>Coincident peak (MW)</th><th>Note</th></tr></thead>
+            <tbody id="annualRows"><tr><td colspan="6" class="text-muted">Loading…</td></tr></tbody>
           </table>
         </div>
-        <div class="pagination">
-          <button><i data-feather="chevron-left"></i></button>
-          <button class="active">1</button><button>2</button><button>3</button><span class="text-sm text-muted">…</span><button>10</button>
-          <button><i data-feather="chevron-right"></i></button>
+      </div>
+
+      <div class="grid grid-3" style="margin-bottom:18px;">
+        <div class="card kpi-card">
+          <div class="kpi-icon blue"><i data-feather="home"></i></div>
+          <div><div class="kpi-label">Contributing Households</div><div class="kpi-value" id="kpiHouseholds">—</div><div class="text-sm text-muted">With at least one approved submission</div></div>
+        </div>
+        <div class="card kpi-card">
+          <div class="kpi-icon green"><i data-feather="file-text"></i></div>
+          <div><div class="kpi-label">Approved Bills</div><div class="kpi-value" id="kpiBills">—</div><div class="text-sm text-muted">Monthly consumption records</div></div>
+        </div>
+        <div class="card kpi-card">
+          <div class="kpi-icon amber"><i data-feather="zap"></i></div>
+          <div><div class="kpi-label">Approved Appliances</div><div class="kpi-value" id="kpiAppliances">—</div><div class="text-sm text-muted">Power ratings verified by an admin</div></div>
+        </div>
+      </div>
+
+      <div class="grid grid-12">
+        <div class="card span-7">
+          <div class="card-head">
+            <div><h3>Approved Bills by Month</h3><div class="card-sub">Crowdsourced household bills approved by an admin</div></div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span id="billsBadge"></span>
+              <button class="btn btn-secondary btn-sm" id="billsExport" disabled><i data-feather="download"></i> Export CSV</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Billing month</th><th>Households</th><th>Bills</th><th>Total kWh</th><th>Average kWh</th></tr></thead>
+              <tbody id="billRows"><tr><td colspan="5" class="text-muted">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card span-5">
+          <div class="card-head">
+            <div><h3>Approved Appliances by Category</h3><div class="card-sub">Count and average power rating</div></div>
+            <span id="appliancesBadge"></span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Category</th><th>Appliances</th><th>Average watts</th></tr></thead>
+              <tbody id="categoryRows"><tr><td colspan="3" class="text-muted">Loading…</td></tr></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -62,15 +89,113 @@
   </div>
 </div>
 
+<script src="assets/js/api.js"></script>
 <script src="assets/js/shell.js"></script>
+<script src="assets/js/analytics.js"></script>
 <script>
-ElectroShell.mount('explorer', 'Data Explorer', { dateRange:false });
-const labels = ['May 6','May 11','May 16','May 21','May 25'];
-new Chart(document.getElementById('chartExplorer'), {
-  type:'line',
-  data:{ labels, datasets:[{ label:'Consumption (kWh)', data:[210,238,195,220,260], borderColor:'#2563EB', backgroundColor:'rgba(37,99,235,.08)', fill:true, tension:.35, pointRadius:3 }] },
-  options:{ plugins:{ legend:{display:false} }, scales:{ y:{ grid:{ color:'#F1F5F9' } }, x:{ grid:{ display:false } } }, maintainAspectRatio:false }
-});
+ElectroShell.mount('explorer', 'Validated Data');
+
+(function () {
+  const esc = ElectroAPI.escapeHTML;
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const num = (v, d) => (v == null || !Number.isFinite(Number(v))) ? '—' : Number(v).toLocaleString('en-US', { minimumFractionDigits:d, maximumFractionDigits:d });
+  const monthName = ym => { const [y, m] = String(ym).split('-'); return MONTHS[Number(m) - 1] ? `${MONTHS[Number(m) - 1]} ${y}` : ym; };
+  let utilityChart = null;
+
+  function downloadCSV(filename, header, rows) {
+    const cell = v => { const s = v == null ? '' : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+    const text = [header, ...rows].map(r => r.map(cell).join(',')).join('\n');
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([text], { type: 'text/csv' }));
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
+  function renderUtility(u) {
+    document.getElementById('utilityBadge').innerHTML = ElectroAnalytics.dataBadge(u.data_source);
+    if (!u.monthly.length) {
+      document.getElementById('utilitySub').textContent = 'No GUIMELCO records loaded. Run python -m tools.synth.load.';
+      document.getElementById('chartUtility').closest('.chart-box').innerHTML = '<div class="empty-mini">No records to chart.</div>';
+      document.getElementById('annualRows').innerHTML = '<tr><td colspan="6" class="text-muted">No records loaded.</td></tr>';
+      return;
+    }
+    const years = [...new Set(u.monthly.map(r => r.year))];
+    document.getElementById('utilitySub').textContent = `${u.monthly.length} monthly values, ${years[0]}–${years[years.length - 1]} · source: ${u.source}`;
+    const select = document.getElementById('yearSelect');
+    select.insertAdjacentHTML('beforeend', years.map(y => `<option value="${y}">${y}</option>`).join(''));
+
+    const draw = () => {
+      const year = select.value;
+      const rows = year === 'all' ? u.monthly : u.monthly.filter(r => String(r.year) === year);
+      const labels = rows.map((r, i) => year !== 'all' ? MONTHS[r.month - 1] : (r.month === 1 ? String(r.year) : ''));
+      if (utilityChart && utilityChart.destroy) utilityChart.destroy();
+      const box = document.getElementById('chartUtility').closest('.chart-box');
+      box.innerHTML = '<canvas id="chartUtility"></canvas>';
+      utilityChart = new Chart(document.getElementById('chartUtility'), {
+        type:'line',
+        data:{ labels, datasets:[{ label:'Energy (MWh)', data: rows.map(r => r.energy_mwh), borderColor:'#2563EB', backgroundColor:'rgba(37,99,235,.08)', fill:true, pointRadius:2, tension:.3 }] },
+        options:{ plugins:{ legend:{ display:false } }, scales:{ y:{ grid:{ color:'#F1F5F9' } }, x:{ grid:{ display:false } } }, maintainAspectRatio:false }
+      });
+    };
+    select.addEventListener('change', draw);
+    draw();
+
+    document.getElementById('annualRows').innerHTML = u.annual.map(a => {
+      // The sheet's monthly values are rounded, so sums drift 1–2 MWh from the printed totals; flag only real gaps.
+      const mismatch = a.monthly_sum_mwh != null && Math.abs(a.monthly_sum_mwh - a.total_mwh_reported) > 10;
+      return `<tr>
+        <td><b>${esc(a.year)}</b></td>
+        <td>${esc(num(a.monthly_sum_mwh, 0))}</td>
+        <td>${esc(num(a.total_mwh_reported, 0))}${mismatch ? ' <span class="badge pending">Differs</span>' : ''}</td>
+        <td>${esc(num(a.customers, 0))}</td>
+        <td>${esc(num(a.coincident_peak_mw, 2))}</td>
+        <td class="text-muted">${esc(a.notes || '—')}</td>
+      </tr>`;
+    }).join('');
+
+    const exportBtn = document.getElementById('utilityExport');
+    exportBtn.disabled = false;
+    exportBtn.addEventListener('click', () => downloadCSV('guimelco_residential_monthly.csv',
+      ['year', 'month', 'energy_mwh'], u.monthly.map(r => [r.year, r.month, r.energy_mwh])));
+  }
+
+  function renderCrowdsourced(c) {
+    const badge = ElectroAnalytics.dataBadge(c.data_source);
+    document.getElementById('billsBadge').innerHTML = badge;
+    document.getElementById('appliancesBadge').innerHTML = badge;
+    document.getElementById('kpiHouseholds').textContent = num(c.totals.households, 0);
+    document.getElementById('kpiBills').textContent = num(c.totals.approved_bills, 0);
+    document.getElementById('kpiAppliances').textContent = num(c.totals.approved_appliances, 0);
+
+    document.getElementById('billRows').innerHTML = c.monthly.length
+      ? c.monthly.slice().reverse().map(m => `<tr>
+          <td>${esc(monthName(m.billing_month))}</td><td>${esc(m.households)}</td><td>${esc(m.bills)}</td>
+          <td>${esc(num(m.total_kwh, 1))}</td><td>${esc(num(m.avg_kwh, 1))}</td></tr>`).join('')
+      : '<tr><td colspan="5" class="text-muted">No approved bills yet.</td></tr>';
+
+    document.getElementById('categoryRows').innerHTML = c.categories.length
+      ? c.categories.map(k => `<tr><td>${esc(k.category_name)}</td><td>${esc(k.appliances)}</td><td>${esc(num(k.avg_watts, 0))}</td></tr>`).join('')
+      : '<tr><td colspan="3" class="text-muted">No approved appliances yet.</td></tr>';
+
+    const exportBtn = document.getElementById('billsExport');
+    exportBtn.disabled = !c.monthly.length;
+    exportBtn.addEventListener('click', () => downloadCSV('approved_bills_by_month.csv',
+      ['billing_month', 'households', 'bills', 'total_kwh', 'avg_kwh'],
+      c.monthly.map(m => [m.billing_month, m.households, m.bills, m.total_kwh, m.avg_kwh])));
+  }
+
+  ElectroAPI.request('/api/validated-data').then(data => {
+    renderUtility(data.utility);
+    renderCrowdsourced(data.crowdsourced);
+    if (window.feather) feather.replace();
+  }).catch(error => {
+    if (error.status === 401) { window.location.href = 'login.html'; return; }
+    ElectroAPI.notify(error.message, 'error');
+    document.getElementById('page-content').innerHTML = `<div class="card"><div class="empty-table"><i data-feather="alert-circle"></i><b>Validated data is unavailable</b><span>${esc(error.message)}</span></div></div>`;
+    if (window.feather) feather.replace();
+  });
+})();
 </script>
 </body>
 </html>
