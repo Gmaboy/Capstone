@@ -1570,3 +1570,51 @@ button.notif-item:focus-visible{outline:2px solid var(--primary); outline-offset
 @media (max-width: 640px){
   .topbar-left .page-title{font-size:13px;}
 }
+
+/* Admin review: correcting an approved appliance. */
+.review-final-note{margin:-6px 0 16px; padding:11px 13px; border-radius:10px; background:var(--danger-bg); color:var(--t-text-b91c1c); font-size:13px; font-weight:600;}
+.review-edit{border:1px solid var(--t-border-e7eef7); border-radius:12px; padding:14px 14px 4px; margin:0 0 16px; min-width:0;}
+.review-edit legend{padding:0 6px; font-size:12.5px; font-weight:700; color:var(--dark);}
+.review-edit-grid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 12px;}
+.review-edit .hint{margin:-6px 0 12px; font-size:12px; color:var(--grey-600);}
+@media (max-width: 640px){ .review-edit-grid{grid-template-columns:1fr;} }
+.review-actions .btn[hidden]{display:none;}
+.review-actions .btn{white-space:nowrap;}
+
+/* Collapsible sidebar (desktop). Expanded: a button beside the (smaller) brand name collapses it to an
+   icon rail. Collapsed: hovering the logo turns it into the expand button. The choice is remembered. */
+.sidebar-brand .logo-toggle{position:relative; padding:0; border:1px solid transparent; border-radius:12px; background:none; cursor:pointer;
+  transition:background .15s ease, border-color .15s ease;}
+.logo-toggle img, .logo-toggle svg{transition:opacity .15s ease;}
+.logo-toggle svg{position:absolute; inset:0; margin:auto; width:20px; height:20px; color:#C5F1EC; opacity:0; pointer-events:none;}
+.sidebar-brand .brand-text{min-width:0; flex:1;}
+.brand-collapse{display:none;}
+@media (min-width: 861px){
+  .sidebar-brand{gap:8px; padding-right:4px;}
+  .sidebar-brand .logo-mark{width:38px; height:38px;}
+  .sidebar-brand .brand-name{font-size:10px; letter-spacing:.02em; white-space:nowrap;}
+  .sidebar-brand .brand-tag{font-size:11px;}
+  .brand-collapse{display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    width:28px; height:28px; padding:0; border-radius:8px; border:1px solid transparent; background:none; color:#9FC9C6;
+    transition:background .15s ease, color .15s ease, border-color .15s ease;}
+  .brand-collapse:hover, .brand-collapse:focus-visible{background:rgba(45,212,200,.14); border-color:rgba(45,212,200,.35); color:#fff;}
+  .brand-collapse svg{width:16px; height:16px;}
+  .sidebar{transition:width .2s ease;}
+  .main{transition:margin-left .2s ease;}
+  :root[data-sidebar="collapsed"]{--sidebar-w:76px;}
+  :root[data-sidebar="collapsed"] .sidebar-brand{justify-content:center; padding:20px 0 16px;}
+  :root[data-sidebar="collapsed"] .sidebar-brand .logo-mark{width:44px; height:44px;}
+  :root[data-sidebar="collapsed"] .logo-toggle:hover, :root[data-sidebar="collapsed"] .logo-toggle:focus-visible{background:rgba(45,212,200,.14); border-color:rgba(45,212,200,.35);}
+  :root[data-sidebar="collapsed"] .logo-toggle:hover img, :root[data-sidebar="collapsed"] .logo-toggle:focus-visible img{opacity:0;}
+  :root[data-sidebar="collapsed"] .logo-toggle:hover svg, :root[data-sidebar="collapsed"] .logo-toggle:focus-visible svg{opacity:1;}
+  :root[data-sidebar="collapsed"] .sidebar-brand .brand-text,
+  :root[data-sidebar="collapsed"] .brand-collapse,
+  :root[data-sidebar="collapsed"] .nav-item span,
+  :root[data-sidebar="collapsed"] .sidebar-footer .avatar,
+  :root[data-sidebar="collapsed"] .sidebar-footer .who{display:none;}
+  :root[data-sidebar="collapsed"] .nav-section-label{height:0; padding:0; margin:10px 18px; overflow:hidden; border-top:1px solid rgba(45,212,200,.14);}
+  :root[data-sidebar="collapsed"] .nav-item{justify-content:center; padding:11px 0;}
+  :root[data-sidebar="collapsed"] .nav-item:hover{transform:none;}
+  :root[data-sidebar="collapsed"] .sidebar-footer{justify-content:center; padding:14px 0;}
+}
+@media (prefers-reduced-motion: reduce){ .sidebar, .main, .logo-toggle, .logo-toggle img, .logo-toggle svg, .brand-collapse{transition:none;} }

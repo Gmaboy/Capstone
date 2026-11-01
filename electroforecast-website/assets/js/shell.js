@@ -53,7 +53,7 @@
       <div class="nav-section-label">${g.group}</div>
       <div class="nav-list">
         ${items.map(it => `
-          <a class="nav-item ${it.key===active?'active':''}" href="${it.href}">
+          <a class="nav-item ${it.key===active?'active':''}" href="${it.href}" title="${it.label}" aria-label="${it.label}">
             <i data-feather="${it.icon}"></i><span>${it.label}</span>
           </a>`).join("")}
       </div>`;
@@ -64,13 +64,18 @@
 
     return `
     <aside class="sidebar" id="sidebar">
-      <a class="sidebar-brand" href="${home}" aria-label="GUIMPOWERCORE home">
-        <div class="logo-mark">${BRAND_LOGO}</div>
-        <div>
+      <div class="sidebar-brand">
+        <!-- Desktop: the button beside the name collapses the sidebar; once collapsed, the logo turns into the
+             expand button on hover. Otherwise (and on phones) the logo goes home. -->
+        <button class="logo-mark logo-toggle" id="sidebarExpand" type="button" aria-controls="sidebar" data-home="${home}">
+          ${BRAND_LOGO}<i data-feather="chevrons-right"></i>
+        </button>
+        <a class="brand-text" href="${home}" aria-label="GUIMPOWERCORE home">
           <div class="brand-name">GUIMPOWERCORE</div>
           <div class="brand-tag">Smart Energy Insights</div>
-        </div>
-      </a>
+        </a>
+        <button class="brand-collapse" id="sidebarCollapse" type="button" aria-controls="sidebar" aria-label="Collapse sidebar" title="Collapse sidebar"><i data-feather="chevrons-left"></i></button>
+      </div>
       ${groups}
       <div class="sidebar-footer">
         <div class="avatar">${initials(name)}</div>
@@ -78,7 +83,7 @@
           <div class="name">${name}</div>
           <div class="role">${roleLabel}</div>
         </div>
-        <button title="Sign out" onclick="window.ElectroAPI ? ElectroAPI.logout() : (window.location.href='login.html')"><i data-feather="log-out"></i></button>
+        <button title="Sign out" aria-label="Sign out" onclick="window.ElectroAPI ? ElectroAPI.logout() : (window.location.href='login.html')"><i data-feather="log-out"></i></button>
       </div>
     </aside>
     <button class="sidebar-scrim" id="sidebarScrim" aria-label="Close navigation"></button>`;
@@ -88,7 +93,7 @@
     return `
     <header class="topbar">
       <div class="topbar-left">
-        <button class="burger" id="burgerBtn"><i data-feather="menu"></i></button>
+        <button class="burger" id="burgerBtn" type="button" aria-controls="sidebar" aria-label="Open navigation"><i data-feather="menu"></i></button>
         <div class="page-title">${title}</div>
       </div>
       <div class="topbar-right">
@@ -129,6 +134,33 @@
           scrim.classList.toggle('open', isOpen);
           document.body.classList.toggle('nav-open', isOpen);
         });
+        // Desktop: collapse with the button beside the name, expand by clicking the logo (remembered).
+        // When the sidebar is expanded, and on phones, the logo is the home link.
+        const phone = window.matchMedia('(max-width: 860px)');
+        const root = document.documentElement;
+        const collapseBtn = document.getElementById('sidebarCollapse');
+        const expandBtn = document.getElementById('sidebarExpand');
+        const isCollapsed = () => !phone.matches && root.getAttribute('data-sidebar') === 'collapsed';
+        const setCollapsed = collapse => {
+          if (collapse) root.setAttribute('data-sidebar', 'collapsed');
+          else root.removeAttribute('data-sidebar');
+          try { localStorage.setItem('electro_sidebar', collapse ? 'collapsed' : 'expanded'); } catch (_) { /* still toggles for this page */ }
+          syncCollapse();
+        };
+        const syncCollapse = () => {
+          const label = isCollapsed() ? 'Expand sidebar' : 'GUIMPOWERCORE home';
+          expandBtn.setAttribute('aria-label', label);
+          expandBtn.setAttribute('title', label);
+          if (isCollapsed()) expandBtn.setAttribute('aria-expanded', 'false');
+          else expandBtn.removeAttribute('aria-expanded');
+        };
+        if (phone.addEventListener) phone.addEventListener('change', syncCollapse);
+        collapseBtn.addEventListener('click', () => setCollapsed(true));
+        expandBtn.addEventListener('click', () => {
+          if (isCollapsed()) { setCollapsed(false); return; }
+          window.location.href = expandBtn.dataset.home;
+        });
+        syncCollapse();
         scrim.addEventListener('click', closeSidebar);
         sidebar.querySelectorAll('.nav-item').forEach(link => link.addEventListener('click', closeSidebar));
         document.addEventListener('keydown', event => {

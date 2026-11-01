@@ -87,6 +87,7 @@ CREATE TABLE appliances (
   avg_daily_usage_hours DECIMAL(5,2) DEFAULT 0,
   source_of_info ENUM('nameplate_label','user_manual','manual_estimate','retailer_specs') NOT NULL DEFAULT 'nameplate_label',
   copied_from_appliance_id INT NULL,
+  removed_at DATETIME NULL,
   verification_status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
   reviewer_notes VARCHAR(500),
   reviewer_notes_read_at DATETIME NULL,
