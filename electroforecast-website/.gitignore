@@ -9,3 +9,5 @@ data/synthetic/*.csv
 
 database/uploads/
 database/*.bak*
+.vercel
+.env*

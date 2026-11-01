@@ -1,0 +1,16 @@
+# Only the web app and deploy/demo.db go to Vercel; training data, models and local databases stay here.
+.venv
+__pycache__
+.pytest_cache
+database/*.db
+database/*.db.*
+database/uploads
+data
+models
+tests
+docs
+tools/model
+tools/synth
+*.ps1
+.env*
+.vercel
