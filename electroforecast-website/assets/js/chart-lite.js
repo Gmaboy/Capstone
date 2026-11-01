@@ -74,14 +74,14 @@
       const max = Math.max(niceMax, 1);
 
       ctx.font = this.font(10);
-      ctx.fillStyle = themeColor('--chart-text', '#718096');
+      ctx.fillStyle = themeColor('--chart-text', '#648587');
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
       for (let i = 0; i <= 4; i += 1) {
         const y = plot.top + ((plot.bottom - plot.top) * i) / 4;
         const value = Math.round(max - ((max - min) * i) / 4);
         ctx.beginPath();
-        ctx.strokeStyle = themeColor('--chart-grid', '#EAF0F7');
+        ctx.strokeStyle = themeColor('--chart-grid', '#E2F3F4');
         ctx.lineWidth = 1;
         ctx.moveTo(plot.left, y);
         ctx.lineTo(plot.right, y);
@@ -99,7 +99,7 @@
     drawLabels(labels, plot) {
       const ctx = this.context;
       ctx.font = this.font(10);
-      ctx.fillStyle = themeColor('--chart-text', '#718096');
+      ctx.fillStyle = themeColor('--chart-text', '#648587');
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       // Draw left to right and skip any label that would touch the previous one, so narrow charts stay readable.
@@ -144,7 +144,7 @@
           if (Number.isFinite(value)) ctx.lineTo(plot.x(index, labels.length), plot.y(value));
         }
         ctx.closePath();
-        ctx.fillStyle = upper.backgroundColor || 'rgba(203,213,225,.3)';
+        ctx.fillStyle = upper.backgroundColor || 'rgba(192,217,218,.3)';
         ctx.fill();
       }
 
@@ -172,7 +172,7 @@
             ctx.lineTo(plot.x(last.index, labels.length), plot.bottom);
             ctx.lineTo(plot.x(first.index, labels.length), plot.bottom);
             ctx.closePath();
-            ctx.fillStyle = dataset.backgroundColor || 'rgba(8,126,255,.08)';
+            ctx.fillStyle = dataset.backgroundColor || 'rgba(0,144,153,.08)';
             ctx.fill();
             ctx.beginPath();
             finite.forEach((item, index) => {
@@ -184,7 +184,7 @@
           }
         }
 
-        ctx.strokeStyle = dataset.borderColor || ['#087EFF', '#16A34A', '#CBD5E1'][datasetIndex % 3];
+        ctx.strokeStyle = dataset.borderColor || ['#009099', '#16A34A', '#C0D9DA'][datasetIndex % 3];
         ctx.lineWidth = datasetIndex < 2 ? 2.25 : 1.25;
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
@@ -197,7 +197,7 @@
             if (!Number.isFinite(value)) return;
             ctx.beginPath();
             ctx.arc(plot.x(index, labels.length), plot.y(value), dataset.pointRadius, 0, Math.PI * 2);
-            ctx.fillStyle = dataset.borderColor || '#087EFF';
+            ctx.fillStyle = dataset.borderColor || '#009099';
             ctx.fill();
             ctx.strokeStyle = themeColor('--chart-ring', '#fff');
             ctx.lineWidth = 1.5;
@@ -217,7 +217,7 @@
       const barWidth = Math.min(dataset.maxBarThickness || 34, slot * 0.58);
       const colors = Array.isArray(dataset.backgroundColor)
         ? dataset.backgroundColor
-        : dataset.data.map(() => dataset.backgroundColor || '#087EFF');
+        : dataset.data.map(() => dataset.backgroundColor || '#009099');
 
       dataset.data.forEach((value, index) => {
         const x = plot.left + slot * index + (slot - barWidth) / 2;
@@ -257,7 +257,7 @@
           this.context.arc(cx, cy, radius, angle, next);
           this.context.arc(cx, cy, radius * cutout, next, angle, true);
           this.context.closePath();
-          this.context.fillStyle = colors[index] || '#087EFF';
+          this.context.fillStyle = colors[index] || '#009099';
           this.context.fill();
         }
         angle = next;

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>Explainable AI · GUIMPOWERCORE</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Michroma&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
 <script src="assets/js/theme.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
@@ -60,7 +60,7 @@
           </div>
           <div class="chart-box"><canvas id="chartBreakdown"></canvas></div>
           <div class="legend-row">
-            <div class="legend-item"><span class="legend-swatch" style="background:#2563EB;"></span>Trend</div>
+            <div class="legend-item"><span class="legend-swatch" style="background:#0C7983;"></span>Trend</div>
             <div class="legend-item"><span class="legend-swatch" style="background:#16A34A;"></span>Seasonality</div>
             <div class="legend-item" id="legendGrowth"><span class="legend-swatch" style="background:#F59E0B;"></span>Customer growth</div>
           </div>
@@ -127,7 +127,7 @@ ElectroShell.mount('explainable', 'Explainable AI', { dateRange:false });
           const last = index === items.length - 1 ? ' style="margin-bottom:0;"' : '';
           return `<div class="bar-row"${last}>
             <div class="bar-label"><span>${esc(ElectroAPI.titleCase(item.feature))}</span><span>${esc(valid ? Number(item.importance).toFixed(3) : '—')}</span></div>
-            <div class="bar-track"><div class="bar-fill" style="width:${width.toFixed(1)}%; background:#2563EB;"></div></div>
+            <div class="bar-track"><div class="bar-fill" style="width:${width.toFixed(1)}%; background:#0C7983;"></div></div>
           </div>`;
         }).join('')
       : '<div class="empty-mini">No importance values stored for this run.</div>';
@@ -140,7 +140,7 @@ ElectroShell.mount('explainable', 'Explainable AI', { dateRange:false });
         type:'line',
         data:{ labels: rows.map((r, i) => i % 2 === 0 ? `${MONTHS[r.month - 1]} ${String(r.year).slice(2)}` : ''),
           datasets:[
-            { label:'Trend', data: rows.map(r => r.trend), borderColor:'#2563EB', pointRadius:0, tension:.35 },
+            { label:'Trend', data: rows.map(r => r.trend), borderColor:'#0C7983', pointRadius:0, tension:.35 },
             { label:'Seasonality', data: rows.map(r => r.seasonality), borderColor:'#16A34A', pointRadius:0, tension:.35 },
             ...(showGrowth ? [{ label:'Customer growth', data: rows.map(r => r.customer_growth), borderColor:'#F59E0B', pointRadius:0, tension:.35 }] : [])
           ]},

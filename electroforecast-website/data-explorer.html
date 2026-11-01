@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>Validated Data · GUIMPOWERCORE</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Michroma&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
 <script src="assets/js/theme.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
@@ -28,7 +28,7 @@
         </div>
         <div class="chart-box"><canvas id="chartUtility"></canvas></div>
         <div class="legend-row">
-          <div class="legend-item"><span class="legend-swatch" style="background:#2563EB;"></span>Residential energy (MWh per month)</div>
+          <div class="legend-item"><span class="legend-swatch" style="background:#0C7983;"></span>Residential energy (MWh per month)</div>
         </div>
         <div class="divider"></div>
         <div class="table-wrap">
@@ -134,8 +134,8 @@ ElectroShell.mount('explorer', 'Validated Data');
       box.innerHTML = '<canvas id="chartUtility"></canvas>';
       utilityChart = new Chart(document.getElementById('chartUtility'), {
         type:'line',
-        data:{ labels, datasets:[{ label:'Energy (MWh)', data: rows.map(r => r.energy_mwh), borderColor:'#2563EB', backgroundColor:'rgba(37,99,235,.08)', fill:true, pointRadius:2, tension:.3 }] },
-        options:{ plugins:{ legend:{ display:false } }, scales:{ y:{ grid:{ color:'#F1F5F9' } }, x:{ grid:{ display:false } } }, maintainAspectRatio:false }
+        data:{ labels, datasets:[{ label:'Energy (MWh)', data: rows.map(r => r.energy_mwh), borderColor:'#0C7983', backgroundColor:'rgba(12,121,131,.08)', fill:true, pointRadius:2, tension:.3 }] },
+        options:{ plugins:{ legend:{ display:false } }, scales:{ y:{ grid:{ color:'#EDF6F7' } }, x:{ grid:{ display:false } } }, maintainAspectRatio:false }
       });
     };
     select.addEventListener('change', draw);
