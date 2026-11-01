@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>Forecasting · GUIMPOWERCORE</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Michroma&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
 <script src="assets/js/theme.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.29.0/feather.min.js"></script>
@@ -32,9 +32,9 @@
           </div>
           <div class="chart-box"><canvas id="chartForecast"></canvas></div>
           <div class="legend-row">
-            <div class="legend-item"><span class="legend-swatch" style="background:#2563EB;"></span>Actual</div>
+            <div class="legend-item"><span class="legend-swatch" style="background:#0C7983;"></span>Actual</div>
             <div class="legend-item"><span class="legend-swatch" style="background:#16A34A;"></span>Forecast</div>
-            <div class="legend-item"><span class="legend-swatch" style="background:#CBD5E1;"></span>Upper / Lower 80%</div>
+            <div class="legend-item"><span class="legend-swatch" style="background:#C0D9DA;"></span>Upper / Lower 80%</div>
           </div>
         </div>
       </div>
@@ -126,10 +126,10 @@ ElectroShell.mount('forecasting', 'Forecasting', { dateRange:false });
       type:'line',
       data:{ labels,
         datasets:[
-          { label:'Actual', data:[...history.map(r => r.energy_mwh), ...pad(forecast.length)], borderColor:'#2563EB', pointRadius:2, tension:.35 },
+          { label:'Actual', data:[...history.map(r => r.energy_mwh), ...pad(forecast.length)], borderColor:'#0C7983', pointRadius:2, tension:.35 },
           { label:'Forecast', data:[...pad(history.length), ...forecast.map(r => r.forecast_mwh)], borderColor:'#16A34A', borderDash:[5,4], pointRadius:0, tension:.35 },
-          { label:'Upper', data:[...pad(history.length), ...forecast.map(r => r.hi80)], borderColor:'rgba(203,213,225,.7)', pointRadius:0, fill:'+1', backgroundColor:'rgba(203,213,225,.35)', tension:.35 },
-          { label:'Lower', data:[...pad(history.length), ...forecast.map(r => r.lo80)], borderColor:'rgba(203,213,225,.7)', pointRadius:0, tension:.35 }
+          { label:'Upper', data:[...pad(history.length), ...forecast.map(r => r.hi80)], borderColor:'rgba(192,217,218,.7)', pointRadius:0, fill:'+1', backgroundColor:'rgba(192,217,218,.35)', tension:.35 },
+          { label:'Lower', data:[...pad(history.length), ...forecast.map(r => r.lo80)], borderColor:'rgba(192,217,218,.7)', pointRadius:0, tension:.35 }
         ]},
       options:{ plugins:{ legend:{ display:false } }, maintainAspectRatio:false }
     });
