@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import calendar
 import warnings
+from contextlib import contextmanager
 from dataclasses import replace
 from typing import Callable, Protocol
 
@@ -18,6 +19,13 @@ from statsmodels.tsa.statespace.sarimax import SARIMAX
 from tools.common.anchors import Anchors
 from tools.synth.config import SynthConfig
 from tools.synth.customers import monthly_customers
+
+try:  # optional: only training needs torch; the hybrid candidate is skipped without it
+    import torch
+    from torch import nn
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
 
 Z80, Z95 = 1.2815515655446004, 1.959963984540054
 SIM_REPS = 1000
@@ -139,6 +147,101 @@ class Sarima:
         return _frame(idx, point, c80[:, 0], c80[:, 1], c95[:, 0], c95[:, 1])
 
 
+LOOKBACK = 6
+HIDDEN = 8
+EPOCHS = 300
+LR = 0.01
+SEEDS = (42, 43, 44, 45, 46)
+MIN_WINDOWS = 8
+BURN_IN = 13  # residuals distorted by d=1, D=1, s=12 differencing
+
+@contextmanager
+def _single_thread():
+    """Tiny networks run faster on one thread, and results are repeatable."""
+    threads = torch.get_num_threads()
+    torch.set_num_threads(1)
+    try:
+        yield
+    finally:
+        torch.set_num_threads(threads)
+
+
+if TORCH_AVAILABLE:
+    class _Blstm(nn.Module):
+        """One-layer bidirectional LSTM -> next scaled residual."""
+
+        def __init__(self):
+            super().__init__()
+            self.lstm = nn.LSTM(1, HIDDEN, batch_first=True, bidirectional=True)
+            self.head = nn.Linear(2 * HIDDEN, 1)
+
+        def forward(self, x):
+            out, _ = self.lstm(x)
+            return self.head(out[:, -1, :])
+
+
+class HybridBlstmSarima:
+    """Residual hybrid (Zhang 2003): SARIMA forecast + BLSTM forecast of SARIMA's residuals.
+
+    Intervals are SARIMA's, shifted by the correction; they omit the BLSTM's own uncertainty.
+    """
+
+    def __init__(self, y: pd.Series, customers: pd.Series):
+        self.sarima = Sarima(y, customers)
+        resid = np.asarray(self.sarima.res.resid, dtype=float)[BURN_IN:]
+        self.scale = max(float(np.std(resid, ddof=1)), 1e-9) if len(resid) >= 2 else 1.0
+        z = resid / self.scale
+        self.nets = []
+        n_windows = len(z) - LOOKBACK
+        if n_windows >= MIN_WINDOWS:
+            X = np.stack([z[i:i + LOOKBACK] for i in range(n_windows)])
+            self.nets = self._train(X, z[LOOKBACK:])
+        window = z[-LOOKBACK:]
+        self.last_window = np.concatenate([np.zeros(LOOKBACK - len(window)), window])
+
+    @staticmethod
+    def _train(X: np.ndarray, target: np.ndarray) -> list:
+        xt = torch.tensor(X, dtype=torch.float32).unsqueeze(-1)
+        yt = torch.tensor(target, dtype=torch.float32).unsqueeze(-1)
+        nets = []
+        with _single_thread():
+            for seed in SEEDS:
+                torch.manual_seed(seed)
+                net = _Blstm()
+                opt = torch.optim.Adam(net.parameters(), lr=LR)
+                for _ in range(EPOCHS):
+                    opt.zero_grad()
+                    loss = nn.functional.mse_loss(net(xt), yt)
+                    loss.backward()
+                    opt.step()
+                nets.append(net.eval())
+        return nets
+
+    def _correction(self, steps: int) -> np.ndarray:
+        """Recursive residual forecast in MWh; zero when no networks were trained."""
+        if not self.nets:
+            return np.zeros(steps)
+        window = list(self.last_window)
+        out = []
+        with torch.no_grad(), _single_thread():
+            for _ in range(steps):
+                x = torch.tensor(window[-LOOKBACK:], dtype=torch.float32).view(1, LOOKBACK, 1)
+                step = float(np.mean([float(net(x)) for net in self.nets]))
+                if not np.isfinite(step):
+                    step = 0.0
+                out.append(step)
+                window.append(step)
+        return np.asarray(out) * self.scale
+
+    def predict(self, steps: int, exog_future: pd.Series | None = None) -> pd.DataFrame:
+        base = self.sarima.predict(steps)
+        c = self._correction(steps)
+        return _frame(
+            base.index, base.forecast_mwh + c,
+            base.lo80 + c, base.hi80 + c, base.lo95 + c, base.hi95 + c,
+        )
+
+
 class Regression:
     """OLS: linear trend + month dummies + customers."""
 
@@ -181,6 +284,8 @@ CANDIDATES: dict[str, Callable[[pd.Series, pd.Series], FittedModel]] = {
     "sarima": Sarima,
     "regression": Regression,
 }
+if TORCH_AVAILABLE:
+    CANDIDATES["hybrid_blstm_sarima"] = HybridBlstmSarima
 
 
 # ---------------------------------------------------------------- evaluation

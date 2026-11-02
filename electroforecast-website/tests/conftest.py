@@ -209,3 +209,11 @@ def client_logged_in_trained(trained_db_template, tmp_path, monkeypatch):
         yield _login(mod)
     finally:
         sys.modules.pop("app", None)
+
+
+@pytest.fixture(autouse=True)
+def _fast_blstm(monkeypatch):
+    """Train the hybrid's networks for 30 epochs in tests; production training uses 300."""
+    import tools.model.forecast as fm
+
+    monkeypatch.setattr(fm, "EPOCHS", 30)
