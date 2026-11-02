@@ -93,3 +93,13 @@ def test_backtest_runs_without_torch(monkeypatch):
     monkeypatch.setattr(fm, "CANDIDATES", {k: v for k, v in fm.CANDIDATES.items() if k != "hybrid_blstm_sarima"})
     bt = fm.backtest(SERIES, CUSTOMERS)
     assert "hybrid_blstm_sarima" not in set(bt.model_name)
+
+
+@pytest.fixture(scope="module")
+def _module_epochs():
+    return fm.EPOCHS
+
+
+def test_short_training_reaches_module_fixtures(_module_epochs):
+    # module-scoped fixtures (like trained_db_template) must also train for 30 epochs
+    assert _module_epochs == 30
