@@ -28,7 +28,7 @@
         <div class="card span-7">
           <div class="card-head"><h3>About the Project</h3></div>
           <div class="text-sm text-muted" style="line-height:1.7;">
-            The monthly energy forecast is trained on GUIMELCO's real residential records for 2020–2025. Several models are compared with a rolling-origin backtest (SARIMA, Holt-Winters, regression, and a seasonal-naive baseline), and the most accurate one is used. The annual peak is forecast from energy and historical load factors.
+            The monthly energy forecast is trained on GUIMELCO's real residential records for 2020–2025. Several models are compared with a rolling-origin backtest (SARIMA, a hybrid BLSTM–SARIMA that adds a bidirectional LSTM trained on SARIMA's errors, Holt-Winters, regression, and a seasonal-naive baseline), and the most accurate one is used. The annual peak is forecast from energy and historical load factors.
             <br><br>
             GUIMELCO does not yet provide household, hourly, or feeder data, so daily demand data is synthetic: generated to match the real monthly totals, customer counts, and annual peaks exactly. Every page and table that uses it is labeled "Synthetic".
             <br><br>

@@ -56,6 +56,12 @@
       .replace(/\b\w/g, letter => letter.toUpperCase());
   }
 
+  const MODEL_LABELS = { sarima: 'SARIMA', hybrid_blstm_sarima: 'Hybrid BLSTM–SARIMA' };
+
+  function modelLabel(name) {
+    return MODEL_LABELS[name] || titleCase(name);
+  }
+
   function statusBadge(status) {
     const safeStatus = ['pending', 'approved', 'rejected', 'active', 'inactive'].includes(status)
       ? status
@@ -159,6 +165,7 @@
     requireRole,
     escapeHTML,
     titleCase,
+    modelLabel,
     statusBadge,
     formatDate,
     formatMonth,

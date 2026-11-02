@@ -231,7 +231,7 @@
     const classifier = runs.find(r => r.task === 'demand_class');
     if (forecast) {
       const mape = forecast.metrics && Number.isFinite(forecast.metrics.mean_mape) ? `MAPE ${forecast.metrics.mean_mape.toFixed(1)}%` : 'Active';
-      setText('sysModel', ElectroAPI.titleCase(forecast.model_name));
+      setText('sysModel', ElectroAPI.modelLabel(forecast.model_name));
       setText('sysModelSub', `${mape} · real GUIMELCO data`);
       setText('sysTrained', trainedOn(forecast));
       setText('sysTrainedSub', forecast.dataset_version);
@@ -243,7 +243,7 @@
     }
     if (classifier) {
       const f1 = classifier.metrics && Number.isFinite(classifier.metrics.macro_f1) ? `Macro-F1 ${classifier.metrics.macro_f1.toFixed(2)}` : 'Active';
-      setText('sysClf', ElectroAPI.titleCase(classifier.model_name));
+      setText('sysClf', ElectroAPI.modelLabel(classifier.model_name));
       setText('sysClfSub', `${f1} · synthetic data`);
     } else {
       setText('sysClf', 'Not trained');
