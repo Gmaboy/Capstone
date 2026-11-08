@@ -12,7 +12,7 @@
   function modelCard(run, metricLabel, metricValue) {
     const trained = run && run.trained_at ? ElectroAPI.formatDate(/[T ]/.test(String(run.trained_at)) ? String(run.trained_at) : run.trained_at + 'T00:00:00Z', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }) : '—';
     return `<div class="model-card">
-      <div class="model-card-name">${esc(ElectroAPI.titleCase(run && run.model_name))}</div>
+      <div class="model-card-name">${esc(ElectroAPI.modelLabel(run && run.model_name))}</div>
       <div class="model-card-meta">Trained ${esc(trained)}</div>
       <div class="model-card-metric"><span>${esc(metricLabel)}</span><b>${esc(metricValue)}</b></div>
     </div>`;

@@ -201,16 +201,16 @@ ElectroShell.mount('reports', 'Reports');
     const mape = (model, fold) => { const r = bt.find(x => x.model_name === model && x.fold === fold); return r ? r.mape : NaN; };
     const mean = model => { const v = folds.map(f => mape(model, f)).filter(Number.isFinite); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : NaN; };
     models.sort((a, b) => mean(a) - mean(b));
-    document.getElementById('backtestSub').textContent = `Rolling-origin backtest, MAPE per held-out year · selected: ${ElectroAPI.titleCase(m.selected_model || run.model_name)}`;
+    document.getElementById('backtestSub').textContent = `Rolling-origin backtest, MAPE per held-out year · selected: ${ElectroAPI.modelLabel(m.selected_model || run.model_name)}`;
     document.getElementById('backtestHead').innerHTML = `<tr><th>Model</th>${folds.map(f => `<th>${esc(f)}</th>`).join('')}<th>Mean</th></tr>`;
     document.getElementById('backtestRows').innerHTML = models.length ? models.map(model => {
       const selected = model === (m.selected_model || run.model_name);
       const tag = selected ? ' <span class="badge low">Selected</span>' : model === 'seasonal_naive' ? ' <span class="badge neutral">Baseline</span>' : '';
-      return `<tr><td><b>${esc(ElectroAPI.titleCase(model))}</b>${tag}</td>${folds.map(f => `<td>${esc(pct(mape(model, f)))}</td>`).join('')}<td><b>${esc(pct(mean(model)))}</b></td></tr>`;
+      return `<tr><td><b>${esc(ElectroAPI.modelLabel(model))}</b>${tag}</td>${folds.map(f => `<td>${esc(pct(mape(model, f)))}</td>`).join('')}<td><b>${esc(pct(mean(model)))}</b></td></tr>`;
     }).join('') : '<tr><td class="text-muted">No backtest stored for this run.</td></tr>';
     const n = m.nested;
     document.getElementById('nestedNote').textContent = n
-      ? `Stricter check: choosing the model on the ${n.selected_on} fold alone picks ${ElectroAPI.titleCase(n.model)}, which scores ${pct(n.mape_2025)} on 2025 vs ${pct(n.baseline_mape_2025)} for the seasonal-naive baseline.`
+      ? `Stricter check: choosing the model on the ${n.selected_on} fold alone picks ${ElectroAPI.modelLabel(n.model)}, which scores ${pct(n.mape_2025)} on 2025 vs ${pct(n.baseline_mape_2025)} for the seasonal-naive baseline.`
       : '';
   }
 
@@ -218,7 +218,7 @@ ElectroShell.mount('reports', 'Reports');
     const m = run.metrics || {};
     document.getElementById('clfSub').textContent = `Held-out test year ${m.test_year ?? '—'}`;
     document.getElementById('clfRows').innerHTML = [
-      [ElectroAPI.titleCase(m.model_name || run.model_name) + ' (used)', m.macro_f1, m.accuracy],
+      [ElectroAPI.modelLabel(m.model_name || run.model_name) + ' (used)', m.macro_f1, m.accuracy],
       ['Logistic regression (baseline)', m.baseline_macro_f1, m.baseline_accuracy],
       [`Always "${m.majority_label || 'Medium'}"`, m.majority_macro_f1, m.majority_accuracy]
     ].map(([name, f1, acc]) => `<tr><td>${esc(name)}</td><td>${esc(dec(f1))}</td><td>${esc(dec(acc))}</td></tr>`).join('');

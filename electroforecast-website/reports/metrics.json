@@ -32,6 +32,12 @@
         "rmse": 276.21856022459144
       },
       {
+        "model_name": "hybrid_blstm_sarima",
+        "fold": "2024",
+        "mape": 6.661821573945543,
+        "rmse": 259.5303443726277
+      },
+      {
         "model_name": "seasonal_naive",
         "fold": "2025",
         "mape": 6.177262675642417,
@@ -60,6 +66,12 @@
         "fold": "2025",
         "mape": 2.180935477706778,
         "rmse": 103.61477918789477
+      },
+      {
+        "model_name": "hybrid_blstm_sarima",
+        "fold": "2025",
+        "mape": 3.4799425356588976,
+        "rmse": 156.30720388148407
       }
     ],
     "selected_model": "sarima",
@@ -156,6 +168,12 @@
       "rmse": 276.21856022459144
     },
     {
+      "model_name": "hybrid_blstm_sarima",
+      "fold": "2024",
+      "mape": 6.661821573945543,
+      "rmse": 259.5303443726277
+    },
+    {
       "model_name": "seasonal_naive",
       "fold": "2025",
       "mape": 6.177262675642417,
@@ -184,6 +202,12 @@
       "fold": "2025",
       "mape": 2.180935477706778,
       "rmse": 103.61477918789477
+    },
+    {
+      "model_name": "hybrid_blstm_sarima",
+      "fold": "2025",
+      "mape": 3.4799425356588976,
+      "rmse": 156.30720388148407
     }
   ]
 }

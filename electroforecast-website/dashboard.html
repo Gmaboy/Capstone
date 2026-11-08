@@ -153,7 +153,7 @@ ElectroShell.mount('dashboard', 'Forecast Dashboard');
     const forecast = monthly.forecast.slice(0, 12);
     if (!forecast.length) return renderMonthlyError({ status: 404 });
     const metrics = (monthly.model && monthly.model.metrics) || {};
-    const model = ElectroAPI.titleCase(monthly.model.model_name);
+    const model = ElectroAPI.modelLabel(monthly.model.model_name);
     const pad = n => Array(n).fill(null);
     const rows = [...history, ...forecast];
 

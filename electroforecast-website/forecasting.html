@@ -112,7 +112,7 @@ ElectroShell.mount('forecasting', 'Forecasting', { dateRange:false });
     const pad = n => Array(n).fill(null);
 
     document.getElementById('forecastSub').textContent =
-      `${longLabel(forecast[0])} – ${longLabel(forecast[forecast.length - 1])} · ${ElectroAPI.titleCase(monthly.model.model_name)}`;
+      `${longLabel(forecast[0])} – ${longLabel(forecast[forecast.length - 1])} · ${ElectroAPI.modelLabel(monthly.model.model_name)}`;
     document.getElementById('forecastBadge').innerHTML = ElectroAnalytics.dataBadge(monthly.data_source);
 
     const mape = Number.isFinite(metrics.mean_mape) ? `MAPE ${metrics.mean_mape.toFixed(1)}%` : 'MAPE —';

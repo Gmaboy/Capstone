@@ -76,6 +76,10 @@ model results from the database. Install the development dependencies first:
 pip install -r requirements-dev.txt
 ```
 
+PyTorch (CPU) is needed only for the hybrid BLSTM–SARIMA model; install with
+`--extra-index-url https://download.pytorch.org/whl/cpu`. Without it, training
+skips that model.
+
 Then generate the synthetic data, load it, and train the models:
 
 ```powershell

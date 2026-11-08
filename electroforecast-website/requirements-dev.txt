@@ -5,4 +5,6 @@ statsmodels==0.15.0
 scikit-learn==1.9.1
 joblib==1.6.0
 matplotlib==3.11.2
+# CPU build: pip install -r requirements-dev.txt --extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.15.0
 pytest==9.2.0
