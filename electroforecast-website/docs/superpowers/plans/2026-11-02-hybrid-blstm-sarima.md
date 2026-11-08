@@ -49,12 +49,12 @@
   - `HybridBlstmSarima._correction(steps: int) -> np.ndarray` (un-scaled MWh, length `steps`)
   - `CANDIDATES["hybrid_blstm_sarima"]`, present only if `TORCH_AVAILABLE`
 
-- [ ] **Step 1: Install torch in the project venv**
+- [x] **Step 1: Install torch in the project venv**
 
 Run: `.venv/Scripts/python -m pip install torch --index-url https://download.pytorch.org/whl/cpu`
 Expected: `python -c "import torch; print(torch.__version__)"` prints a version. Pin that exact version in `requirements-dev.txt` as `torch==<version>`, with a comment line above it: `# CPU build: pip install -r requirements-dev.txt --extra-index-url https://download.pytorch.org/whl/cpu`.
 
-- [ ] **Step 2: Write the failing tests** in `tests/test_hybrid_blstm.py`
+- [x] **Step 2: Write the failing tests** in `tests/test_hybrid_blstm.py`
 
 ```python
 import joblib
@@ -129,12 +129,12 @@ def test_backtest_runs_without_torch(monkeypatch):
 
 For `test_constant_residuals_give_sarima`, the implementer writes the body. Patch `fm.Sarima.__init__`, or wrap it, so that `.res.resid` returns zeros of the same length. Then fit the hybrid and assert that `_correction(12)` is all ≈ 0 and finite. `nets` should be a list of callables taking a `(1, LOOKBACK, 1)` float tensor and returning `(1, 1)`. That keeps `test_nonfinite_correction_is_zeroed` valid, and `_correction` calls each net under `torch.no_grad()`.
 
-- [ ] **Step 3: Run the tests to verify they fail**
+- [x] **Step 3: Run the tests to verify they fail**
 
 Run: `.venv/Scripts/python -m pytest tests/test_hybrid_blstm.py -v`
 Expected: FAIL with `AttributeError: module 'tools.model.forecast' has no attribute 'TORCH_AVAILABLE'`.
 
-- [ ] **Step 4: Implement in `tools/model/forecast.py`**
+- [x] **Step 4: Implement in `tools/model/forecast.py`**
 
 - Put the optional import at module top:
   ```python
@@ -167,17 +167,17 @@ Expected: FAIL with `AttributeError: module 'tools.model.forecast' has no attrib
   - `return _frame(base.index, base.forecast_mwh + c, base.lo80 + c, base.hi80 + c, base.lo95 + c, base.hi95 + c)`.
 - Register: `if TORCH_AVAILABLE: CANDIDATES["hybrid_blstm_sarima"] = HybridBlstmSarima`.
 
-- [ ] **Step 5: Run the new tests**
+- [x] **Step 5: Run the new tests**
 
 Run: `.venv/Scripts/python -m pytest tests/test_hybrid_blstm.py -v`
 Expected: all PASS.
 
-- [ ] **Step 6: Run the existing model tests**
+- [x] **Step 6: Run the existing model tests**
 
 Run: `.venv/Scripts/python -m pytest tests/test_forecast.py tests/test_train.py -q`
 Expected: all PASS. If `test_backtest_does_not_leak_test_year` or another test hard-codes the five model names, update it to use `set(fm.CANDIDATES)`. Do not change any assertion about selection.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add tools/model/forecast.py requirements-dev.txt tests/test_hybrid_blstm.py tests/test_forecast.py
@@ -197,11 +197,11 @@ git commit -m "feat(forecast): add hybrid BLSTM-SARIMA backtest candidate"
 - Consumes: the model key `hybrid_blstm_sarima` from Task 1.
 - Produces: nothing used later.
 
-- [ ] **Step 1: Add a model-name label map to `reports.html`.** Define `const MODEL_LABELS = { hybrid_blstm_sarima: 'Hybrid BLSTM–SARIMA', sarima: 'SARIMA' };` and `const modelLabel = m => MODEL_LABELS[m] || ElectroAPI.titleCase(m);`. Use `modelLabel` in place of the three `ElectroAPI.titleCase(...)` calls for model names in `renderBacktest`: the row name, `backtestSub` and `nestedNote`.
-- [ ] **Step 2: Update the model list in `about.html`.** It becomes: "(SARIMA, a hybrid BLSTM–SARIMA that adds a bidirectional LSTM trained on SARIMA's errors, Holt-Winters, regression, and a seasonal-naive baseline)".
-- [ ] **Step 3: Add the CPU-wheel note to `README.md`.** Directly under the `pip install -r requirements-dev.txt` line, add: "PyTorch (CPU) is needed only for the hybrid BLSTM–SARIMA model; install with `--extra-index-url https://download.pytorch.org/whl/cpu`. Without it, training skips that model."
-- [ ] **Step 4: Verify.** Run `.venv/Scripts/python -m pytest tests/test_demo_db.py tests/test_api.py -q` and expect PASS. Open `/reports.html` and `/about.html` in the local preview with no console errors.
-- [ ] **Step 5: Commit** with `git commit -m "docs(ui): show Hybrid BLSTM–SARIMA in reports and about"`.
+- [x] **Step 1: Add a model-name label map to `reports.html`.** Define `const MODEL_LABELS = { hybrid_blstm_sarima: 'Hybrid BLSTM–SARIMA', sarima: 'SARIMA' };` and `const modelLabel = m => MODEL_LABELS[m] || ElectroAPI.titleCase(m);`. Use `modelLabel` in place of the three `ElectroAPI.titleCase(...)` calls for model names in `renderBacktest`: the row name, `backtestSub` and `nestedNote`.
+- [x] **Step 2: Update the model list in `about.html`.** It becomes: "(SARIMA, a hybrid BLSTM–SARIMA that adds a bidirectional LSTM trained on SARIMA's errors, Holt-Winters, regression, and a seasonal-naive baseline)".
+- [x] **Step 3: Add the CPU-wheel note to `README.md`.** Directly under the `pip install -r requirements-dev.txt` line, add: "PyTorch (CPU) is needed only for the hybrid BLSTM–SARIMA model; install with `--extra-index-url https://download.pytorch.org/whl/cpu`. Without it, training skips that model."
+- [x] **Step 4: Verify.** Run `.venv/Scripts/python -m pytest tests/test_demo_db.py tests/test_api.py -q` and expect PASS. Open `/reports.html` and `/about.html` in the local preview with no console errors.
+- [x] **Step 5: Commit** with `git commit -m "docs(ui): show Hybrid BLSTM–SARIMA in reports and about"`.
 
 ---
 
@@ -210,8 +210,8 @@ git commit -m "feat(forecast): add hybrid BLSTM-SARIMA backtest candidate"
 **Files:**
 - Modified by the run: the local `database/*.db`, `models/`, `reports/`. These are git-ignored or already tracked as artefacts, so commit only what is already tracked.
 
-- [ ] **Step 1: Retrain.** Use the project's existing training command (see the README training section). Expected: it finishes, and the stored monthly-energy run's `metrics.backtest` contains `hybrid_blstm_sarima` rows for 2024 and 2025.
-- [ ] **Step 2: Check.** Open the Reports page locally. The backtest table lists "Hybrid BLSTM–SARIMA" with its 2024, 2025 and mean MAPE. Record the selected model and the hybrid's mean MAPE against SARIMA's, for the user's paper.
-- [ ] **Step 3: Run the full suite.** Run `.venv/Scripts/python -m pytest -q` and expect all pass.
-- [ ] **Step 4: Commit any tracked artefact changes** (for example the `reports/*.png` files) with `git commit -m "chore(model): retrain with hybrid BLSTM-SARIMA candidate"`.
+- [x] **Step 1: Retrain.** Use the project's existing training command (see the README training section). Expected: it finishes, and the stored monthly-energy run's `metrics.backtest` contains `hybrid_blstm_sarima` rows for 2024 and 2025.
+- [x] **Step 2: Check.** Open the Reports page locally. The backtest table lists "Hybrid BLSTM–SARIMA" with its 2024, 2025 and mean MAPE. Record the selected model and the hybrid's mean MAPE against SARIMA's, for the user's paper.
+- [x] **Step 3: Run the full suite.** Run `.venv/Scripts/python -m pytest -q` and expect all pass.
+- [x] **Step 4: Commit any tracked artefact changes** (for example the `reports/*.png` files) with `git commit -m "chore(model): retrain with hybrid BLSTM-SARIMA candidate"`.
 - [ ] **Step 5: Do not rebuild `deploy/demo.db` or redeploy Vercel without asking the user.** Report that both are needed for the live demo to show the new row.
