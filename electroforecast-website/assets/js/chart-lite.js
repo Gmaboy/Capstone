@@ -29,7 +29,48 @@
       if (this.resizeObserver) this.resizeObserver.observe(canvas.parentElement || canvas);
       window.addEventListener('resize', this.draw, { passive: true });
       window.addEventListener('electro:themechange', this.draw);
+      if (typeof this.config.tooltip === 'function' && this.chartBox) this.initTooltip();
       requestAnimationFrame(this.draw);
+    }
+
+    // Optional config.tooltip(index) -> HTML string (or null): shown beside the nearest point on hover or tap.
+    initTooltip() {
+      this.hoverIndex = null;
+      this.tip = document.createElement('div');
+      this.tip.className = 'chart-tip';
+      this.tip.hidden = true;
+      this.tip.setAttribute('role', 'status');
+      this.chartBox.appendChild(this.tip);
+      const move = event => {
+        if (!this.linePlot) return;
+        const { plot, count } = this.linePlot;
+        const x = event.clientX - this.canvas.getBoundingClientRect().left;
+        const step = (plot.right - plot.left) / Math.max(count - 1, 1);
+        const index = Math.max(0, Math.min(count - 1, Math.round((x - plot.left) / step)));
+        if (index !== this.hoverIndex) this.showTip(index);
+      };
+      this.canvas.addEventListener('pointermove', move);
+      this.canvas.addEventListener('pointerdown', move);
+      this.canvas.addEventListener('pointerleave', () => this.showTip(null));
+    }
+
+    showTip(index) {
+      const html = index == null ? null : this.config.tooltip(index);
+      this.hoverIndex = html ? index : null;
+      this.draw();
+      if (!html) {
+        this.tip.hidden = true;
+        return;
+      }
+      this.tip.innerHTML = html;
+      this.tip.hidden = false;
+      const { plot, count } = this.linePlot;
+      const x = plot.x(index, count);
+      const box = this.chartBox.clientWidth;
+      const width = this.tip.offsetWidth;
+      // Keep the card beside the guide line and inside the chart.
+      const left = x + 12 + width > box ? Math.max(0, x - 12 - width) : x + 12;
+      this.tip.style.left = `${left}px`;
     }
 
     size() {
@@ -55,6 +96,22 @@
       if (this.config.type === 'doughnut') this.drawDoughnut(width, height);
       else if (this.config.type === 'bar') this.drawBar(width, height);
       else this.drawLine(width, height);
+      if (this.hoverIndex != null && this.linePlot) this.drawGuide(this.hoverIndex);
+    }
+
+    drawGuide(index) {
+      const ctx = this.context;
+      const { plot, count } = this.linePlot;
+      const x = Math.round(plot.x(index, count)) + 0.5;
+      ctx.save();
+      ctx.strokeStyle = themeColor('--chart-text', '#648587');
+      ctx.globalAlpha = 0.6;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(x, plot.top);
+      ctx.lineTo(x, plot.bottom);
+      ctx.stroke();
+      ctx.restore();
     }
 
     font(size = 11, weight = 500) {
@@ -125,6 +182,7 @@
       const datasets = this.config.data?.datasets || [];
       const values = datasets.flatMap(dataset => dataset.data || []);
       const plot = this.drawAxes(width, height, values);
+      this.linePlot = { plot, count: labels.length };
       this.drawLabels(labels, plot);
 
       const fillPair = datasets.findIndex(dataset => typeof dataset.fill === 'string');

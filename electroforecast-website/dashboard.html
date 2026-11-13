@@ -66,6 +66,7 @@
             <div class="legend-item"><span class="legend-swatch" style="background:#0C7983;"></span>Actual</div>
             <div class="legend-item"><span class="legend-swatch" style="background:#16A34A;"></span>Forecast</div>
             <div class="legend-item"><span class="legend-swatch" style="background:#C0D9DA;"></span>80% interval</div>
+            <div class="legend-item text-muted">Hover or tap a month for an explanation</div>
           </div>
           <a href="forecasting.html" class="link-more" style="margin-top:12px;">View forecast details <i data-feather="arrow-right"></i></a>
         </div>
@@ -135,7 +136,7 @@ ElectroShell.mount('dashboard', 'Forecast Dashboard');
       ElectroAnalytics.emptyState(document.getElementById('page-content'));
       return;
     }
-    if (monthly.error) renderMonthlyError(monthly.error); else renderMonthly(monthly.data);
+    if (monthly.error) renderMonthlyError(monthly.error); else renderMonthly(monthly.data, explain.error ? [] : explain.data.forecast.breakdown);
     if (peak.error) document.getElementById('peakCard').innerHTML = unavailable(peak.error); else renderPeak(peak.data);
     if (demand.error) { set('demandSub', ''); document.getElementById('demandBars').innerHTML = unavailable(demand.error); }
     else renderDemand(demand.data);
@@ -148,7 +149,7 @@ ElectroShell.mount('dashboard', 'Forecast Dashboard');
     document.getElementById('chartConsumption').closest('.chart-box').innerHTML = unavailable(error);
   }
 
-  function renderMonthly(monthly) {
+  function renderMonthly(monthly, breakdown) {
     const history = monthly.history.slice(-24);
     const forecast = monthly.forecast.slice(0, 12);
     if (!forecast.length) return renderMonthlyError({ status: 404 });
@@ -166,6 +167,7 @@ ElectroShell.mount('dashboard', 'Forecast Dashboard');
 
     new Chart(document.getElementById('chartConsumption'), {
       type:'line',
+      tooltip: ElectroAnalytics.forecastTooltip(monthly.history, history, forecast, breakdown),
       data:{ labels: rows.map((r, i) => i % 3 === 0 ? label(r) : ''),
         datasets:[
           { label:'Actual', data:[...history.map(r => r.energy_mwh), ...pad(forecast.length)], borderColor:'#0C7983', backgroundColor:'rgba(12,121,131,.08)', fill:true, pointRadius:2, tension:.35 },

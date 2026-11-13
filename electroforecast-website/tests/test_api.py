@@ -73,3 +73,12 @@ def test_explain_has_both_sources(client_logged_in_trained):
 def test_explain_404_without_models(client_logged_in_empty):
     r = client_logged_in_empty.get("/api/explain")
     assert r.status_code == 404 and r.json["error"] == "No trained model yet"
+
+
+def test_every_forecast_month_has_a_breakdown_to_explain(client_logged_in_trained):
+    # the chart's hover card explains each forecast month from this breakdown
+    forecast = client_logged_in_trained.get("/api/forecast/monthly").json["forecast"]
+    bd = {(r["year"], r["month"]): r for r in client_logged_in_trained.get("/api/explain").json["forecast"]["breakdown"]}
+    for row in forecast:
+        parts = bd[(row["year"], row["month"])]
+        assert parts["trend"] is not None and parts["seasonality"] is not None
