@@ -196,3 +196,15 @@ def test_startup_cleans_copies_of_no_longer_approved_appliances(app_db):
     assert inventory_id not in [a["inventory_id"] for a in household.get("/api/my-appliances").json["appliances"]]
     note = _latest_note(household)
     assert note["title"] == "Appliance removed" and _note_reason(household, note) == "Wrong rating."
+
+
+def test_deleted_sample_appliances_stay_deleted_after_restart(app_db, monkeypatch):
+    mod, db = app_db
+    with sqlite3.connect(db) as con:
+        assert con.execute("SELECT COUNT(*) FROM appliances").fetchone()[0] > 0  # a new database gets samples
+        con.execute("DELETE FROM household_appliances WHERE source_appliance_id IS NOT NULL")
+        con.execute("DELETE FROM appliances")
+    sys.modules.pop("app", None)
+    _import_app(monkeypatch, db)  # restart on the existing database
+    with sqlite3.connect(db) as con:
+        assert con.execute("SELECT COUNT(*) FROM appliances").fetchone()[0] == 0
