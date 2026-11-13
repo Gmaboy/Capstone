@@ -35,6 +35,7 @@
             <div class="legend-item"><span class="legend-swatch" style="background:#0C7983;"></span>Actual</div>
             <div class="legend-item"><span class="legend-swatch" style="background:#16A34A;"></span>Forecast</div>
             <div class="legend-item"><span class="legend-swatch" style="background:#C0D9DA;"></span>Upper / Lower 80%</div>
+            <div class="legend-item text-muted">Hover or tap a month for an explanation</div>
           </div>
         </div>
       </div>
@@ -74,9 +75,11 @@ ElectroShell.mount('forecasting', 'Forecasting', { dateRange:false });
   async function load() {
     const content = document.getElementById('page-content');
     const peakRequest = ElectroAPI.request('/api/forecast/peak').catch(error => ({ error }));
+    const explainRequest = ElectroAPI.request('/api/explain').catch(() => null);
     try {
       const monthly = await ElectroAPI.request('/api/forecast/monthly');
-      render(monthly);
+      const explain = await explainRequest;
+      render(monthly, explain && explain.forecast ? explain.forecast.breakdown : []);
     } catch (error) {
       if (error.status !== 404) ElectroAPI.notify(error.message, 'error');
       ElectroAnalytics.emptyState(content);
@@ -103,7 +106,7 @@ ElectroShell.mount('forecasting', 'Forecasting', { dateRange:false });
       : '<div class="empty-mini">No peak forecast available.</div>';
   }
 
-  function render(monthly) {
+  function render(monthly, breakdown) {
     const history = monthly.history.slice(-24);
     const forecast = monthly.forecast.slice(0, 24);
     if (!forecast.length) throw Object.assign(new Error('No forecast'), { status: 404 });
@@ -124,6 +127,7 @@ ElectroShell.mount('forecasting', 'Forecasting', { dateRange:false });
 
     new Chart(document.getElementById('chartForecast'), {
       type:'line',
+      tooltip: ElectroAnalytics.forecastTooltip(monthly.history, history, forecast, breakdown),
       data:{ labels,
         datasets:[
           { label:'Actual', data:[...history.map(r => r.energy_mwh), ...pad(forecast.length)], borderColor:'#0C7983', pointRadius:2, tension:.35 },

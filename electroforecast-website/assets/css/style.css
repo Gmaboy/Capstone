@@ -325,6 +325,13 @@ tbody tr:hover{background:var(--grey-100);}
 
 /* Chart containers */
 .chart-box{position:relative; height:260px;}
+.chart-tip{position:absolute; top:6px; z-index:5; width:min(250px, 80%); padding:10px 12px; background:var(--surface); color:var(--grey-800); border:1px solid var(--grey-300); border-radius:var(--radius); box-shadow:var(--shadow-md); font-size:12px; line-height:1.45; pointer-events:none;}
+.chart-tip[hidden]{display:none;}
+.chart-tip b{color:var(--primary);}
+.chart-tip > b:first-child{display:block; font-size:13px; margin-bottom:4px;}
+.chart-tip p{margin:4px 0 0;}
+.chart-tip .chart-tip-range{color:var(--grey-600);}
+.chart-tip small{display:block; margin-top:6px; color:var(--grey-600); font-size:10.5px;}
 .chart-box.sm{height:190px;}
 .legend-row{display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-top:10px;}
 .legend-item{display:flex;align-items:center;gap:6px; font-size:12px; color:var(--grey-600);}
