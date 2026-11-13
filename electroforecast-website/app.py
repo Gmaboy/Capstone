@@ -214,6 +214,8 @@ def initialize_database() -> None:
             row["role_name"]: row["role_id"]
             for row in db.execute("SELECT role_id, role_name FROM roles")
         }
+        # Sample appliances go only into a brand-new database, so ones an admin deletes stay deleted.
+        fresh_db = db.execute("SELECT 1 FROM users").fetchone() is None
         seed_users = (
             (
                 role_ids["admin"],
@@ -287,7 +289,7 @@ def initialize_database() -> None:
             row["category_name"]: row["category_id"]
             for row in db.execute("SELECT category_id, category_name FROM appliance_categories")
         }
-        if primary_household and not db.execute(
+        if fresh_db and primary_household and not db.execute(
             "SELECT 1 FROM appliances WHERE household_id = ?",
             (primary_household["household_id"],),
         ).fetchone():
@@ -320,7 +322,7 @@ def initialize_database() -> None:
                         "Please attach the exact model specification." if item[8] == "rejected" else None,
                     ),
                 )
-        if secondary_household:
+        if fresh_db and secondary_household:
             if not db.execute(
                 """
                 SELECT 1 FROM appliances
@@ -376,7 +378,7 @@ def initialize_database() -> None:
                     (secondary_household["household_id"], category_ids["Cooling"]),
                 )
 
-        if primary_household and not db.execute(
+        if fresh_db and primary_household and not db.execute(
             "SELECT 1 FROM household_appliances WHERE household_id = ?",
             (primary_household["household_id"],),
         ).fetchone():
