@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import shutil
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -26,7 +27,8 @@ DEMO_EMAILS = (
 def build(source: Path = SOURCE, target: Path = TARGET) -> Path:
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(source, target)
-    with sqlite3.connect(target) as db:
+    # closing(): sqlite3's own context manager only commits; an open handle stops VACUUM shrinking the file on Windows.
+    with closing(sqlite3.connect(target)) as db:
         db.execute("PRAGMA foreign_keys=OFF")
         for (table,) in db.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'synth\\_%' ESCAPE '\\'"
@@ -49,7 +51,7 @@ def build(source: Path = SOURCE, target: Path = TARGET) -> Path:
             """
         )
         db.commit()
-    with sqlite3.connect(target) as db:
+    with closing(sqlite3.connect(target)) as db:
         db.execute("VACUUM")
     return target
 
